@@ -13,48 +13,35 @@
 		window.onload = function() {
 			exampleUtils.initialize(); // Creates Three.js renderer & GoblinPhysics world
 
-			var plank_material = exampleUtils.createMaterial( 'wood', 1, 1 );
-			var ball_material = exampleUtils.createMaterial( 'rusted_metal', 1, 1 );
-
 			var ground = exampleUtils.createPlane( 1, 20, 20, 0, exampleUtils.createMaterial( 'pebbles', 5, 5 ) );
-			ground.goblin.position.y = -5;
+			ground.goblin.position.y = -10;
 			ground.castShadow = false;
 
-			var plank = exampleUtils.createBox(
-				4,
-				2,
-				0.3,
-				100,
-				plank_material
-			);
-			plank.goblin.position.y = -2;
-			//plank.goblin.rotation.set( 0, 0, 1, 1 );
-			//plank.goblin.rotation.normalize();
+			var sphere_material = exampleUtils.createMaterial( 'scratched_metal', 1, 1 ),
+				plank_material = exampleUtils.createMaterial( 'wood', 1, 1 );
 
-			var sphere = exampleUtils.createSphere(
-				0.5, Infinity, plank_material
-			);
-			sphere.goblin.position.set( 0, 1, 0 );
+			var plank = exampleUtils.createBox( 5, 0.3, 2, 1, plank_material );
 
 			constraint = new Goblin.HingeConstraint(
-				plank.goblin, // object_a
-				new Goblin.Vector3( 1, 0, 0 ), // vector of allowed rotation in plank's reference frame
-				new Goblin.Vector3( 0, 2, 0 ), // point on plank that is the hinge
-				sphere.goblin,
-				new Goblin.Vector3( 0, -1, 0 ) // point in sphere that is the hinge
+					plank.goblin, // object_a
+					new Goblin.Vector3( 0, 0, 1 ), // vector of allowed rotation in plank's reference frame
+					new Goblin.Vector3( -4, 0, 0 ) // point on plank that is the hinge
 			);
+			constraint.limit.set( -Math.PI / 8, 0 );
+			constraint.motor.set( 40, 1 );
+
 			exampleUtils.world.addConstraint( constraint );
 
-			var spawnBall = function() {
-				var ball = exampleUtils.createSphere( 1, 3, ball_material );
-				ball.goblin.position.set( 0, -2, 20 );
-				ball.goblin.linear_velocity.set ( Math.random() * 10 - 5, -5, -50 );
-			};
+			function spawnSphere() {
+				var sphere = exampleUtils.createSphere( 1, 1, sphere_material );
+				sphere.goblin.position.set( -3, 5, 0 );
+			}
+
 			exampleUtils.world.addListener(
 				'stepStart',
 				function( tick ) {
-					if ( tick % 30 === 1 ) {
-						spawnBall();
+					if ( tick % 240 === 0 ) {
+						spawnSphere();
 					}
 				}
 			);

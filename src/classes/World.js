@@ -103,10 +103,6 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
 
 		this.emit( 'stepStart', this.ticks, delta );
 
-        for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-            this.rigid_bodies[i].updateDerived();
-        }
-
 		// Apply gravity
         for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
             body = this.rigid_bodies[i];
@@ -122,6 +118,16 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
         for ( i = 0, loop_count = this.force_generators.length; i < loop_count; i++ ) {
             this.force_generators[i].applyForce();
         }
+
+		// Integrate rigid bodies
+		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
+			body = this.rigid_bodies[i];
+			body.integrate( delta );
+		}
+
+		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
+			this.rigid_bodies[i].updateDerived();
+		}
 
         // Check for contacts, broadphase
         this.broadphase.update();
@@ -143,12 +149,6 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
 
         // Apply the constraints
         this.solver.applyConstraints( delta );
-
-        // Integrate rigid bodies
-        for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-            body = this.rigid_bodies[i];
-            body.integrate( delta );
-        }
 
 		// Uppdate ghost bodies
 		for ( i = 0; i < this.ghost_bodies.length; i++ ) {
@@ -180,16 +180,20 @@ Goblin.World.prototype.addRigidBody = function( rigid_body ) {
  * @param rigid_body {Goblin.RigidBody} rigid body to remove from the world
  */
 Goblin.World.prototype.removeRigidBody = function( rigid_body ) {
-	var i,
-		rigid_body_count = this.rigid_bodies.length;
+	var i;
 
-	for ( i = 0; i < rigid_body_count; i++ ) {
+	for ( i = 0; i < this.rigid_bodies.length; i++ ) {
 		if ( this.rigid_bodies[i] === rigid_body ) {
 			this.rigid_bodies.splice( i, 1 );
 			this.broadphase.removeBody( rigid_body );
 			break;
 		}
 	}
+
+	// remove any contact & friction constraints associated with this body
+	// this calls contact.destroy() for all relevant contacts
+	// which in turn cleans up the iterative solver
+	this.narrowphase.removeBody( rigid_body );
 };
 
 /**

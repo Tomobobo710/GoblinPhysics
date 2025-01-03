@@ -12,7 +12,6 @@
 	<script type="text/javascript">
 		window.onload = function() {
 			exampleUtils.initialize(); // Creates Three.js renderer & GoblinPhysics world
-			exampleUtils.world.solver.relaxation = 0.6; // Resolve penetrations more aggressively
 
 			var ground = exampleUtils.createPlane( 1, 20, 20, 0, exampleUtils.createMaterial( 'pebbles', 5, 5 ) );
 			ground.goblin.restitution = 0.1;
@@ -26,12 +25,12 @@
 			compound_shape.addChildShape(
 				box_shape,
 				new Goblin.Vector3(),
-				new Goblin.Quaternion( 0, 0, 0.5, 1 )
+				new Goblin.Quaternion( 0, 0, 0, 1 )
 			);
 			compound_shape.addChildShape(
 				box_shape,
 				new Goblin.Vector3(),
-				new Goblin.Quaternion( 0, 0, -0.5, 1 )
+				new Goblin.Quaternion( 0, 0, -1, 1 )
 			);
 
 			var spawnObject = function() {
@@ -40,12 +39,11 @@
 					box_1 = new THREE.Mesh( box_geometry, box_material ),
 					box_2 = new THREE.Mesh( box_geometry, box_material );
 
-				box_1.rotation.z = Math.PI / 4;
 				box_1.castShadow = true;
 				box_1.receiveShadow = true;
 				object.add( box_1 );
 
-				box_2.rotation.z = -Math.PI / 4;
+				box_2.rotation.z = -Math.PI / 2;
 				box_2.castShadow = true;
 				box_2.receiveShadow = true;
 				object.add( box_2 );
@@ -54,6 +52,8 @@
 				var compound = new Goblin.RigidBody( compound_shape, 3 );
 				compound.restitution = 0;
 				compound.position.y = 10;
+				compound.rotation.set( 0, 0, 0.5, 1 );
+				compound.rotation.normalize();
 				compound.applyImpulse( new Goblin.Vector3( 0, -10, 0 ) );
 
 				// Add everything

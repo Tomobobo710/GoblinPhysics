@@ -5,6 +5,8 @@
  * @constructor
  */
 Goblin.IterativeSolver = function() {
+	this.existing_contact_ids = {};
+
 	/**
 	 * Holds contact constraints generated from contact manifolds
 	 *
@@ -58,9 +60,9 @@ Goblin.IterativeSolver = function() {
 	 *
 	 * @property relaxation
 	 * @type {number}
-	 * @default 0.1
+	 * @default 0.9
 	 */
-	this.relaxation = 0.1;
+	this.relaxation = 0.9;
 
 	/**
 	 * weighting used in the Gauss-Seidel successive over-relaxation solver
@@ -91,6 +93,8 @@ Goblin.IterativeSolver = function() {
 
 		var idx = solver.contact_constraints.indexOf( this );
 		solver.contact_constraints.splice( idx, 1 );
+
+		delete solver.existing_contact_ids[ this.contact.uid ];
 	};
 	/**
 	 * used to remove friction constraints from the system when their contacts are destroyed
@@ -146,22 +150,17 @@ Goblin.IterativeSolver.prototype.processContactManifolds = function( contact_man
 
 	manifold = contact_manifolds.first;
 
-	// @TODO this seems like it should be very optimizable
 	while( manifold ) {
 		contacts_length = manifold.points.length;
 
 		for ( i = 0; i < contacts_length; i++ ) {
 			contact = manifold.points[i];
 
-			var existing_constraint = null;
-			for ( j = 0; j < this.contact_constraints.length; j++ ) {
-				if ( this.contact_constraints[j].contact === contact ) {
-					existing_constraint = this.contact_constraints[j];
-					break;
-				}
-			}
+			var existing_constraint = this.existing_contact_ids.hasOwnProperty( contact.uid );
 
 			if ( !existing_constraint ) {
+				this.existing_contact_ids[contact.uid] = true;
+
 				// Build contact constraint
 				constraint = Goblin.ObjectPool.getObject( 'ContactConstraint' );
 				constraint.buildFromContact( contact );
@@ -188,7 +187,6 @@ Goblin.IterativeSolver.prototype.processContactManifolds = function( contact_man
 
 Goblin.IterativeSolver.prototype.prepareConstraints = function( time_delta ) {
 	var num_constraints = this.all_constraints.length,
-		num_rows,
 		constraint,
 		row,
 		i, j;
@@ -198,10 +196,9 @@ Goblin.IterativeSolver.prototype.prepareConstraints = function( time_delta ) {
 		if ( constraint.active === false ) {
 			continue;
 		}
-		num_rows = constraint.rows.length;
 
 		constraint.update( time_delta );
-		for ( j = 0; j < num_rows; j++ ) {
+		for ( j = 0; j < constraint.rows.length; j++ ) {
 			row = constraint.rows[j];
 			row.multiplier = 0;
 			row.computeB( constraint ); // Objects' inverted mass & inertia tensors & Jacobian

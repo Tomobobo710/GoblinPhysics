@@ -158,7 +158,8 @@ Goblin.ContactManifold.prototype.update = function() {
 		point,
 		object_a_world_coords = new Goblin.Vector3(),
 		object_b_world_coords = new Goblin.Vector3(),
-		vector_difference = new Goblin.Vector3();
+		vector_difference = new Goblin.Vector3(),
+		starting_points_length = this.points.length;
 
 	for ( i = 0; i < this.points.length; i++ ) {
 		point = this.points[i];
@@ -183,6 +184,8 @@ Goblin.ContactManifold.prototype.update = function() {
 				this.points[j] = this.points[j + 1];
 			}
 			this.points.length = this.points.length - 1;
+			this.object_a.emit( 'endContact', this.object_b );
+			this.object_b.emit( 'endContact', this.object_a );
 		} else {
 			// Check if points are too far away orthogonally
 			_tmp_vec3_1.scaleVector( point.contact_normal, point.penetration_depth );
@@ -197,12 +200,15 @@ Goblin.ContactManifold.prototype.update = function() {
 					this.points[j] = this.points[j + 1];
 				}
 				this.points.length = this.points.length - 1;
+				this.object_a.emit( 'endContact', this.object_b );
+				this.object_b.emit( 'endContact', this.object_a );
 			}
 		}
 	}
 
-	if ( this.points.length === 0 ) {
-		this.object_a.emit( 'endContact', this.object_b );
-		this.object_b.emit( 'endContact', this.object_a );
+	if (starting_points_length > 0 && this.points.length === 0) {
+		// this update removed all contact points
+		this.object_a.emit( 'endAllContact', this.object_b );
+		this.object_b.emit( 'endAllContact', this.object_a );
 	}
 };

@@ -572,6 +572,31 @@ Goblin.Quaternion.prototype = {
 		dest.x = ix * qw + iw * -qx + iy * -qz - iz * -qy;
 		dest.y = iy * qw + iw * -qy + iz * -qx - ix * -qz;
 		dest.z = iz * qw + iw * -qz + ix * -qy - iy * -qx;
+	},
+
+	angleBetween: function( q ) {
+		/*_tmp_quat4_1.invertQuaternion( this );
+		_tmp_quat4_1.multiply( q );
+		_tmp_vec3_1.set( _tmp_quat4_1.x, _tmp_quat4_1.y, _tmp_quat4_1.z );
+		return 2 * Math.atan2( _tmp_vec3_1.length(), Math.abs( _tmp_quat4_1.w ) );*/
+
+		return 2 * Math.acos( this.x * q.x + this.y * q.y + this.z * q.z + this.w * q.w );
+	},
+
+	signedAngleBetween: function( q, normal ) {
+		if ( Math.abs(x_axis.dot( normal )) < 0.5 ) {
+			_tmp_vec3_1.set( 1, 0, 0 );
+		} else {
+			_tmp_vec3_1.set( 0, 0, 1 );
+		}
+		this.transformVector3Into( _tmp_vec3_1, _tmp_vec3_2 );
+		q.transformVector3Into( _tmp_vec3_1, _tmp_vec3_3 );
+
+		_tmp_vec3_1.crossVectors( _tmp_vec3_2, _tmp_vec3_3 );
+		return Math.atan2(
+			normal.dot( _tmp_vec3_1 ),
+			_tmp_vec3_2.dot( _tmp_vec3_3 )
+		);
 	}
 };
 Goblin.Vector3 = function( x, y, z ) {
@@ -713,6 +738,10 @@ Goblin.EPSILON = 0.00001;
 var _tmp_vec3_1 = new Goblin.Vector3(),
 	_tmp_vec3_2 = new Goblin.Vector3(),
 	_tmp_vec3_3 = new Goblin.Vector3(),
+
+	x_axis = new Goblin.Vector3( 1, 0, 0 ),
+	y_axis = new Goblin.Vector3( 0, 1, 0 ),
+	z_axis = new Goblin.Vector3( 0, 0, 1 ),
 
 	_tmp_quat4_1 = new Goblin.Quaternion(),
 	_tmp_quat4_2 = new Goblin.Quaternion(),
@@ -2076,7 +2105,7 @@ Goblin.BoxSphere.spherePenetration = function( box, sphere_center, box_point, co
  * @static
  */
 Goblin.GjkEpa = {
-	margins: 0.03,
+	margins: 0.01,
 	result: null,
 
     max_iterations: 20,
@@ -3155,23 +3184,33 @@ Goblin.TriangleTriangle = function( tri_a, tri_b ) {
 	return null;
 };
 
-Goblin.Constraint = function() {
-	this.active = true;
+Goblin.Constraint = (function() {
+	var constraint_count = 0;
 
-	this.object_a = null;
+	return function() {
+		this.id = constraint_count++;
 
-	this.object_b = null;
+		this.active = true;
 
-	this.rows = [];
+		this.object_a = null;
 
-	this.factor = 1;
+		this.object_b = null;
 
-	this.last_impulse = new Goblin.Vector3();
+		this.limit = new Goblin.ConstraintLimit();
 
-	this.breaking_threshold = 0;
+		this.motor = new Goblin.ConstraintMotor();
 
-	this.listeners = {};
-};
+		this.rows = [];
+
+		this.factor = 1;
+
+		this.last_impulse = new Goblin.Vector3();
+
+		this.breaking_threshold = 0;
+
+		this.listeners = {};
+	};
+})();
 Goblin.EventEmitter.apply( Goblin.Constraint );
 
 Goblin.Constraint.prototype.deactivate = function() {
@@ -3180,6 +3219,37 @@ Goblin.Constraint.prototype.deactivate = function() {
 };
 
 Goblin.Constraint.prototype.update = function(){};
+Goblin.ConstraintLimit = function( limit_lower, limit_upper ) {
+	this.erp = 0.3;
+	this.constraint_row = null;
+
+	this.set( limit_lower, limit_upper );
+};
+
+Goblin.ConstraintLimit.prototype.set = function( limit_lower, limit_upper ) {
+	this.limit_lower = limit_lower;
+	this.limit_upper = limit_upper;
+
+	this.enabled = this.limit_lower != null || this.limit_upper != null;
+};
+
+Goblin.ConstraintLimit.prototype.createConstraintRow = function() {
+	this.constraint_row = Goblin.ConstraintRow.createConstraintRow();
+};
+Goblin.ConstraintMotor = function( torque, max_speed ) {
+	this.constraint_row = null;
+	this.set( torque, max_speed);
+};
+
+Goblin.ConstraintMotor.prototype.set = function( torque, max_speed ) {
+	this.enabled = torque != null && max_speed != null;
+	this.torque = torque;
+	this.max_speed = max_speed;
+};
+
+Goblin.ConstraintMotor.prototype.createConstraintRow = function() {
+	this.constraint_row = Goblin.ConstraintRow.createConstraintRow();
+};
 Goblin.ConstraintRow = function() {
 	this.jacobian = new Float64Array( 12 );
 	this.B = new Float64Array( 12 ); // `B` is the jacobian multiplied by the objects' inverted mass & inertia tensors
@@ -3193,6 +3263,20 @@ Goblin.ConstraintRow = function() {
 	this.multiplier_cached = 0;
 	this.eta = 0;
 	this.eta_row = new Float64Array( 12 );
+};
+
+Goblin.ConstraintRow.createConstraintRow = function() {
+	var row =  Goblin.ObjectPool.getObject( 'ConstraintRow' );
+	row.lower_limit = -Infinity;
+	row.upper_limit = Infinity;
+	row.bias = 0;
+
+	row.jacobian[0] = row.jacobian[1] = row.jacobian[2] =
+	row.jacobian[3] = row.jacobian[4] = row.jacobian[5] =
+	row.jacobian[6] = row.jacobian[7] = row.jacobian[8] =
+	row.jacobian[9] = row.jacobian[10] = row.jacobian[11] = 0;
+
+	return row;
 };
 
 Goblin.ConstraintRow.prototype.computeB = function( constraint ) {
@@ -3472,27 +3556,13 @@ Goblin.FrictionConstraint.prototype.update = (function(){
 			row_2.jacobian[11] = _tmp_vec3_1.z;
 		}
 
-		// Find total velocity between the two bodies along the contact normal
-		this.object_a.getVelocityInLocalPoint( this.contact.contact_point_in_a, _tmp_vec3_1 );
-
-		// Include accumulated forces
-		if ( this.object_a._mass !== Infinity ) {
-			// accumulated linear velocity
-			_tmp_vec3_1.scaleVector( this.object_a.accumulated_force, 1 / this.object_a._mass );
-			_tmp_vec3_1.add( this.object_a.linear_velocity );
-
-			// accumulated angular velocity
-			this.object_a.inverseInertiaTensorWorldFrame.transformVector3Into( this.object_a.accumulated_torque, _tmp_vec3_3 );
-			_tmp_vec3_3.add( this.object_a.angular_velocity );
-
-			_tmp_vec3_3.cross( this.contact.contact_point_in_a );
-			_tmp_vec3_1.add( _tmp_vec3_3 );
-			_tmp_vec3_1.scale( this.object_a._mass );
-		} else {
-			_tmp_vec3_1.set( 0, 0, 0 );
+		var limit = this.contact.friction;
+		if (this.object_a != null && this.object_a._mass !== Infinity) {
+			limit *= this.object_a._mass;
 		}
-
-		var limit = this.contact.friction * 25;
+		if (this.object_b != null && this.object_b._mass !== Infinity) {
+			limit *= this.object_b._mass;
+		}
 		if ( limit < 0 ) {
 			limit = 0;
 		}
@@ -3512,6 +3582,8 @@ Goblin.HingeConstraint = function( object_a, hinge_a, point_a, object_b, point_b
 	this.hinge_a = hinge_a;
 	this.point_a = point_a;
 
+	this.initial_quaternion = new Goblin.Quaternion();
+
 	this.object_b = object_b || null;
 	this.point_b = new Goblin.Vector3();
 	this.hinge_b = new Goblin.Vector3();
@@ -3521,10 +3593,13 @@ Goblin.HingeConstraint = function( object_a, hinge_a, point_a, object_b, point_b
 		_tmp_quat4_1.transformVector3( this.hinge_b );
 
 		this.point_b = point_b;
+
+		this.initial_quaternion.multiplyQuaternions( _tmp_quat4_1, this.object_a.rotation );
 	} else {
 		this.object_a.updateDerived(); // Ensure the body's transform is correct
 		this.object_a.rotation.transformVector3Into( this.hinge_a, this.hinge_b );
 		this.object_a.transform.transformVector3Into( this.point_a, this.point_b );
+		this.initial_quaternion.set( this.object_a.rotation.x, this.object_a.rotation.y, this.object_a.rotation.z, this.object_a.rotation.w );
 	}
 
 	this.erp = 0.1;
@@ -3533,18 +3608,124 @@ Goblin.HingeConstraint = function( object_a, hinge_a, point_a, object_b, point_b
 	// rows 0,1,2 are the same as point constraint and constrain the objects' positions
 	// rows 3,4 introduce the rotational constraints which constrains angular velocity orthogonal to the hinge axis
 	for ( var i = 0; i < 5; i++ ) {
-		this.rows[i] = Goblin.ObjectPool.getObject( 'ConstraintRow' );
-		this.rows[i].lower_limit = -Infinity;
-		this.rows[i].upper_limit = Infinity;
-		this.rows[i].bias = 0;
-
-		this.rows[i].jacobian[0] = this.rows[i].jacobian[1] = this.rows[i].jacobian[2] =
-			this.rows[i].jacobian[3] = this.rows[i].jacobian[4] = this.rows[i].jacobian[5] =
-			this.rows[i].jacobian[6] = this.rows[i].jacobian[7] = this.rows[i].jacobian[8] =
-			this.rows[i].jacobian[9] = this.rows[i].jacobian[10] = this.rows[i].jacobian[11] = 0;
+		this.rows[i] = Goblin.ConstraintRow.createConstraintRow();
 	}
 };
 Goblin.HingeConstraint.prototype = Object.create( Goblin.Constraint.prototype );
+
+function removeConstraintLimitRow( constraint ) {
+	if ( constraint.limit.constraint_row != null ) {
+		var row_idx = constraint.rows.indexOf(constraint.limit.constraint_row);
+		constraint.rows.splice(row_idx, 1);
+		constraint.limit.constraint_row = null;
+	}
+}
+
+function removeConstraintMotorRow( constraint ) {
+	if ( constraint.motor.constraint_row != null ) {
+		var row_idx = constraint.rows.indexOf(constraint.motor.constraint_row);
+		constraint.rows.splice(row_idx, 1);
+		constraint.motor.constraint_row = null;
+	}
+}
+
+Goblin.HingeConstraint.prototype.updateLimits = function( world_axis, time_delta ) {
+	if ( this.limit.enabled === false ) {
+		// remove existing `constraint_row` if it was previously set
+		removeConstraintLimitRow( this );
+		return;
+	}
+
+	var separating_angle, correction;
+
+	if ( this.object_b == null ) {
+		// this.initial_quaternion is the original rotation of object_a
+		separating_angle = this.initial_quaternion.signedAngleBetween( this.object_a.rotation, world_axis );
+	} else {
+		// this.initial_quaternion is the original difference in rotation between object_a and object_b (A - B)
+		_tmp_quat4_1.invertQuaternion( this.object_b.rotation );
+		_tmp_quat4_1.multiply( this.object_a.rotation );
+
+		separating_angle = this.initial_quaternion.signedAngleBetween( _tmp_quat4_1, world_axis );
+	}
+
+	if (
+		( this.limit.limit_lower == null || this.limit.limit_lower < separating_angle ) &&
+		( this.limit.limit_upper == null || this.limit.limit_upper > separating_angle )
+	) {
+		// there limit is not violated, ignore
+		removeConstraintLimitRow( this );
+		return;
+	}
+
+	if ( this.limit.limit_lower != null && separating_angle <= this.limit.limit_lower ) {
+		if ( this.limit.constraint_row == null ) {
+			this.limit.createConstraintRow();
+			this.limit.constraint_row.upper_limit = 0;
+			this.rows.push( this.limit.constraint_row );
+		}
+		this.limit.constraint_row.jacobian[3] = -world_axis.x;
+		this.limit.constraint_row.jacobian[4] = -world_axis.y;
+		this.limit.constraint_row.jacobian[5] = -world_axis.z;
+
+		if ( this.object_b != null ) {
+			this.limit.constraint_row.jacobian[9] = world_axis.x;
+			this.limit.constraint_row.jacobian[10] = world_axis.y;
+			this.limit.constraint_row.jacobian[11] = world_axis.z;
+		}
+
+		correction = separating_angle - this.limit.limit_lower;
+		this.limit.constraint_row.bias = correction * this.limit.erp / time_delta;
+	} else if ( this.limit.limit_upper != null && separating_angle >= this.limit.limit_upper ) {
+		if ( this.limit.constraint_row == null ) {
+			this.limit.createConstraintRow();
+			this.limit.constraint_row.lower_limit = 0;
+			this.rows.push( this.limit.constraint_row );
+		}
+		this.limit.constraint_row.jacobian[3] = -world_axis.x;
+		this.limit.constraint_row.jacobian[4] = -world_axis.y;
+		this.limit.constraint_row.jacobian[5] = -world_axis.z;
+
+		if ( this.object_b != null ) {
+			this.limit.constraint_row.jacobian[9] = world_axis.x;
+			this.limit.constraint_row.jacobian[10] = world_axis.y;
+			this.limit.constraint_row.jacobian[11] = world_axis.z;
+		}
+
+		correction = separating_angle - this.limit.limit_upper;
+		this.limit.constraint_row.bias = correction * this.limit.erp / time_delta;
+	}
+};
+
+Goblin.HingeConstraint.prototype.updateMotor = function( world_axis ) {
+	if ( this.motor.enabled === false ) {
+		removeConstraintMotorRow( this );
+		return;
+	}
+
+	if ( this.motor.constraint_row == null ) {
+		this.motor.createConstraintRow();
+		this.rows.push( this.motor.constraint_row );
+		this.motor.constraint_row.jacobian[3] = world_axis.x;
+		this.motor.constraint_row.jacobian[4] = world_axis.y;
+		this.motor.constraint_row.jacobian[5] = world_axis.z;
+
+		if ( this.object_b != null ) {
+			this.motor.constraint_row.jacobian[9] = -world_axis.x;
+			this.motor.constraint_row.jacobian[10] = -world_axis.y;
+			this.motor.constraint_row.jacobian[11] = -world_axis.z;
+		}
+	}
+
+	this.motor.constraint_row.bias = this.motor.max_speed;
+	if ( this.motor.max_speed >= 0 ) {
+		this.motor.constraint_row.lower_limit = 0;
+		this.motor.constraint_row.upper_limit = this.motor.torque;
+	} else {
+		this.motor.constraint_row.lower_limit = -this.motor.torque;
+		this.motor.constraint_row.upper_limit = 0;
+	}
+};
 
 Goblin.HingeConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
@@ -3641,11 +3822,15 @@ Goblin.HingeConstraint.prototype.update = (function(){
 			this.object_a.rotation.transformVector3Into(this.hinge_a, _tmp_vec3_1);
 			this.object_b.rotation.transformVector3Into(this.hinge_b, _tmp_vec3_2);
 			_tmp_vec3_1.cross(_tmp_vec3_2);
-			this.rows[3].bias = -_tmp_vec3_1.dot(t1);
-			this.rows[4].bias = -_tmp_vec3_1.dot(t2);
+			this.rows[3].bias = -_tmp_vec3_1.dot(t1) * this.erp / time_delta;
+			this.rows[4].bias = -_tmp_vec3_1.dot(t2) * this.erp / time_delta;
 		} else {
 			this.rows[3].bias = this.rows[4].bias = 0;
 		}
+
+		// limits & motor
+		this.updateLimits( world_axis, time_delta );
+		this.updateMotor( world_axis );
 	};
 })( );
 Goblin.PointConstraint = function( object_a, point_a, object_b, point_b ) {
@@ -4323,7 +4508,6 @@ Goblin.CompoundShape.prototype.getInertiaTensor = function( mass ) {
 		i,
 		child,
 		child_tensor;
-	tensor.identity();
 
 	mass /= this.child_shapes.length;
 
@@ -6328,6 +6512,14 @@ Goblin.GeometryMethods = {
 		}
 	};
 })();
+Goblin.Utility = {
+	getUid: (function() {
+		var uid = 0;
+		return function() {
+			return uid++;
+		};
+	})()
+};
 /**
  * @class AABB
  * @param [min] {vec3}
@@ -6772,6 +6964,8 @@ Goblin.AABB.prototype.testRayIntersect = (function(){
  * @constructor
  */
 Goblin.ContactDetails = function() {
+	this.uid = Goblin.Utility.getUid();
+
 	/**
 	 * first body in the  contact
 	 *
@@ -7012,7 +7206,8 @@ Goblin.ContactManifold.prototype.update = function() {
 		point,
 		object_a_world_coords = new Goblin.Vector3(),
 		object_b_world_coords = new Goblin.Vector3(),
-		vector_difference = new Goblin.Vector3();
+		vector_difference = new Goblin.Vector3(),
+		starting_points_length = this.points.length;
 
 	for ( i = 0; i < this.points.length; i++ ) {
 		point = this.points[i];
@@ -7037,6 +7232,8 @@ Goblin.ContactManifold.prototype.update = function() {
 				this.points[j] = this.points[j + 1];
 			}
 			this.points.length = this.points.length - 1;
+			this.object_a.emit( 'endContact', this.object_b );
+			this.object_b.emit( 'endContact', this.object_a );
 		} else {
 			// Check if points are too far away orthogonally
 			_tmp_vec3_1.scaleVector( point.contact_normal, point.penetration_depth );
@@ -7051,13 +7248,16 @@ Goblin.ContactManifold.prototype.update = function() {
 					this.points[j] = this.points[j + 1];
 				}
 				this.points.length = this.points.length - 1;
+				this.object_a.emit( 'endContact', this.object_b );
+				this.object_b.emit( 'endContact', this.object_a );
 			}
 		}
 	}
 
-	if ( this.points.length === 0 ) {
-		this.object_a.emit( 'endContact', this.object_b );
-		this.object_b.emit( 'endContact', this.object_a );
+	if (starting_points_length > 0 && this.points.length === 0) {
+		// this update removed all contact points
+		this.object_a.emit( 'endAllContact', this.object_b );
+		this.object_b.emit( 'endAllContact', this.object_a );
 	}
 };
 /**
@@ -7137,8 +7337,10 @@ Goblin.GhostBody.prototype.onSpeculativeContact = function( object_b, contact ) 
     if ( this.contacts.indexOf( object_b ) === -1 ) {
         this.contacts.push( object_b );
         this.emit( 'contactStart', object_b, contact );
+        object_b.emit( 'contactStart', this, contact );
     } else {
         this.emit( 'contactContinue', object_b, contact );
+        object_b.emit( 'contactContinue', this, contact );
     }
 
     return false;
@@ -7161,6 +7363,8 @@ Goblin.GhostBody.prototype.checkForEndedContacts = function() {
  * @constructor
  */
 Goblin.IterativeSolver = function() {
+	this.existing_contact_ids = {};
+
 	/**
 	 * Holds contact constraints generated from contact manifolds
 	 *
@@ -7214,9 +7418,9 @@ Goblin.IterativeSolver = function() {
 	 *
 	 * @property relaxation
 	 * @type {number}
-	 * @default 0.1
+	 * @default 0.9
 	 */
-	this.relaxation = 0.1;
+	this.relaxation = 0.9;
 
 	/**
 	 * weighting used in the Gauss-Seidel successive over-relaxation solver
@@ -7247,6 +7451,8 @@ Goblin.IterativeSolver = function() {
 
 		var idx = solver.contact_constraints.indexOf( this );
 		solver.contact_constraints.splice( idx, 1 );
+
+		delete solver.existing_contact_ids[ this.contact.uid ];
 	};
 	/**
 	 * used to remove friction constraints from the system when their contacts are destroyed
@@ -7302,22 +7508,17 @@ Goblin.IterativeSolver.prototype.processContactManifolds = function( contact_man
 
 	manifold = contact_manifolds.first;
 
-	// @TODO this seems like it should be very optimizable
 	while( manifold ) {
 		contacts_length = manifold.points.length;
 
 		for ( i = 0; i < contacts_length; i++ ) {
 			contact = manifold.points[i];
 
-			var existing_constraint = null;
-			for ( j = 0; j < this.contact_constraints.length; j++ ) {
-				if ( this.contact_constraints[j].contact === contact ) {
-					existing_constraint = this.contact_constraints[j];
-					break;
-				}
-			}
+			var existing_constraint = this.existing_contact_ids.hasOwnProperty( contact.uid );
 
 			if ( !existing_constraint ) {
+				this.existing_contact_ids[contact.uid] = true;
+
 				// Build contact constraint
 				constraint = Goblin.ObjectPool.getObject( 'ContactConstraint' );
 				constraint.buildFromContact( contact );
@@ -7344,7 +7545,6 @@ Goblin.IterativeSolver.prototype.processContactManifolds = function( contact_man
 
 Goblin.IterativeSolver.prototype.prepareConstraints = function( time_delta ) {
 	var num_constraints = this.all_constraints.length,
-		num_rows,
 		constraint,
 		row,
 		i, j;
@@ -7354,10 +7554,9 @@ Goblin.IterativeSolver.prototype.prepareConstraints = function( time_delta ) {
 		if ( constraint.active === false ) {
 			continue;
 		}
-		num_rows = constraint.rows.length;
 
 		constraint.update( time_delta );
-		for ( j = 0; j < num_rows; j++ ) {
+		for ( j = 0; j < constraint.rows.length; j++ ) {
 			row = constraint.rows[j];
 			row.multiplier = 0;
 			row.computeB( constraint ); // Objects' inverted mass & inertia tensors & Jacobian
@@ -8020,6 +8219,21 @@ Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
 		}
 	}
 };
+
+Goblin.NarrowPhase.prototype.removeBody = function( body ) {
+	var manifold = this.contact_manifolds.first;
+
+	while ( manifold != null ) {
+		if ( manifold.object_a === body || manifold.object_b === body ) {
+			for ( var i = 0; i < manifold.points.length; i++ ) {
+				manifold.points[i].destroy();
+			}
+			manifold.points.length = 0;
+		}
+
+		manifold = manifold.next;
+	}
+};
 /**
  * Manages pools for various types of objects, provides methods for creating and freeing pooled objects
  *
@@ -8265,10 +8479,6 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
 
 		this.emit( 'stepStart', this.ticks, delta );
 
-        for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-            this.rigid_bodies[i].updateDerived();
-        }
-
 		// Apply gravity
         for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
             body = this.rigid_bodies[i];
@@ -8284,6 +8494,16 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
         for ( i = 0, loop_count = this.force_generators.length; i < loop_count; i++ ) {
             this.force_generators[i].applyForce();
         }
+
+		// Integrate rigid bodies
+		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
+			body = this.rigid_bodies[i];
+			body.integrate( delta );
+		}
+
+		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
+			this.rigid_bodies[i].updateDerived();
+		}
 
         // Check for contacts, broadphase
         this.broadphase.update();
@@ -8305,12 +8525,6 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
 
         // Apply the constraints
         this.solver.applyConstraints( delta );
-
-        // Integrate rigid bodies
-        for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-            body = this.rigid_bodies[i];
-            body.integrate( delta );
-        }
 
 		// Uppdate ghost bodies
 		for ( i = 0; i < this.ghost_bodies.length; i++ ) {
@@ -8342,16 +8556,20 @@ Goblin.World.prototype.addRigidBody = function( rigid_body ) {
  * @param rigid_body {Goblin.RigidBody} rigid body to remove from the world
  */
 Goblin.World.prototype.removeRigidBody = function( rigid_body ) {
-	var i,
-		rigid_body_count = this.rigid_bodies.length;
+	var i;
 
-	for ( i = 0; i < rigid_body_count; i++ ) {
+	for ( i = 0; i < this.rigid_bodies.length; i++ ) {
 		if ( this.rigid_bodies[i] === rigid_body ) {
 			this.rigid_bodies.splice( i, 1 );
 			this.broadphase.removeBody( rigid_body );
 			break;
 		}
 	}
+
+	// remove any contact & friction constraints associated with this body
+	// this calls contact.destroy() for all relevant contacts
+	// which in turn cleans up the iterative solver
+	this.narrowphase.removeBody( rigid_body );
 };
 
 /**
