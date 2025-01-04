@@ -113,12 +113,22 @@ Goblin.CharacterController.prototype.move = function(direction, deltaTime) {
     }
     
     if (direction.lengthSquared() > 0) {
+        // Create raw movement vector
         this._movement_delta.x = direction.x * this.move_speed;
-        this._movement_delta.y = direction.y * this.move_speed;
+        this._movement_delta.y = 0; 
         this._movement_delta.z = direction.z * this.move_speed;
 
-        var projectedMove = this.projectOnPlane(this._movement_delta, this.contact_normal);
-        this.body.applyForce(projectedMove);
+        if (this.contact_count > 0) {
+            // Simple vector projection
+            var dot = this._movement_delta.dot(this.contact_normal);
+            this._projected_movement.x = this._movement_delta.x - this.contact_normal.x * dot;
+            this._projected_movement.y = this._movement_delta.y - this.contact_normal.y * dot;
+            this._projected_movement.z = this._movement_delta.z - this.contact_normal.z * dot;
+        } else {
+            this._projected_movement.copy(this._movement_delta);
+        }
+
+        this.body.applyForce(this._projected_movement);
     }
 };
 
@@ -155,21 +165,10 @@ Goblin.CharacterController.prototype.jump = function() {
 * @param {Goblin.ContactDetails} contact - Contact information
 */
 Goblin.CharacterController.prototype._handleContact = function(other_body, contact) {
-   this.contact_count++;
-   
-   // Track steepest contact for slope limits
-   if (contact.contact_normal.y < this.contact_normal.y) {
-       this.contact_normal.copy(contact.contact_normal);
-       this.steepest_angle = Math.acos(this.contact_normal.y);
-   }
-
-   // Update ground state
-   if (this.contact_normal.y > this.slope_limit) {
-       this.can_jump = true;
-       this.emit('grounded', true);
-   }
-
-   this.emit('contact', other_body, contact);
+    this.contact_count++;
+    this.contact_normal.copy(contact.contact_normal);
+    this.can_jump = true;
+    this.emit('grounded', true);
 };
 
 /**
