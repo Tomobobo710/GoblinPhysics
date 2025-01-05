@@ -32,7 +32,15 @@ Goblin.CharacterController = function(world, options) {
     if (!world) {
         throw new Error('CharacterController requires a physics world');
     }
+    if (!world.broadphase) {
+        throw new Error('CharacterController requires a world with a broadphase');
+    }
 
+    // Store world reference
+    this.world = world;
+    // Store broadphase reference
+    this.broadphase = world.broadphase;
+    
     options = options || {};
     
     // Initialize default vectors for consistent zero and up directions
@@ -41,19 +49,17 @@ Goblin.CharacterController = function(world, options) {
     options.defaultVectors.zero = options.defaultVectors.zero || { x: 0, y: 0, z: 0 };
 
     // Physics shape dimensions - scaled by dimensionScale for collision shape creation
-    // dimensionScale allows fine-tuning of the collision shape relative to visual size
     var dimensionScale = options.dimensionScale || 0.5;
-    var half_width = (options.width || 1) * dimensionScale;
-    var half_height = (options.height || 2) * dimensionScale; 
-    var half_depth = (options.depth || 1) * dimensionScale;
+    var radius = ((options.width || 1) * dimensionScale) / 2; // Use width for radius
+    var half_height = (options.height || 2) * dimensionScale;
 
     /**
-     * Box shape for character collision
+     * Cylinder shape for character collision
      * @property shape
-     * @type {Goblin.BoxShape}
+     * @type {Goblin.CylinderShape}
      * @private
      */
-    this.shape = new Goblin.BoxShape(half_width, half_height, half_depth);
+    this.shape = new Goblin.CylinderShape(radius, half_height);
 
     /**
      * Physics body for character
@@ -67,21 +73,21 @@ Goblin.CharacterController = function(world, options) {
     this.body.friction = options.friction || 0.1;
     this.body.restitution = options.restitution || 0;
 	// Configure rotation constraints using the default vectors
-    if (options.allowYRotation !== false) {
-        // Allow only Y-axis rotation for natural character turning
-        this.body.angular_factor.set(
-            options.defaultVectors.zero.x,
-            1, // Y-axis rotation enabled
-            options.defaultVectors.zero.z
-        );
-    } else {
-        // Lock all rotation axes for more rigid control
-        this.body.angular_factor.set(
-            options.defaultVectors.zero.x,
-            options.defaultVectors.zero.y,
-            options.defaultVectors.zero.z
-        );
-    }
+	if (options.allowYRotation === true) {  // Changed from !== false
+		// Allow only Y-axis rotation for natural character turning
+		this.body.angular_factor.set(
+			options.defaultVectors.zero.x,
+			1, // Y-axis rotation enabled
+			options.defaultVectors.zero.z
+		);
+	} else {
+		// Lock all rotation axes for more rigid control
+		this.body.angular_factor.set(
+			options.defaultVectors.zero.x,
+			options.defaultVectors.zero.y,
+			options.defaultVectors.zero.z
+		);
+	}
 
     // Initialize force vectors if not present
     if (!this.body.force) {
@@ -106,20 +112,17 @@ Goblin.CharacterController = function(world, options) {
      */
     this.move_speed = options.moveSpeed || 5;
 
-    /**
-     * Jump force magnitude
-     * @property jump_force
-     * @type {Number}
+   /**
+     * Jump-related properties
      */
-    this.jump_force = options.jumpForce || 300;
-
-    /**
-     * Factor applied to horizontal components during jumps
-     * @property horizontal_jump_factor
-     * @type {Number}
-     * @private
-     */
-    this.horizontal_jump_factor = options.horizontalJumpFactor || 0.1;
+    this.jump_force = options.jumpForce || 30;
+    this.jump_cooldown = options.jumpCooldown || 0.3; // seconds before spring reactivates
+    this.jump_velocity_threshold = options.jumpVelocityThreshold || -2; // vertical velocity at which we consider falling
+    this._is_jumping = false;
+    this._jump_timer = 0;
+    
+    // Store the original downward strength to restore it later
+    this._original_downward_strength = this.downward_strength;
 
     /**
      * Current contact surface normal
@@ -134,7 +137,6 @@ Goblin.CharacterController = function(world, options) {
     );
 
     // Movement state tracking
-    this.can_jump = false;
     this.contact_count = 0;
 
     // Initialize temporary vectors for physics calculations using default zeros
@@ -169,7 +171,123 @@ Goblin.CharacterController = function(world, options) {
 
     // Initialize event listener container
     this.listeners = {};
+	/**
+     * Ground following configuration
+     * @private
+     */
+    this.ride_height = options.rideHeight || 0.5;
+    this.ray_length = options.rayLength || this.body.shape.half_height; // Ray checks from bottom of character
+    
+    // Separate spring strengths for up/down forces
+    this.upward_strength = options.upwardStrength || 0.1;
+    this.downward_strength = options.downwardStrength || 0.01; // Gentler downward force
+    
+    // Spring damping and smoothing
+    this.spring_damper = options.springDamper || 1;  // Reduces oscillation
+    this.force_smoothing = options.forceSmoothing || 0.9; // 0-1, higher = smoother
+    
+    // Keep track of spring state
+    this._last_spring_force = 0;
+    this._accumulated_force = new Goblin.Vector3(0, 0, 0);
+	
+	/**
+     * Maximum speed the character can move
+     * @property max_speed
+     * @type {Number}
+     */
+    this.max_speed = options.maxSpeed || 200; // Default max speed of 10
+	
+	/**
+     * How quickly the character stops when no input is received
+     * 0 = instant stop, 0-1 = smooth deceleration
+     * @property stopLerp
+     * @type {Number}
+     */
+    this.stopLerp = options.stopLerp || 0; // 0 = instant stop
+
+    /**
+     * Minimum speed threshold before coming to a complete stop
+     * @property stopThreshold
+     * @type {Number}
+     */
+    this.stopThreshold = options.stopThreshold || 0.1;
 };
+
+/**
+ * Updates ground spring forces to maintain ride height
+ * Should be called each physics step
+ * 
+ * @method updateGroundSpring
+ * @private
+ */
+Goblin.CharacterController.prototype.updateGroundSpring = function() {
+    // Cast ray from bottom of character
+    var rayStart = new Goblin.Vector3(
+        this.body.position.x,
+        this.body.position.y - this.body.shape.half_height,
+        this.body.position.z
+    );
+    
+    var rayEnd = new Goblin.Vector3(
+        rayStart.x,
+        rayStart.y - this.ray_length,
+        rayStart.z
+    );
+
+    var intersections = this.world.broadphase.rayIntersect(rayStart, rayEnd);
+    
+    if (intersections.length > 0) {
+		
+		
+        var hit = intersections[0];
+
+        // Get velocities for damping
+        var characterVel = this.body.linear_velocity;
+        var groundVel = hit.object ? hit.object.linear_velocity : new Goblin.Vector3(0, 0, 0);
+        
+        // Relative vertical velocity for damping
+        var relVel = characterVel.y - groundVel.y;
+
+        // Calculate height error from desired ride height
+        var heightError = this.ride_height - hit.t;
+        
+        // Choose strength based on direction needed
+        var strength = heightError > 0 ? this.upward_strength : this.downward_strength;
+        
+        // Calculate raw spring force with damping
+        var rawSpringForce = (heightError * strength) - (relVel * this.spring_damper);
+        
+        // Smooth the force transition using lerp
+        var smoothedForce = this._last_spring_force + 
+            (rawSpringForce - this._last_spring_force) * (1 - this.force_smoothing);
+            
+        // Store for next frame's smoothing
+        this._last_spring_force = smoothedForce;
+
+        // Apply the smoothed force
+        var force = new Goblin.Vector3(0, smoothedForce, 0);
+        this.body.applyForce(force);
+        
+        // Apply equal and opposite force to ground object if it's dynamic
+        if (hit.object && hit.object._mass !== Infinity) {
+			hit.object.applyForceAtWorldPoint(
+				new Goblin.Vector3(0, -smoothedForce, 0),
+				hit.point
+			);
+		}
+		
+        // Store debug values
+        this._lastHitDistance = hit.t;
+        this._lastHeightError = heightError;
+        this._lastSpringForce = smoothedForce;
+
+        // Clean up ray intersections
+        for (var i = 0; i < intersections.length; i++) {
+            Goblin.ObjectPool.freeObject('RayIntersection', intersections[i]);
+        }
+    }
+};
+
 
 /**
  * Projects a movement vector onto a contact plane for slope handling
@@ -200,13 +318,33 @@ Goblin.CharacterController.prototype.projectOnPlane = function(vector, normal) {
  * @param {Number} deltaTime - Time step in seconds
  */
 Goblin.CharacterController.prototype.move = function(direction, deltaTime) {
-    // Default to zero vector if no direction provided using stored defaults
-    if (!direction) {
-        direction = new Goblin.Vector3(
-            this._temp_point.x,
-            this._temp_point.y,
-            this._temp_point.z
-        );
+    // Update ground spring forces
+    //this.updateGroundSpring();
+    
+    // If no input, handle stopping
+    if (!direction || direction.lengthSquared() === 0) {
+        if (this.stopLerp === 0) {
+            // Instant stop - zero out horizontal velocity
+            this.body.linear_velocity.x = 0;
+            this.body.linear_velocity.z = 0;
+        } else {
+            // Smooth deceleration
+            var currentStoppingSpeed = Math.sqrt(
+                this.body.linear_velocity.x * this.body.linear_velocity.x + 
+                this.body.linear_velocity.z * this.body.linear_velocity.z
+            );
+            
+            if (currentStoppingSpeed > this.stopThreshold) {
+                var stopFactor = Math.pow(1 - this.stopLerp, deltaTime);
+                this.body.linear_velocity.x *= stopFactor;
+                this.body.linear_velocity.z *= stopFactor;
+            } else {
+                // Below threshold, come to complete stop
+                this.body.linear_velocity.x = 0;
+                this.body.linear_velocity.z = 0;
+            }
+        }
+        return;
     }
     
     // Only process movement if we have actual input
@@ -226,6 +364,14 @@ Goblin.CharacterController.prototype.move = function(direction, deltaTime) {
         } else {
             // Use raw movement when not in contact
             this._projected_movement.copy(this._movement_delta);
+        }
+
+        // Apply speed limit before applying force
+        var currentSpeed = this.body.linear_velocity.length();
+        if (currentSpeed > this.max_speed) {
+            // Scale down velocity to max speed
+            var scale = this.max_speed / currentSpeed;
+            this.body.linear_velocity.scale(scale);
         }
 
         // Apply final movement force
@@ -261,21 +407,38 @@ Goblin.CharacterController.prototype.projectOnPlane = function(vector, normal) {
  * @return {Boolean} Whether jump was performed
  */
 Goblin.CharacterController.prototype.jump = function() {
-    if (!this.can_jump) {
-        return false;
+    // Check if we're close enough to the ground to jump
+    if (this._lastHitDistance && this._lastHitDistance < this.ride_height * 1.5) {
+        // Disable downward spring force
+        this.downward_strength = 0;
+        
+        // Apply jump impulse
+        var jump_vec = new Goblin.Vector3(0, this.jump_force, 0);
+        this.body.applyImpulse(jump_vec);
+        
+        this._is_jumping = true;
+        this._jump_timer = this.jump_cooldown;
+        
+        this.emit('jump');
+        return true;
     }
+    return false;
+};
 
-    // Calculate jump vector using contact normal and configured forces
-    var jump_vec = new Goblin.Vector3(
-        this.contact_normal.x * this.jump_force * this.horizontal_jump_factor,
-        this.jump_force,
-        this.contact_normal.z * this.jump_force * this.horizontal_jump_factor
-    );
 
-    this.body.applyImpulse(jump_vec);
-    this.can_jump = false;
-    this.emit('jump');
-    return true;
+Goblin.CharacterController.prototype.update = function(deltaTime) {
+    if (this._is_jumping) {
+        this._jump_timer -= deltaTime;
+        
+        // Check if we should end jump state
+        if (this._jump_timer <= 0 || this.body.linear_velocity.y < this.jump_velocity_threshold) {
+            this._is_jumping = false;
+            this.downward_strength = this._original_downward_strength;
+        }
+    }
+    
+    // The regular spring update can continue
+    this.updateGroundSpring();
 };
 
 /**
@@ -397,6 +560,14 @@ Goblin.CharacterController.prototype.getDebugInfo = function() {
                 y: this._movement_delta.y,
                 z: this._movement_delta.z
             } : null
+        },
+        spring: {
+            hit_distance: this._lastHitDistance || null,
+            height_error: this._lastHeightError || null,
+            spring_force: this._lastSpringForce || null,
+            target_height: this.ride_height,
+            spring_strength: this.spring_strength,
+            spring_damper: this.spring_damper
         },
         contact: {
             normal: {
