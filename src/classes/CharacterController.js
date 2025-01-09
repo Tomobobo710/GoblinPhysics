@@ -190,7 +190,9 @@ Goblin.CharacterController.prototype._initializeStates = function() {
  * @method wishJump
  */
 Goblin.CharacterController.prototype.wishJump = function() {
-    this._jumpRequested = true;
+    if (this.currentState && this.currentState.name === 'grounded') {
+        this._jumpRequested = true;
+    }
 };
 
 /**
