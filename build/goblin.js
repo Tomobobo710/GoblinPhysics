@@ -7282,27 +7282,24 @@ Goblin.CharacterController.prototype.move = function(direction, deltaTime) {
     this.moveVector.scale(this.moveSpeed);
     this._lastMoveDelta.copy(this.moveVector);
 
-    // Project onto contact plane
-    var dot = this.moveVector.dot(this.contactNormal);
-    this.projectedMove.copy(this.moveVector);
-    this.tempVector.copy(this.contactNormal);
-    this.tempVector.scale(dot);
-    this.projectedMove.subtract(this.tempVector);
-    this._lastProjectedMove.copy(this.projectedMove);
-    
-    // Store the final applied force for debug
-    this._lastAppliedForce = new Goblin.Vector3();
-    this._lastAppliedForce.copy(this.projectedMove);
-
-    // Apply speed limit
-    var currentSpeed = this.body.linear_velocity.length();
-    if (currentSpeed > this.maxSpeed) {
-        var scale = this.maxSpeed / currentSpeed;
-        this.body.linear_velocity.scale(scale);
+    if (this.currentState.name === 'falling' || this.currentState.name === 'jumping') {
+        // In air - zero out any Y component
+        this.moveVector.y = 0;
+    } else {
+        // On ground - project onto contact plane as before
+        var dot = this.moveVector.dot(this.contactNormal);
+        this.projectedMove.copy(this.moveVector);
+        this.tempVector.copy(this.contactNormal);
+        this.tempVector.scale(dot);
+        this.projectedMove.subtract(this.tempVector);
+        this.moveVector.copy(this.projectedMove);
     }
+    
+    this._lastAppliedForce = new Goblin.Vector3();
+    this._lastAppliedForce.copy(this.moveVector);
 
     // Apply movement force
-    this.body.applyForce(this.projectedMove);
+    this.body.applyForce(this.moveVector);
 };
 
 /**
