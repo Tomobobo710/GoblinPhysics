@@ -10,6 +10,8 @@
  * @param {Number} [options.depth=1] - Character depth in meters 
  * @param {Number} [options.mass=1] - Character mass in kg
  * @param {Number} [options.moveSpeed=5] - Base movement speed
+ * @param {Number} [options.airAccleration=0.3] - How quickly to acclerate horizontally in air
+ * * @param {Number} [options.groundAccleration=0.3] - How quickly to acclerate horizontally on ground
  * @param {Boolean} [options.allowYRotation=true] - Whether character can rotate around Y axis
  */
 Goblin.CharacterController = function(world, options) {
