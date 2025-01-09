@@ -40,7 +40,8 @@ Goblin.CharacterController = function(world, options) {
     this.stopFactor = options.stopFactor || 0.9;
     this.stoppingThreshold = options.stoppingThreshold || 0.1;
     this.jumpForce = options.jumpForce || 10;
-    
+    this.airAcceleration = options.airAccleration || 0.3;
+    this.groundAcceleration = options.groundAccleration || 0.3;
     // Input handling
     this._inputDirection = new Goblin.Vector3();
     this._hasInputThisFrame = false;
@@ -318,29 +319,44 @@ Goblin.CharacterController.prototype.updateGroundSpring = function() {
  * @private
  */
 Goblin.CharacterController.prototype.move = function(direction, deltaTime) {
-    // Convert input to movement force
+    // Convert input to desired velocity
+    // Convert input to desired velocity
     this.moveVector.copy(direction);
     this.moveVector.scale(this.moveSpeed);
     this._lastMoveDelta.copy(this.moveVector);
 
     if (this.currentState.name === 'falling' || this.currentState.name === 'jumping') {
-        // In air - zero out any Y component
-        this.moveVector.y = 0;
+        // In air - only affect horizontal velocity
+        var currentY = this.body.linear_velocity.y;
+        
+        // Interpolate to target velocity
+        this.body.linear_velocity.x += (this.moveVector.x - this.body.linear_velocity.x) * this.airAcceleration;
+        this.body.linear_velocity.z += (this.moveVector.z - this.body.linear_velocity.z) * this.airAcceleration;
+        this.body.linear_velocity.y = currentY;
     } else {
-        // On ground - project onto contact plane as before
+        // On ground - project along surface
         var dot = this.moveVector.dot(this.contactNormal);
         this.projectedMove.copy(this.moveVector);
         this.tempVector.copy(this.contactNormal);
         this.tempVector.scale(dot);
         this.projectedMove.subtract(this.tempVector);
-        this.moveVector.copy(this.projectedMove);
+        this._lastProjectedMove.copy(this.projectedMove);
+        
+        // Interpolate to target velocity
+        this.body.linear_velocity.x += (this.projectedMove.x - this.body.linear_velocity.x) * this.groundAcceleration;
+        this.body.linear_velocity.z += (this.projectedMove.z - this.body.linear_velocity.z) * this.groundAcceleration;
     }
     
-    this._lastAppliedForce = new Goblin.Vector3();
-    this._lastAppliedForce.copy(this.moveVector);
-
-    // Apply movement force
-    this.body.applyForce(this.moveVector);
+    // Speed limit check as before
+    var currentSpeed = Math.sqrt(
+        this.body.linear_velocity.x * this.body.linear_velocity.x + 
+        this.body.linear_velocity.z * this.body.linear_velocity.z
+    );
+    if (currentSpeed > this.maxSpeed) {
+        var scale = this.maxSpeed / currentSpeed;
+        this.body.linear_velocity.x *= scale;
+        this.body.linear_velocity.z *= scale;
+    }
 };
 
 /**
