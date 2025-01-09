@@ -22,11 +22,10 @@ Goblin.CharacterController = function(world, options) {
     this.world = world;
     options = options || {};
 
-    // Create box shape
-    var half_width = (options.width || 4) * 0.5;
-    var half_height = (options.height || 6) * 0.5;
-    var half_depth = (options.depth || 4) * 0.5;
-    this.shape = new Goblin.BoxShape(half_width, half_height, half_depth);
+    // Create capsule shape
+    var radius = Math.min((options.width || 4) * 0.5, (options.depth || 4) * 0.5);
+    var totalHeight = options.height || 6;
+    this.shape = new Goblin.CapsuleShape(radius, totalHeight);
     this.body = new Goblin.RigidBody(this.shape, options.mass || 1);
 
     // Configure rotation
