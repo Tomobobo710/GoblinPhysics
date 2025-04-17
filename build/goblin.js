@@ -7303,7 +7303,7 @@ Goblin.CharacterController = function(world, options) {
     options = options || {};
 
     // Create capsule shape
-    var radius = Math.min((options.width || 4) * 0.5, (options.depth || 4) * 0.5);
+    var radius = options.radius || 2;
     var totalHeight = options.height || 6;
     this.shape = new Goblin.CapsuleShape(radius, totalHeight);
     this.body = new Goblin.RigidBody(this.shape, options.mass || 1);
@@ -7316,11 +7316,11 @@ Goblin.CharacterController = function(world, options) {
     }
 
     // Movement configuration
-    this.moveSpeed = options.moveSpeed || 0.5;
+    this.moveSpeed = options.moveSpeed || 50;
     this.maxSpeed = options.maxSpeed || 50;
     this.stopFactor = options.stopFactor || 0.9;
     this.stoppingThreshold = options.stoppingThreshold || 0.1;
-    this.jumpForce = options.jumpForce || 10;
+    this.jumpForce = options.jumpForce || 60;
     this.airAcceleration = options.airAccleration || 0.3;
     this.groundAcceleration = options.groundAccleration || 0.3;
     // Input handling
@@ -7335,8 +7335,8 @@ Goblin.CharacterController = function(world, options) {
 
     // Ground spring config
     this.rideHeight = options.rideHeight || 4;
-    this.rayLength = options.rayLength || this.body.shape.half_height;
-    this.springStrength = options.springStrength || 1;
+    this.rayLength = options.rayLength || this.body.shape.half_height * 2;
+    this.springStrength = options.springStrength || 10;
     this.springDamping = options.springDamping || 0.3;
     
     // State management
