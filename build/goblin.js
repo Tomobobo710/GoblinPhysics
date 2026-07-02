@@ -3451,20 +3451,82 @@ Goblin.ContactConstraint.prototype.update = function() {
 	// Pre-calc error
 	row.bias = 0;
 
-	// Apply restitution
+	// Apply restitution, from each body's velocity at the world contact point. The lever arm is
+	// world-space (contact_point - position), matching the angular jacobian above; a body-local
+	// anchor is not a world lever once the body has rotated, and using one lets a rolling body's
+	// spin leak into the normal velocity as phantom restitution.
 	var velocity_along_normal = 0;
 	if ( this.object_a._mass !== Infinity ) {
-		this.object_a.getVelocityInLocalPoint( this.contact.contact_point_in_a, _tmp_vec3_1 );
+		_tmp_vec3_2.subtractVectors( this.contact.contact_point, this.object_a.position );
+		_tmp_vec3_1.crossVectors( this.object_a.angular_velocity, _tmp_vec3_2 );
+		_tmp_vec3_1.add( this.object_a.linear_velocity );
 		velocity_along_normal += _tmp_vec3_1.dot( this.contact.contact_normal );
 	}
 	if ( this.object_b._mass !== Infinity ) {
-		this.object_b.getVelocityInLocalPoint( this.contact.contact_point_in_b, _tmp_vec3_1 );
+		_tmp_vec3_2.subtractVectors( this.contact.contact_point, this.object_b.position );
+		_tmp_vec3_1.crossVectors( this.object_b.angular_velocity, _tmp_vec3_2 );
+		_tmp_vec3_1.add( this.object_b.linear_velocity );
 		velocity_along_normal -= _tmp_vec3_1.dot( this.contact.contact_normal );
 	}
 
 	// Add restitution to bias
 	row.bias += velocity_along_normal * this.contact.restitution;
+
+	// Remove the normal impulse's phantom torque for a near-centered contact
+	Goblin.ContactConstraint._bleedPerpLever( this.rows[0], 3, this.contact.contact_point, this.object_a, this.contact.contact_normal );
+	Goblin.ContactConstraint._bleedPerpLever( this.rows[0], 9, this.contact.contact_point, this.object_b, this.contact.contact_normal );
 };
+
+/**
+ * Perpendicular lever-arm length below which a contact is treated as centered under the body and its
+ * normal-impulse torque is zeroed. Above it the contact is genuinely off-center and left untouched.
+ *
+ * @property PERP_GATE
+ * @type {Number}
+ * @static
+ */
+Goblin.ContactConstraint.PERP_GATE = 1e-4;
+
+/**
+ * Zeroes the phantom torque a normal impulse would apply through a near-centered contact's lever arm.
+ * The normal row's angular jacobian is (contact_point - body.position) x contact_normal; its component
+ * perpendicular to the normal is the torque lever. When that lever is within `PERP_GATE` the contact is
+ * centered under the body and the lever is floating-point noise, so it is dropped (the jacobian becomes
+ * the along-normal cross product, which is zero). Genuinely off-center contacts have a larger lever and
+ * are left unchanged.
+ *
+ * @method _bleedPerpLever
+ * @param row {ConstraintRow} the normal constraint row to correct
+ * @param jbase {Number} angular jacobian offset for the body ( 3 for object_a, 9 for object_b )
+ * @param contact_point {Vector3} world-space contact point
+ * @param body {RigidBody} the body whose lever arm is measured
+ * @param normal {Vector3} world-space contact normal
+ * @static
+ * @private
+ */
+Goblin.ContactConstraint._bleedPerpLever = (function(){
+	var r = new Goblin.Vector3(), along_vec = new Goblin.Vector3(), lever = new Goblin.Vector3();
+	return function( row, jbase, contact_point, body, normal ) {
+		if ( body == null || body._mass === Infinity ) {
+			return;
+		}
+		r.subtractVectors( contact_point, body.position );
+		var along = r.x * normal.x + r.y * normal.y + r.z * normal.z;
+		along_vec.scaleVector( normal, along );
+
+		var px = r.x - along_vec.x, py = r.y - along_vec.y, pz = r.z - along_vec.z;
+		var plen = Math.sqrt( px * px + py * py + pz * pz );
+		if ( plen < 1e-12 || plen > Goblin.ContactConstraint.PERP_GATE ) {
+			return;
+		}
+
+		lever.crossVectors( along_vec, normal );
+		var sign = ( jbase === 3 ) ? -1 : 1;
+		row.jacobian[ jbase ]     = sign * lever.x;
+		row.jacobian[ jbase + 1 ] = sign * lever.y;
+		row.jacobian[ jbase + 2 ] = sign * lever.z;
+	};
+})();
 Goblin.FrictionConstraint = function() {
 	Goblin.Constraint.call( this );
 
@@ -4526,6 +4588,27 @@ Goblin.CapsuleShape.prototype.calculateLocalAABB = function(aabb) {
 };
 
 /**
+ * Returns this shape's local-space "rest axis" - the line along which its barrel surface actually
+ * touches a flat plane when resting on its side, as two local-space endpoints. Only the straight
+ * barrel section contacts a flat plane (the hemisphere caps only touch if standing on an end), so
+ * this uses cylinder_half_height, not the capsule's total half_height.
+ *
+ * @method getRestAxis
+ * @param localNormal {Vector3} the contact normal, in this shape's local space
+ * @return {Array} [Vector3, Vector3] two local-space points defining the rest line
+ */
+Goblin.CapsuleShape.prototype.getRestAxis = function( localNormal ) {
+    var rx = localNormal.x, rz = localNormal.z;
+    var sigma = Math.sqrt( rx * rx + rz * rz );
+    if ( sigma < 1e-6 ) { rx = 1; rz = 0; sigma = 1; }
+    rx /= sigma; rz /= sigma;
+    return [
+        new Goblin.Vector3( rx * this.radius, -this.cylinder_half_height, rz * this.radius ),
+        new Goblin.Vector3( rx * this.radius, this.cylinder_half_height, rz * this.radius )
+    ];
+};
+
+/**
  * Calculates and returns the inertia tensor for the capsule
  * Combines cylinder and sphere inertia based on their respective volumes and mass distribution
  *
@@ -4538,23 +4621,28 @@ Goblin.CapsuleShape.prototype.getInertiaTensor = function(mass) {
     var cylinder_volume = Math.PI * this.radius * this.radius * this.cylinder_height;
     var sphere_volume = (4/3) * Math.PI * this.radius * this.radius * this.radius;
     var total_volume = cylinder_volume + sphere_volume;
-    
+
     // Distribute mass proportionally based on volume
     var cylinder_mass = mass * (cylinder_volume / total_volume);
     var sphere_mass = mass * (sphere_volume / total_volume);
-    
+
     // Calculate cylinder contribution to inertia
     var cylinder_x = (1/12) * cylinder_mass * (3 * this.radius * this.radius + this.cylinder_height * this.cylinder_height);
     var cylinder_y = 0.5 * cylinder_mass * this.radius * this.radius;
-    
-    // Calculate sphere contribution to inertia
+
+    // Sphere (both hemisphere caps combined) contribution. The caps sit offset from the capsule's
+    // center of mass by cylinder_half_height, so the parallel-axis theorem ( I = I_local + m*d^2 )
+    // adds mass*offset^2 to the two axes perpendicular to the barrel (x and z). The barrel axis (y) is
+    // unaffected, its offset being along that axis.
     var sphere_element = (2/5) * sphere_mass * this.radius * this.radius;
-    
+    var sphere_offset = this.cylinder_half_height;
+    var sphere_perp = sphere_element + sphere_mass * sphere_offset * sphere_offset;
+
     // Combine inertias into final tensor
     return new Goblin.Matrix3(
-        cylinder_x + sphere_element, 0, 0,
+        cylinder_x + sphere_perp, 0, 0,
         0, cylinder_y + sphere_element, 0,
-        0, 0, cylinder_x + sphere_element
+        0, 0, cylinder_x + sphere_perp
     );
 };
 
@@ -4568,26 +4656,16 @@ Goblin.CapsuleShape.prototype.getInertiaTensor = function(mass) {
  * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
  */
 Goblin.CapsuleShape.prototype.findSupportPoint = function(direction, support_point) {
-    if (direction.x === 0 && direction.z === 0) {
-        // Direction is purely vertical, support point is at the top or bottom cap
-        support_point.x = support_point.z = 0;
-        support_point.y = direction.y > 0 ? this.half_height : -this.half_height;
-    } else {
-        // Handle cylindrical portion
-        var sigma = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
-        var r_s = this.radius / sigma;
-        support_point.x = r_s * direction.x;
-        support_point.z = r_s * direction.z;
-        
-        // Handle spherical ends
-        if (direction.y > 0) {
-            support_point.y = this.cylinder_half_height;
-            support_point.y += this.radius * (direction.y / direction.length());
-        } else {
-            support_point.y = -this.cylinder_half_height;
-            support_point.y += this.radius * (direction.y / direction.length());
-        }
-    }
+    // A capsule is the Minkowski sum of a line segment (the barrel axis, from -cylinder_half_height
+    // to +cylinder_half_height along local Y) and a sphere of `radius`. Its support point is the
+    // segment endpoint chosen by the sign of direction.y, plus radius * normalize(direction). This
+    // holds for the caps as well as the barrel - a capsule has no flat end disk, so (unlike the
+    // cylinder) there is no separate full-radius case.
+    var dlen = Math.sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
+    var segY = direction.y < 0 ? -this.cylinder_half_height : this.cylinder_half_height;
+    support_point.x = this.radius * direction.x / dlen;
+    support_point.y = segY + this.radius * direction.y / dlen;
+    support_point.z = this.radius * direction.z / dlen;
 };
 
 /**
@@ -4938,6 +5016,10 @@ Goblin.CompoundShapeChild = function( shape, position, rotation ) {
  * @param radius {Number} radius of the cylinder
  * @param half_height {Number} half height of the cylinder
  * @constructor
+ *
+ * A near-disc cone ( radius greater than about its height ) dropped nearly flat rocks on its wide rim
+ * for a long time before settling, like a spun coin. Use a CylinderShape for disc-like silhouettes;
+ * cones with height on the order of the radius or taller settle cleanly at any orientation.
  */
 Goblin.ConeShape = function( radius, half_height ) {
 	/**
@@ -4992,6 +5074,27 @@ Goblin.ConeShape.prototype.calculateLocalAABB = function( aabb ) {
     aabb.max.y = this.half_height;
 };
 
+/**
+ * Returns this shape's local-space rest axis: the line along which the cone touches a flat plane when
+ * lying on its side, as two local-space endpoints. A cone tapers, so this line is not centered under
+ * the centroid - it runs from the apex to a single point on the base rim.
+ *
+ * @method getRestAxis
+ * @param localNormal {Vector3} the contact normal, in this shape's local space
+ * @return {Array} [Vector3, Vector3] two local-space points defining the rest line: apex, then base rim
+ */
+Goblin.ConeShape.prototype.getRestAxis = function( localNormal ) {
+	// The touching rim point is on the side the cone leans toward, i.e. opposite the outward contact
+	// normal, so the radial direction is taken from -localNormal.
+	var rx = -localNormal.x, rz = -localNormal.z;
+	var sigma = Math.sqrt( rx * rx + rz * rz );
+	if ( sigma < 1e-6 ) { rx = 1; rz = 0; sigma = 1; }
+	rx /= sigma; rz /= sigma;
+	return [
+		new Goblin.Vector3( 0, this.half_height, 0 ),                                 // apex
+		new Goblin.Vector3( rx * this.radius, -this.half_height, rz * this.radius )   // base rim point (contact side)
+	];
+};
 Goblin.ConeShape.prototype.getInertiaTensor = function( mass ) {
 	var element = 0.1 * mass * Math.pow( this.half_height * 2, 2 ) + 0.15 * mass * this.radius * this.radius;
 
@@ -5694,6 +5797,27 @@ Goblin.CylinderShape.prototype.calculateLocalAABB = function( aabb ) {
 
     aabb.max.x = aabb.max.z = this.radius;
     aabb.max.y = this.half_height;
+};
+
+/**
+ * Returns this shape's local-space "rest axis" - the line along which its barrel surface actually
+ * touches a flat plane when resting on its side, as two local-space endpoints. Unlike the cone,
+ * the cylinder/capsule barrel is symmetric about the Y axis, so the radial direction of the
+ * contact line depends on which way the (local-space) contact normal points; pass it in.
+ *
+ * @method getRestAxis
+ * @param localNormal {Vector3} the contact normal, in this shape's local space
+ * @return {Array} [Vector3, Vector3] two local-space points defining the rest line
+ */
+Goblin.CylinderShape.prototype.getRestAxis = function( localNormal ) {
+	var rx = localNormal.x, rz = localNormal.z;
+	var sigma = Math.sqrt( rx * rx + rz * rz );
+	if ( sigma < 1e-6 ) { rx = 1; rz = 0; sigma = 1; }
+	rx /= sigma; rz /= sigma;
+	return [
+		new Goblin.Vector3( rx * this.radius, -this.half_height, rz * this.radius ),
+		new Goblin.Vector3( rx * this.radius, this.half_height, rz * this.radius )
+	];
 };
 
 Goblin.CylinderShape.prototype.getInertiaTensor = function( mass ) {
@@ -7934,8 +8058,19 @@ Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
 Goblin.ContactManifold.prototype.addContact = function( contact ) {
 	//@TODO add feature-ids to detect duplicate contacts
 	var i;
+	var is_sphere_contact = contact.object_a.shape instanceof Goblin.SphereShape ||
+		contact.object_b.shape instanceof Goblin.SphereShape;
 	for ( i = 0; i < this.points.length; i++ ) {
 		if ( this.points[i].contact_point.distanceTo( contact.contact_point ) <= 0.02 ) {
+			if ( is_sphere_contact ) {
+				// A sphere touches at a single analytic point recomputed every frame; the fresh
+				// contact carries the true penetration, so it replaces the cached duplicate rather
+				// than being dropped (cached points re-derive penetration from anchors, which a
+				// rolling sphere invalidates).
+				this.points[i].destroy();
+				this.points.splice( i, 1 );
+				break;
+			}
 			contact.destroy();
 			return;
 		}
@@ -8595,10 +8730,168 @@ Goblin.IterativeSolver.prototype.solveConstraints = function() {
 			}
 		}
 
+		// Block-solve paired normal contacts (2-point manifolds) as a coupled 2x2 each sweep.
+		// See solveNormalBlocks: sequential Gauss-Seidel on two one-sided normal constraints of the
+		// same body leaves an antisymmetric impulse residual = a phantom torque, which spins a
+		// resting cylinder/capsule up from nothing. This re-couples them.
+		this.solveNormalBlocks();
+
 		if ( max_impulse <= 0.1 ) {
 			break;
 		}
 	}
+};
+
+/**
+ * Block-solves the normal rows of a 2-point contact manifold as a coupled 2x2 LCP (Catto/Box2D
+ * style). Two normal ContactConstraints on the same body pair are the ends of one resting manifold;
+ * solved sequentially, each one's impulse applies a torque that violates the other, leaving an
+ * antisymmetric residual that spins a low-inertia body up from rest and that more iterations only
+ * worsen. Solving both normals together, with the [0, inf] one-sided limit enumerated over four
+ * cases, cancels the cross-coupling in one shot. Runs each sweep over the shared solver_impulse and
+ * row.multiplier state; friction rows stay 1x1.
+ *
+ * @method solveNormalBlocks
+ */
+Goblin.IterativeSolver.prototype.solveNormalBlocks = function() {
+	var cc = this.contact_constraints;
+	var n = cc.length;
+	for ( var a = 0; a < n; a++ ) {
+		var c1 = cc[a];
+		if ( c1.active === false || c1._blockPaired ) {
+			continue;
+		}
+		var c2 = null;
+		for ( var b = a + 1; b < n; b++ ) {
+			var cand = cc[b];
+			if ( cand.active === false || cand._blockPaired ) {
+				continue;
+			}
+			if ( cand.object_a === c1.object_a && cand.object_b === c1.object_b ) { c2 = cand; break; }
+		}
+		if ( c2 === null ) {
+			continue;
+		}
+
+		var r1 = c1.rows[0], r2 = c2.rows[0];
+
+		var jdot1 = Goblin.IterativeSolver._rowJdot( c1, r1 );
+		var jdot2 = Goblin.IterativeSolver._rowJdot( c2, r2 );
+
+		var K11 = r1.D, K22 = r2.D;
+		var K12 = Goblin.IterativeSolver._rowCross( r1, r2 );
+		if ( K11 <= 0 || K22 <= 0 ) {
+			continue;
+		}
+
+		var x1 = r1.multiplier, x2 = r2.multiplier;
+		// "velocity if these two rows' impulses were zero"
+		var a1 = jdot1 - ( K11 * x1 + K12 * x2 );
+		var a2 = jdot2 - ( K12 * x1 + K22 * x2 );
+		// want A x' + a = eta  ->  A x' = (eta - a)
+		var rhs1 = r1.eta - a1;
+		var rhs2 = r2.eta - a2;
+
+		var nx1, nx2;
+		var det = K11 * K22 - K12 * K12;
+
+		// Case 1: both active
+		if ( Math.abs( det ) > 1e-12 ) {
+			nx1 = ( rhs1 * K22 - rhs2 * K12 ) / det;
+			nx2 = ( rhs2 * K11 - rhs1 * K12 ) / det;
+			if ( nx1 >= 0 && nx2 >= 0 ) {
+				this._applyBlock( c1, r1, nx1 - x1 );
+				this._applyBlock( c2, r2, nx2 - x2 );
+				r1.multiplier = nx1; r2.multiplier = nx2;
+				c1._blockPaired = c2._blockPaired = true;
+				continue;
+			}
+		}
+		// Case 2: only point 1
+		nx1 = rhs1 / K11;
+		if ( nx1 >= 0 && ( K12 * nx1 + a2 ) >= r2.eta ) {
+			this._applyBlock( c1, r1, nx1 - x1 );
+			this._applyBlock( c2, r2, 0 - x2 );
+			r1.multiplier = nx1; r2.multiplier = 0;
+			c1._blockPaired = c2._blockPaired = true;
+			continue;
+		}
+		// Case 3: only point 2
+		nx2 = rhs2 / K22;
+		if ( nx2 >= 0 && ( K12 * nx2 + a1 ) >= r1.eta ) {
+			this._applyBlock( c1, r1, 0 - x1 );
+			this._applyBlock( c2, r2, nx2 - x2 );
+			r1.multiplier = 0; r2.multiplier = nx2;
+			c1._blockPaired = c2._blockPaired = true;
+			continue;
+		}
+		// Case 4: neither
+		if ( a1 >= r1.eta && a2 >= r2.eta ) {
+			this._applyBlock( c1, r1, 0 - x1 );
+			this._applyBlock( c2, r2, 0 - x2 );
+			r1.multiplier = 0; r2.multiplier = 0;
+			c1._blockPaired = c2._blockPaired = true;
+		}
+	}
+	for ( var k = 0; k < n; k++ ) {
+		cc[k]._blockPaired = false;
+	}
+};
+
+Goblin.IterativeSolver.prototype._applyBlock = function( constraint, row, delta_lambda ) {
+	if ( delta_lambda === 0 ) {
+		return;
+	}
+	if ( constraint.object_a && constraint.object_a._mass !== Infinity ) {
+		constraint.object_a.solver_impulse[0] += delta_lambda * row.B[0];
+		constraint.object_a.solver_impulse[1] += delta_lambda * row.B[1];
+		constraint.object_a.solver_impulse[2] += delta_lambda * row.B[2];
+		constraint.object_a.solver_impulse[3] += delta_lambda * row.B[3];
+		constraint.object_a.solver_impulse[4] += delta_lambda * row.B[4];
+		constraint.object_a.solver_impulse[5] += delta_lambda * row.B[5];
+	}
+	if ( constraint.object_b && constraint.object_b._mass !== Infinity ) {
+		constraint.object_b.solver_impulse[0] += delta_lambda * row.B[6];
+		constraint.object_b.solver_impulse[1] += delta_lambda * row.B[7];
+		constraint.object_b.solver_impulse[2] += delta_lambda * row.B[8];
+		constraint.object_b.solver_impulse[3] += delta_lambda * row.B[9];
+		constraint.object_b.solver_impulse[4] += delta_lambda * row.B[10];
+		constraint.object_b.solver_impulse[5] += delta_lambda * row.B[11];
+	}
+};
+
+Goblin.IterativeSolver._rowJdot = function( constraint, row ) {
+	var jdot = 0;
+	if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+		jdot += (
+			row.jacobian[0] * constraint.object_a.linear_factor.x * constraint.object_a.solver_impulse[0] +
+			row.jacobian[1] * constraint.object_a.linear_factor.y * constraint.object_a.solver_impulse[1] +
+			row.jacobian[2] * constraint.object_a.linear_factor.z * constraint.object_a.solver_impulse[2] +
+			row.jacobian[3] * constraint.object_a.angular_factor.x * constraint.object_a.solver_impulse[3] +
+			row.jacobian[4] * constraint.object_a.angular_factor.y * constraint.object_a.solver_impulse[4] +
+			row.jacobian[5] * constraint.object_a.angular_factor.z * constraint.object_a.solver_impulse[5]
+		);
+	}
+	if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+		jdot += (
+			row.jacobian[6] * constraint.object_b.linear_factor.x * constraint.object_b.solver_impulse[0] +
+			row.jacobian[7] * constraint.object_b.linear_factor.y * constraint.object_b.solver_impulse[1] +
+			row.jacobian[8] * constraint.object_b.linear_factor.z * constraint.object_b.solver_impulse[2] +
+			row.jacobian[9] * constraint.object_b.angular_factor.x * constraint.object_b.solver_impulse[3] +
+			row.jacobian[10] * constraint.object_b.angular_factor.y * constraint.object_b.solver_impulse[4] +
+			row.jacobian[11] * constraint.object_b.angular_factor.z * constraint.object_b.solver_impulse[5]
+		);
+	}
+	return jdot;
+};
+
+Goblin.IterativeSolver._rowCross = function( rowA, rowB ) {
+	return (
+		rowA.jacobian[0] * rowB.B[0] + rowA.jacobian[1] * rowB.B[1] + rowA.jacobian[2] * rowB.B[2] +
+		rowA.jacobian[3] * rowB.B[3] + rowA.jacobian[4] * rowB.B[4] + rowA.jacobian[5] * rowB.B[5] +
+		rowA.jacobian[6] * rowB.B[6] + rowA.jacobian[7] * rowB.B[7] + rowA.jacobian[8] * rowB.B[8] +
+		rowA.jacobian[9] * rowB.B[9] + rowA.jacobian[10] * rowB.B[10] + rowA.jacobian[11] * rowB.B[11]
+	);
 };
 
 Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
@@ -8990,6 +9283,188 @@ Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
 		if ( contact != null ) {
 			this.addContact( possible_contacts[i][0], possible_contacts[i][1], contact );
 		}
+	}
+
+	this.symmetrizeRoundContacts();
+	this.collapseSphereContacts();
+};
+
+/**
+ * Collapses any sphere manifold to a single contact point under the sphere's center. A sphere touches
+ * a surface at exactly one point along the contact normal, but the persistent ContactManifold caches
+ * up to four points, each recomputed from a local anchor fixed on the sphere surface. As the sphere
+ * rolls those anchors rotate with it, so cached points trail behind the true bottom while still
+ * shallowly penetrating, forming an off-center cluster whose lever arm under the vertical normal is a
+ * phantom torque that pumps the sphere's spin and keeps it rolling. This keeps the single deepest
+ * point, re-places it (and its local anchors) at the sphere center projected onto the surface along
+ * the normal, so it is recomputed from the center each frame and rolling cannot smear it.
+ *
+ * @method collapseSphereContacts
+ */
+Goblin.NarrowPhase.prototype.collapseSphereContacts = function() {
+	var manifold = this.contact_manifolds.first;
+	while ( manifold ) {
+		var hasSphere = manifold.object_a.shape instanceof Goblin.SphereShape ||
+			manifold.object_b.shape instanceof Goblin.SphereShape;
+
+		if ( hasSphere && manifold.points.length > 0 ) {
+			// Keep the single deepest-penetrating point (the real current contact); destroy the rest.
+			var deepest = 0;
+			for ( var i = 1; i < manifold.points.length; i++ ) {
+				if ( manifold.points[i].penetration_depth > manifold.points[deepest].penetration_depth ) {
+					deepest = i;
+				}
+			}
+			for ( i = manifold.points.length - 1; i >= 0; i-- ) {
+				if ( i !== deepest ) {
+					manifold.points[i].destroy();
+					manifold.points.splice( i, 1 );
+				}
+			}
+
+			var p = manifold.points[0];
+			// The contact's own object ordering is authoritative — a manifold matches its body pair
+			// in either order, so its object_a may be the contact's object_b (see BoxSphere, which
+			// always makes the sphere its contact's object_a).
+			var sphereIsA = p.object_a.shape instanceof Goblin.SphereShape;
+			var sphereObj = sphereIsA ? p.object_a : p.object_b;
+			var r = sphereObj.shape.radius;
+			// Contact normal points from A to B. The point on the sphere surface that is in contact is
+			// the sphere center moved by radius along the normal toward the OTHER body.
+			var sign = sphereIsA ? 1 : -1;   // toward the other body from the sphere's center
+			var nx = p.contact_normal.x * sign, ny = p.contact_normal.y * sign, nz = p.contact_normal.z * sign;
+
+			// True world contact point: on the sphere surface, directly along the normal from center.
+			// Split the small penetration so the point sits midway in the overlap, matching the
+			// engine's convention (see BoxSphere / ContactManifold.update midpoint).
+			var half_pen = p.penetration_depth * 0.5;
+			p.contact_point.x = sphereObj.position.x + nx * ( r - half_pen );
+			p.contact_point.y = sphereObj.position.y + ny * ( r - half_pen );
+			p.contact_point.z = sphereObj.position.z + nz * ( r - half_pen );
+
+			// Re-anchor each body's local point fresh at its own surface along the normal — the sphere
+			// at its true surface point, the other body at that point pushed through the full overlap —
+			// so ContactManifold.update recomputes the correct penetration from their separation rather
+			// than from a stale surface point that rotates with the rolling sphere.
+			_tmp_vec3_1.set(
+				sphereObj.position.x + nx * r,
+				sphereObj.position.y + ny * r,
+				sphereObj.position.z + nz * r
+			);
+			sphereObj.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_a : p.contact_point_in_b );
+			var other = sphereIsA ? p.object_b : p.object_a;
+			_tmp_vec3_1.set(
+				sphereObj.position.x + nx * ( r - p.penetration_depth ),
+				sphereObj.position.y + ny * ( r - p.penetration_depth ),
+				sphereObj.position.z + nz * ( r - p.penetration_depth )
+			);
+			other.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_b : p.contact_point_in_a );
+		}
+
+		manifold = manifold.next_manifold;
+	}
+};
+
+/**
+ * Snaps a round or tapered body's side-rest contact points onto its true line contact. A cylinder,
+ * capsule, or cone lying on its side touches a flat surface along a line fixed by the shape's own
+ * geometry (see each shape's `getRestAxis`), but GJK/EPA place their points off that line; any such
+ * point applies a torque about the line every step, spinning the body up into an endless roll. For any
+ * shape exposing `getRestAxis(localNormal)` this transforms that rest line into world space and
+ * re-projects each contact point onto it (clamped to the segment), correcting only the in-plane
+ * component and leaving the along-normal penetration untouched. Guarded to the genuine side-rest case:
+ * at least two points sharing a near-identical normal, with that normal roughly perpendicular to the
+ * body's own axis; anything else is left as EPA produced it.
+ *
+ * @method symmetrizeRoundContacts
+ */
+Goblin.NarrowPhase.prototype.symmetrizeRoundContacts = function() {
+	var manifold = this.contact_manifolds.first;
+	var local_n = new Goblin.Vector3(),
+		axis_local_0 = new Goblin.Vector3(), axis_local_1 = new Goblin.Vector3(),
+		axis_world_0 = new Goblin.Vector3(), axis_world_1 = new Goblin.Vector3();
+
+	while ( manifold ) {
+		var round = null;
+		if ( typeof manifold.object_a.shape.getRestAxis === 'function' ) {
+			round = manifold.object_a;
+		} else if ( typeof manifold.object_b.shape.getRestAxis === 'function' ) {
+			round = manifold.object_b;
+		}
+
+		if ( round !== null && manifold.points.length >= 2 ) {
+			var points = manifold.points;
+			var n0 = points[0].contact_normal;
+
+			// All normals must point essentially the same way (a single flat contact face, not
+			// several faces of a corner/wedge).
+			var consistent = true;
+			for ( var i = 1; i < points.length; i++ ) {
+				var ni = points[i].contact_normal;
+				var ndot = n0.x * ni.x + n0.y * ni.y + n0.z * ni.z;
+				if ( ndot <= 0.999 ) { consistent = false; break; }
+			}
+
+			// Normal in the round body's local space, to pick the radial direction for shapes whose
+			// rest axis depends on which way is down locally, and to detect orientation. The barrel
+			// line is valid only for a genuine side rest (local normal roughly perpendicular to the
+			// body's own axis); a body standing on its flat end has a near-axial local normal and a
+			// rim-circle of points that this line logic must not touch. Require |local_n.y| small.
+			round.transform_inverse.rotateVector3Into( n0, local_n );
+			var isSideRest = Math.abs( local_n.y ) < 0.7;
+
+			if ( consistent && isSideRest ) {
+				var axis = round.shape.getRestAxis( local_n );
+				axis_local_0.x = axis[0].x; axis_local_0.y = axis[0].y; axis_local_0.z = axis[0].z;
+				axis_local_1.x = axis[1].x; axis_local_1.y = axis[1].y; axis_local_1.z = axis[1].z;
+				round.transform.transformVector3Into( axis_local_0, axis_world_0 );
+				round.transform.transformVector3Into( axis_local_1, axis_world_1 );
+
+				var ax = axis_world_1.x - axis_world_0.x,
+					ay = axis_world_1.y - axis_world_0.y,
+					az = axis_world_1.z - axis_world_0.z;
+				var axisLenSq = ax * ax + ay * ay + az * az;
+
+				for ( i = 0; i < points.length; i++ ) {
+					var p = points[i];
+					var n = p.contact_normal;
+
+					// Project the point onto the true rest line, clamped to the segment.
+					var t = 0;
+					if ( axisLenSq > 1e-9 ) {
+						t = ( ( p.contact_point.x - axis_world_0.x ) * ax +
+							( p.contact_point.y - axis_world_0.y ) * ay +
+							( p.contact_point.z - axis_world_0.z ) * az ) / axisLenSq;
+						if ( t < 0 ) {
+							t = 0;
+						} else if ( t > 1 ) {
+							t = 1;
+						}
+					}
+					var targetX = axis_world_0.x + ax * t,
+						targetY = axis_world_0.y + ay * t,
+						targetZ = axis_world_0.z + az * t;
+
+					// Only correct the in-plane (perpendicular-to-normal) component; leave the
+					// along-normal (penetration) component exactly as EPA computed it, so we don't
+					// fight the height/penetration solve.
+					var dx = targetX - p.contact_point.x,
+						dy = targetY - p.contact_point.y,
+						dz = targetZ - p.contact_point.z;
+					var dn = dx * n.x + dy * n.y + dz * n.z;
+					dx -= dn * n.x; dy -= dn * n.y; dz -= dn * n.z;
+
+					// Shift only the world-space contact point the jacobians are built from this step.
+					// The local anchors contact_point_in_a/_in_b are left alone: they drive next
+					// step's penetration/height computation, and rewriting them from the tangentially
+					// shifted point corrupts the height solve. Leaving them makes this a per-step
+					// correction, re-applied fresh from EPA's latest points rather than a persistent edit.
+					p.contact_point.x += dx; p.contact_point.y += dy; p.contact_point.z += dz;
+				}
+			}
+		}
+
+		manifold = manifold.next_manifold;
 	}
 };
 
