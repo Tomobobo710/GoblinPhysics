@@ -3,6 +3,10 @@
  * @param radius {Number} radius of the cylinder
  * @param half_height {Number} half height of the cylinder
  * @constructor
+ *
+ * A near-disc cone ( radius greater than about its height ) dropped nearly flat rocks on its wide rim
+ * for a long time before settling, like a spun coin. Use a CylinderShape for disc-like silhouettes;
+ * cones with height on the order of the radius or taller settle cleanly at any orientation.
  */
 Goblin.ConeShape = function( radius, half_height ) {
 	/**
@@ -57,6 +61,27 @@ Goblin.ConeShape.prototype.calculateLocalAABB = function( aabb ) {
     aabb.max.y = this.half_height;
 };
 
+/**
+ * Returns this shape's local-space rest axis: the line along which the cone touches a flat plane when
+ * lying on its side, as two local-space endpoints. A cone tapers, so this line is not centered under
+ * the centroid - it runs from the apex to a single point on the base rim.
+ *
+ * @method getRestAxis
+ * @param localNormal {Vector3} the contact normal, in this shape's local space
+ * @return {Array} [Vector3, Vector3] two local-space points defining the rest line: apex, then base rim
+ */
+Goblin.ConeShape.prototype.getRestAxis = function( localNormal ) {
+	// The touching rim point is on the side the cone leans toward, i.e. opposite the outward contact
+	// normal, so the radial direction is taken from -localNormal.
+	var rx = -localNormal.x, rz = -localNormal.z;
+	var sigma = Math.sqrt( rx * rx + rz * rz );
+	if ( sigma < 1e-6 ) { rx = 1; rz = 0; sigma = 1; }
+	rx /= sigma; rz /= sigma;
+	return [
+		new Goblin.Vector3( 0, this.half_height, 0 ),                                 // apex
+		new Goblin.Vector3( rx * this.radius, -this.half_height, rz * this.radius )   // base rim point (contact side)
+	];
+};
 Goblin.ConeShape.prototype.getInertiaTensor = function( mass ) {
 	var element = 0.1 * mass * Math.pow( this.half_height * 2, 2 ) + 0.15 * mass * this.radius * this.radius;
 
