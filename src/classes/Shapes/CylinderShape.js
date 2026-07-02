@@ -39,6 +39,27 @@ Goblin.CylinderShape.prototype.calculateLocalAABB = function( aabb ) {
     aabb.max.y = this.half_height;
 };
 
+/**
+ * Returns this shape's local-space "rest axis" - the line along which its barrel surface actually
+ * touches a flat plane when resting on its side, as two local-space endpoints. Unlike the cone,
+ * the cylinder/capsule barrel is symmetric about the Y axis, so the radial direction of the
+ * contact line depends on which way the (local-space) contact normal points; pass it in.
+ *
+ * @method getRestAxis
+ * @param localNormal {Vector3} the contact normal, in this shape's local space
+ * @return {Array} [Vector3, Vector3] two local-space points defining the rest line
+ */
+Goblin.CylinderShape.prototype.getRestAxis = function( localNormal ) {
+	var rx = localNormal.x, rz = localNormal.z;
+	var sigma = Math.sqrt( rx * rx + rz * rz );
+	if ( sigma < 1e-6 ) { rx = 1; rz = 0; sigma = 1; }
+	rx /= sigma; rz /= sigma;
+	return [
+		new Goblin.Vector3( rx * this.radius, -this.half_height, rz * this.radius ),
+		new Goblin.Vector3( rx * this.radius, this.half_height, rz * this.radius )
+	];
+};
+
 Goblin.CylinderShape.prototype.getInertiaTensor = function( mass ) {
 	var element = 0.0833 * mass * ( 3 * this.radius * this.radius + ( this.half_height + this.half_height ) * ( this.half_height + this.half_height ) );
 
