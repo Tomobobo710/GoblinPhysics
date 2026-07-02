@@ -327,6 +327,188 @@ Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
 			this.addContact( possible_contacts[i][0], possible_contacts[i][1], contact );
 		}
 	}
+
+	this.symmetrizeRoundContacts();
+	this.collapseSphereContacts();
+};
+
+/**
+ * Collapses any sphere manifold to a single contact point under the sphere's center. A sphere touches
+ * a surface at exactly one point along the contact normal, but the persistent ContactManifold caches
+ * up to four points, each recomputed from a local anchor fixed on the sphere surface. As the sphere
+ * rolls those anchors rotate with it, so cached points trail behind the true bottom while still
+ * shallowly penetrating, forming an off-center cluster whose lever arm under the vertical normal is a
+ * phantom torque that pumps the sphere's spin and keeps it rolling. This keeps the single deepest
+ * point, re-places it (and its local anchors) at the sphere center projected onto the surface along
+ * the normal, so it is recomputed from the center each frame and rolling cannot smear it.
+ *
+ * @method collapseSphereContacts
+ */
+Goblin.NarrowPhase.prototype.collapseSphereContacts = function() {
+	var manifold = this.contact_manifolds.first;
+	while ( manifold ) {
+		var hasSphere = manifold.object_a.shape instanceof Goblin.SphereShape ||
+			manifold.object_b.shape instanceof Goblin.SphereShape;
+
+		if ( hasSphere && manifold.points.length > 0 ) {
+			// Keep the single deepest-penetrating point (the real current contact); destroy the rest.
+			var deepest = 0;
+			for ( var i = 1; i < manifold.points.length; i++ ) {
+				if ( manifold.points[i].penetration_depth > manifold.points[deepest].penetration_depth ) {
+					deepest = i;
+				}
+			}
+			for ( i = manifold.points.length - 1; i >= 0; i-- ) {
+				if ( i !== deepest ) {
+					manifold.points[i].destroy();
+					manifold.points.splice( i, 1 );
+				}
+			}
+
+			var p = manifold.points[0];
+			// The contact's own object ordering is authoritative — a manifold matches its body pair
+			// in either order, so its object_a may be the contact's object_b (see BoxSphere, which
+			// always makes the sphere its contact's object_a).
+			var sphereIsA = p.object_a.shape instanceof Goblin.SphereShape;
+			var sphereObj = sphereIsA ? p.object_a : p.object_b;
+			var r = sphereObj.shape.radius;
+			// Contact normal points from A to B. The point on the sphere surface that is in contact is
+			// the sphere center moved by radius along the normal toward the OTHER body.
+			var sign = sphereIsA ? 1 : -1;   // toward the other body from the sphere's center
+			var nx = p.contact_normal.x * sign, ny = p.contact_normal.y * sign, nz = p.contact_normal.z * sign;
+
+			// True world contact point: on the sphere surface, directly along the normal from center.
+			// Split the small penetration so the point sits midway in the overlap, matching the
+			// engine's convention (see BoxSphere / ContactManifold.update midpoint).
+			var half_pen = p.penetration_depth * 0.5;
+			p.contact_point.x = sphereObj.position.x + nx * ( r - half_pen );
+			p.contact_point.y = sphereObj.position.y + ny * ( r - half_pen );
+			p.contact_point.z = sphereObj.position.z + nz * ( r - half_pen );
+
+			// Re-anchor each body's local point fresh at its own surface along the normal — the sphere
+			// at its true surface point, the other body at that point pushed through the full overlap —
+			// so ContactManifold.update recomputes the correct penetration from their separation rather
+			// than from a stale surface point that rotates with the rolling sphere.
+			_tmp_vec3_1.set(
+				sphereObj.position.x + nx * r,
+				sphereObj.position.y + ny * r,
+				sphereObj.position.z + nz * r
+			);
+			sphereObj.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_a : p.contact_point_in_b );
+			var other = sphereIsA ? p.object_b : p.object_a;
+			_tmp_vec3_1.set(
+				sphereObj.position.x + nx * ( r - p.penetration_depth ),
+				sphereObj.position.y + ny * ( r - p.penetration_depth ),
+				sphereObj.position.z + nz * ( r - p.penetration_depth )
+			);
+			other.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_b : p.contact_point_in_a );
+		}
+
+		manifold = manifold.next_manifold;
+	}
+};
+
+/**
+ * Snaps a round or tapered body's side-rest contact points onto its true line contact. A cylinder,
+ * capsule, or cone lying on its side touches a flat surface along a line fixed by the shape's own
+ * geometry (see each shape's `getRestAxis`), but GJK/EPA place their points off that line; any such
+ * point applies a torque about the line every step, spinning the body up into an endless roll. For any
+ * shape exposing `getRestAxis(localNormal)` this transforms that rest line into world space and
+ * re-projects each contact point onto it (clamped to the segment), correcting only the in-plane
+ * component and leaving the along-normal penetration untouched. Guarded to the genuine side-rest case:
+ * at least two points sharing a near-identical normal, with that normal roughly perpendicular to the
+ * body's own axis; anything else is left as EPA produced it.
+ *
+ * @method symmetrizeRoundContacts
+ */
+Goblin.NarrowPhase.prototype.symmetrizeRoundContacts = function() {
+	var manifold = this.contact_manifolds.first;
+	var local_n = new Goblin.Vector3(),
+		axis_local_0 = new Goblin.Vector3(), axis_local_1 = new Goblin.Vector3(),
+		axis_world_0 = new Goblin.Vector3(), axis_world_1 = new Goblin.Vector3();
+
+	while ( manifold ) {
+		var round = null;
+		if ( typeof manifold.object_a.shape.getRestAxis === 'function' ) {
+			round = manifold.object_a;
+		} else if ( typeof manifold.object_b.shape.getRestAxis === 'function' ) {
+			round = manifold.object_b;
+		}
+
+		if ( round !== null && manifold.points.length >= 2 ) {
+			var points = manifold.points;
+			var n0 = points[0].contact_normal;
+
+			// All normals must point essentially the same way (a single flat contact face, not
+			// several faces of a corner/wedge).
+			var consistent = true;
+			for ( var i = 1; i < points.length; i++ ) {
+				var ni = points[i].contact_normal;
+				var ndot = n0.x * ni.x + n0.y * ni.y + n0.z * ni.z;
+				if ( ndot <= 0.999 ) { consistent = false; break; }
+			}
+
+			// Normal in the round body's local space, to pick the radial direction for shapes whose
+			// rest axis depends on which way is down locally, and to detect orientation. The barrel
+			// line is valid only for a genuine side rest (local normal roughly perpendicular to the
+			// body's own axis); a body standing on its flat end has a near-axial local normal and a
+			// rim-circle of points that this line logic must not touch. Require |local_n.y| small.
+			round.transform_inverse.rotateVector3Into( n0, local_n );
+			var isSideRest = Math.abs( local_n.y ) < 0.7;
+
+			if ( consistent && isSideRest ) {
+				var axis = round.shape.getRestAxis( local_n );
+				axis_local_0.x = axis[0].x; axis_local_0.y = axis[0].y; axis_local_0.z = axis[0].z;
+				axis_local_1.x = axis[1].x; axis_local_1.y = axis[1].y; axis_local_1.z = axis[1].z;
+				round.transform.transformVector3Into( axis_local_0, axis_world_0 );
+				round.transform.transformVector3Into( axis_local_1, axis_world_1 );
+
+				var ax = axis_world_1.x - axis_world_0.x,
+					ay = axis_world_1.y - axis_world_0.y,
+					az = axis_world_1.z - axis_world_0.z;
+				var axisLenSq = ax * ax + ay * ay + az * az;
+
+				for ( i = 0; i < points.length; i++ ) {
+					var p = points[i];
+					var n = p.contact_normal;
+
+					// Project the point onto the true rest line, clamped to the segment.
+					var t = 0;
+					if ( axisLenSq > 1e-9 ) {
+						t = ( ( p.contact_point.x - axis_world_0.x ) * ax +
+							( p.contact_point.y - axis_world_0.y ) * ay +
+							( p.contact_point.z - axis_world_0.z ) * az ) / axisLenSq;
+						if ( t < 0 ) {
+							t = 0;
+						} else if ( t > 1 ) {
+							t = 1;
+						}
+					}
+					var targetX = axis_world_0.x + ax * t,
+						targetY = axis_world_0.y + ay * t,
+						targetZ = axis_world_0.z + az * t;
+
+					// Only correct the in-plane (perpendicular-to-normal) component; leave the
+					// along-normal (penetration) component exactly as EPA computed it, so we don't
+					// fight the height/penetration solve.
+					var dx = targetX - p.contact_point.x,
+						dy = targetY - p.contact_point.y,
+						dz = targetZ - p.contact_point.z;
+					var dn = dx * n.x + dy * n.y + dz * n.z;
+					dx -= dn * n.x; dy -= dn * n.y; dz -= dn * n.z;
+
+					// Shift only the world-space contact point the jacobians are built from this step.
+					// The local anchors contact_point_in_a/_in_b are left alone: they drive next
+					// step's penetration/height computation, and rewriting them from the tangentially
+					// shifted point corrupts the height solve. Leaving them makes this a per-step
+					// correction, re-applied fresh from EPA's latest points rather than a persistent edit.
+					p.contact_point.x += dx; p.contact_point.y += dy; p.contact_point.z += dz;
+				}
+			}
+		}
+
+		manifold = manifold.next_manifold;
+	}
 };
 
 Goblin.NarrowPhase.prototype.removeBody = function( body ) {
