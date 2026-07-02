@@ -71,6 +71,27 @@ Goblin.CapsuleShape.prototype.calculateLocalAABB = function(aabb) {
 };
 
 /**
+ * Returns this shape's local-space "rest axis" - the line along which its barrel surface actually
+ * touches a flat plane when resting on its side, as two local-space endpoints. Only the straight
+ * barrel section contacts a flat plane (the hemisphere caps only touch if standing on an end), so
+ * this uses cylinder_half_height, not the capsule's total half_height.
+ *
+ * @method getRestAxis
+ * @param localNormal {Vector3} the contact normal, in this shape's local space
+ * @return {Array} [Vector3, Vector3] two local-space points defining the rest line
+ */
+Goblin.CapsuleShape.prototype.getRestAxis = function( localNormal ) {
+    var rx = localNormal.x, rz = localNormal.z;
+    var sigma = Math.sqrt( rx * rx + rz * rz );
+    if ( sigma < 1e-6 ) { rx = 1; rz = 0; sigma = 1; }
+    rx /= sigma; rz /= sigma;
+    return [
+        new Goblin.Vector3( rx * this.radius, -this.cylinder_half_height, rz * this.radius ),
+        new Goblin.Vector3( rx * this.radius, this.cylinder_half_height, rz * this.radius )
+    ];
+};
+
+/**
  * Calculates and returns the inertia tensor for the capsule
  * Combines cylinder and sphere inertia based on their respective volumes and mass distribution
  *
@@ -83,23 +104,28 @@ Goblin.CapsuleShape.prototype.getInertiaTensor = function(mass) {
     var cylinder_volume = Math.PI * this.radius * this.radius * this.cylinder_height;
     var sphere_volume = (4/3) * Math.PI * this.radius * this.radius * this.radius;
     var total_volume = cylinder_volume + sphere_volume;
-    
+
     // Distribute mass proportionally based on volume
     var cylinder_mass = mass * (cylinder_volume / total_volume);
     var sphere_mass = mass * (sphere_volume / total_volume);
-    
+
     // Calculate cylinder contribution to inertia
     var cylinder_x = (1/12) * cylinder_mass * (3 * this.radius * this.radius + this.cylinder_height * this.cylinder_height);
     var cylinder_y = 0.5 * cylinder_mass * this.radius * this.radius;
-    
-    // Calculate sphere contribution to inertia
+
+    // Sphere (both hemisphere caps combined) contribution. The caps sit offset from the capsule's
+    // center of mass by cylinder_half_height, so the parallel-axis theorem ( I = I_local + m*d^2 )
+    // adds mass*offset^2 to the two axes perpendicular to the barrel (x and z). The barrel axis (y) is
+    // unaffected, its offset being along that axis.
     var sphere_element = (2/5) * sphere_mass * this.radius * this.radius;
-    
+    var sphere_offset = this.cylinder_half_height;
+    var sphere_perp = sphere_element + sphere_mass * sphere_offset * sphere_offset;
+
     // Combine inertias into final tensor
     return new Goblin.Matrix3(
-        cylinder_x + sphere_element, 0, 0,
+        cylinder_x + sphere_perp, 0, 0,
         0, cylinder_y + sphere_element, 0,
-        0, 0, cylinder_x + sphere_element
+        0, 0, cylinder_x + sphere_perp
     );
 };
 
@@ -113,26 +139,16 @@ Goblin.CapsuleShape.prototype.getInertiaTensor = function(mass) {
  * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
  */
 Goblin.CapsuleShape.prototype.findSupportPoint = function(direction, support_point) {
-    if (direction.x === 0 && direction.z === 0) {
-        // Direction is purely vertical, support point is at the top or bottom cap
-        support_point.x = support_point.z = 0;
-        support_point.y = direction.y > 0 ? this.half_height : -this.half_height;
-    } else {
-        // Handle cylindrical portion
-        var sigma = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
-        var r_s = this.radius / sigma;
-        support_point.x = r_s * direction.x;
-        support_point.z = r_s * direction.z;
-        
-        // Handle spherical ends
-        if (direction.y > 0) {
-            support_point.y = this.cylinder_half_height;
-            support_point.y += this.radius * (direction.y / direction.length());
-        } else {
-            support_point.y = -this.cylinder_half_height;
-            support_point.y += this.radius * (direction.y / direction.length());
-        }
-    }
+    // A capsule is the Minkowski sum of a line segment (the barrel axis, from -cylinder_half_height
+    // to +cylinder_half_height along local Y) and a sphere of `radius`. Its support point is the
+    // segment endpoint chosen by the sign of direction.y, plus radius * normalize(direction). This
+    // holds for the caps as well as the barrel - a capsule has no flat end disk, so (unlike the
+    // cylinder) there is no separate full-radius case.
+    var dlen = Math.sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
+    var segY = direction.y < 0 ? -this.cylinder_half_height : this.cylinder_half_height;
+    support_point.x = this.radius * direction.x / dlen;
+    support_point.y = segY + this.radius * direction.y / dlen;
+    support_point.z = this.radius * direction.z / dlen;
 };
 
 /**
