@@ -1,3 +1,13 @@
+/**
+ * One scalar row of a Constraint's velocity-level equation: `jacobian . v = bias`, solved by the
+ * IterativeSolver as a 1D LCP bounded by `lower_limit`/`upper_limit`. `jacobian` packs both
+ * bodies' linear and angular coefficients into 12 slots (object_a: [0..2] linear, [3..5] angular;
+ * object_b: [6..8] linear, [9..11] angular). A Constraint may own several rows (e.g. a
+ * HingeConstraint's 5 positional + rotational rows).
+ *
+ * @class ConstraintRow
+ * @constructor
+ */
 Goblin.ConstraintRow = function() {
 	this.jacobian = new Float64Array( 12 );
 	this.B = new Float64Array( 12 ); // `B` is the jacobian multiplied by the objects' inverted mass & inertia tensors
@@ -13,6 +23,15 @@ Goblin.ConstraintRow = function() {
 	this.eta_row = new Float64Array( 12 );
 };
 
+/**
+ * Fetches a ConstraintRow from the object pool and resets it to a fresh, unbounded, zero-jacobian
+ * state, ready for a constraint to populate. Preferred over `new Goblin.ConstraintRow()` in the
+ * per-step solve path to avoid churn.
+ *
+ * @method createConstraintRow
+ * @return {ConstraintRow} a pooled row reset to defaults
+ * @static
+ */
 Goblin.ConstraintRow.createConstraintRow = function() {
 	var row =  Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	row.lower_limit = -Infinity;
@@ -27,6 +46,14 @@ Goblin.ConstraintRow.createConstraintRow = function() {
 	return row;
 };
 
+/**
+ * Computes `B`, the jacobian pre-multiplied by each body's inverse mass and inverse inertia tensor
+ * (and clamped by its linear/angular factor). `B` is the row's effective impulse-per-unit-lambda;
+ * it's reused by `computeD` and by the solver's per-iteration impulse application.
+ *
+ * @method computeB
+ * @param constraint {Constraint} the owning constraint, for its object_a/object_b
+ */
 Goblin.ConstraintRow.prototype.computeB = function( constraint ) {
 	var invmass;
 
@@ -68,6 +95,12 @@ Goblin.ConstraintRow.prototype.computeB = function( constraint ) {
 	}
 };
 
+/**
+ * Computes `D`, the effective mass of this row (`jacobian . B`) - the denominator used when
+ * solving for the impulse `lambda` that satisfies this row's velocity constraint.
+ *
+ * @method computeD
+ */
 Goblin.ConstraintRow.prototype.computeD = function() {
 	this.D = (
 		this.jacobian[0] * this.B[0] +
@@ -85,6 +118,16 @@ Goblin.ConstraintRow.prototype.computeD = function() {
 	);
 };
 
+/**
+ * Computes `eta`, the amount of work needed this step to satisfy the row's constraint: the
+ * velocity implied by each body's current velocity plus its accumulated (unresolved) force/torque,
+ * projected through the jacobian, offset by the row's position-error `bias`. This is the target
+ * the solver drives `jacobian . v` toward.
+ *
+ * @method computeEta
+ * @param constraint {Constraint} the owning constraint, for its object_a/object_b
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.ConstraintRow.prototype.computeEta = function( constraint, time_delta ) {
 	var invmass,
 		inverse_time_delta = 1 / time_delta;

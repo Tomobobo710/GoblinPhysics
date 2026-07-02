@@ -1,3 +1,17 @@
+/**
+ * Constrains two bodies (or one body and the world) to rotate about a shared axis and pivot point,
+ * like a door hinge: 3 rows lock relative position at the pivot, 2 more lock rotation to the single
+ * degree of freedom about the hinge axis. Optionally bounded by a ConstraintLimit (swing angle) and
+ * driven by a ConstraintMotor (powered rotation).
+ *
+ * @class HingeConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param hinge_a {Vector3} hinge axis, in object_a's local space
+ * @param point_a {Vector3} pivot point, in object_a's local space
+ * @param object_b {RigidBody} second body, or null/undefined to hinge object_a to the world
+ * @param point_b {Vector3} pivot point in object_b's local space (only used when object_b is set)
+ */
 Goblin.HingeConstraint = function( object_a, hinge_a, point_a, object_b, point_b ) {
 	Goblin.Constraint.call( this );
 
@@ -52,6 +66,15 @@ function removeConstraintMotorRow( constraint ) {
 	}
 }
 
+/**
+ * Adds or removes this hinge's limit row depending on whether the current swing angle about
+ * `world_axis` violates `this.limit`. Lazily allocates the row on first violation and drops it once
+ * the limit is no longer active, so an unlimited or currently-satisfied hinge costs nothing extra.
+ *
+ * @method updateLimits
+ * @param world_axis {Vector3} the hinge axis, already transformed into world space
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.HingeConstraint.prototype.updateLimits = function( world_axis, time_delta ) {
 	if ( this.limit.enabled === false ) {
 		// remove existing `constraint_row` if it was previously set
@@ -120,6 +143,13 @@ Goblin.HingeConstraint.prototype.updateLimits = function( world_axis, time_delta
 	}
 };
 
+/**
+ * Adds or removes this hinge's motor row depending on whether `this.motor` is enabled, and (when
+ * enabled) updates its target speed and torque limit for this step.
+ *
+ * @method updateMotor
+ * @param world_axis {Vector3} the hinge axis, already transformed into world space
+ */
 Goblin.HingeConstraint.prototype.updateMotor = function( world_axis ) {
 	if ( this.motor.enabled === false ) {
 		removeConstraintMotorRow( this );
@@ -150,6 +180,14 @@ Goblin.HingeConstraint.prototype.updateMotor = function( world_axis ) {
 	}
 };
 
+/**
+ * Recomputes the hinge's rows from current body state: the 3 positional rows and 2 rotational rows
+ * described in the constructor, plus their bias terms for positional/angular error correction, and
+ * then delegates to `updateLimits`/`updateMotor` for the optional limit/motor rows.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.HingeConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
 		r2 = new Goblin.Vector3(),

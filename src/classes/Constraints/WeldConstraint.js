@@ -1,3 +1,15 @@
+/**
+ * Rigidly fuses two bodies together at a shared point (or fixes one body in place relative to the
+ * world): three rows lock relative linear velocity at the point, three more lock relative angular
+ * velocity entirely, so the pair moves as if welded.
+ *
+ * @class WeldConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param point_a {Vector3} weld point, in object_a's local space
+ * @param object_b {RigidBody} second body, or null/undefined to weld object_a fixed to the world
+ * @param point_b {Vector3} weld point in object_b's local space (only used when object_b is set)
+ */
 Goblin.WeldConstraint = function( object_a, point_a, object_b, point_b ) {
 	Goblin.Constraint.call( this );
 
@@ -57,6 +69,14 @@ Goblin.WeldConstraint = function( object_a, point_a, object_b, point_b ) {
 };
 Goblin.WeldConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Recomputes all six rows from current body state, plus bias terms driving both accumulated
+ * positional and rotational error back to zero at rate `erp / time_delta`. No-op when object_b is
+ * null: a world-welded body's rows are set once in the constructor and never need updating.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.WeldConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
 		r2 = new Goblin.Vector3();

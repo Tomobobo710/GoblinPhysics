@@ -59,6 +59,7 @@
 		/**
 		 * maintains count of axis over which two bodies overlap; if count is three, their AABBs touch/penetrate
 		 *
+		 * @property overlap_counter
 		 * @type {Object}
 		 */
 		this.overlap_counter = {};
@@ -74,6 +75,7 @@
 		/**
 		 * array of bodies which have been added to the broadphase since the last update
 		 *
+		 * @property pending_bodies
 		 * @type {Array<RigidBody>}
 		 */
 		this.pending_bodies = [];

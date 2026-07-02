@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>src\classes\Shapes\MeshShape.js - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1 class="file-heading">File: src\classes\Shapes\MeshShape.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+/**
+ * @class MeshShape
+ * @param vertices {Array&lt;Vector3&gt;} vertices comprising the mesh
+ * @param faces {Array&lt;Number&gt;} array of indices indicating which vertices compose a face; faces[0..2] represent the first face, faces[3..5] are the second, etc
+ * @constructor
+ */
+Goblin.MeshShape = function( vertices, faces ) {
+	this.vertices = vertices;
+
+	this.triangles = [];
+	for ( var i = 0; i &lt; faces.length; i += 3 ) {
+		this.triangles.push( new Goblin.TriangleShape( vertices[faces[i]], vertices[faces[i+1]], vertices[faces[i+2]] ) );
+	}
+
+	/**
+	 * the convex mesh&#x27;s volume
+	 * @property volume
+	 * @type {number}
+	 */
+	this.volume = 0;
+
+	/**
+	 * coordinates of the mesh&#x27;s COM
+	 * @property center_of_mass
+	 * @type {vec3}
+	 */
+	this.center_of_mass = new Goblin.Vector3();
+
+	/**
+	 * used in computing the mesh&#x27;s center of mass &amp; volume
+	 * @property _intergral
+	 * @type {Float32Array}
+	 * @private
+	 */
+	this._integral = new Float32Array( 10 );
+
+	this.hierarchy = new Goblin.BVH( this.triangles ).tree;
+
+	var polygon_faces = this.triangles.map(
+		function( triangle ) {
+			return new Goblin.GjkEpa.Face(
+				null,
+				{ point: triangle.a },
+				{ point: triangle.b },
+				{ point: triangle.c }
+			);
+		}
+	);
+
+	Goblin.ConvexShape.prototype.computeVolume.call( this, polygon_faces );
+
+	this.aabb = new Goblin.AABB();
+	this.calculateLocalAABB( this.aabb );
+};
+
+/**
+ * Calculates this shape&#x27;s local AABB and stores it in the passed AABB object
+ *
+ * @method calculateLocalAABB
+ * @param aabb {AABB}
+ */
+Goblin.MeshShape.prototype.calculateLocalAABB = function( aabb ) {
+	aabb.min.x = aabb.min.y = aabb.min.z = 0;
+	aabb.max.x = aabb.max.y = aabb.max.z = 0;
+
+	for ( var i = 0; i &lt; this.vertices.length; i++ ) {
+		aabb.min.x = Math.min( aabb.min.x, this.vertices[i].x );
+		aabb.min.y = Math.min( aabb.min.y, this.vertices[i].y );
+		aabb.min.z = Math.min( aabb.min.z, this.vertices[i].z );
+
+		aabb.max.x = Math.max( aabb.max.x, this.vertices[i].x );
+		aabb.max.y = Math.max( aabb.max.y, this.vertices[i].y );
+		aabb.max.z = Math.max( aabb.max.z, this.vertices[i].z );
+	}
+};
+
+Goblin.MeshShape.prototype.getInertiaTensor = function( mass ) {
+	return Goblin.ConvexShape.prototype.getInertiaTensor.call( this, mass );
+};
+
+/**
+ * noop
+ *
+ * @method findSupportPoint
+ * @param direction {vec3} direction to use in finding the support point
+ * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
+ */
+Goblin.MeshShape.prototype.findSupportPoint = function( direction, support_point ) {
+	return; // MeshShape isn&#x27;t convex so it cannot be used directly in GJK
+};
+
+/**
+ * Checks if a ray segment intersects with the shape
+ *
+ * @method rayIntersect
+ * @property start {vec3} start point of the segment
+ * @property end {vec3} end point of the segment
+ * @return {RayIntersection|null} if the segment intersects, a RayIntersection is returned, else &#x60;null&#x60;
+ */
+Goblin.MeshShape.prototype.rayIntersect = (function(){
+	var intersections = [],
+		tSort = function( a, b ) {
+			if ( a.t &lt; b.t ) {
+				return -1;
+			} else if ( a.t &gt; b.t ) {
+				return 1;
+			} else {
+				return 0;
+			}
+		};
+
+	return function( start, end ) {
+		// Traverse the BVH and return the closest point of contact, if any
+		var nodes = [ this.hierarchy ],
+			node;
+		intersections.length = 0;
+
+		var count = 0;
+		while ( nodes.length &gt; 0 ) {
+			count++;
+			node = nodes.shift();
+
+			if ( node.aabb.testRayIntersect( start, end ) ) {
+				// Ray intersects this node&#x27;s AABB
+				if ( node.isLeaf() ) {
+					var intersection = node.object.rayIntersect( start, end );
+					if ( intersection != null ) {
+						intersections.push( intersection );
+					}
+				} else {
+					nodes.push( node.left, node.right );
+				}
+			}
+		}
+
+		intersections.sort( tSort );
+		return intersections[0] || null;
+	};
+})();
+    </pre>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

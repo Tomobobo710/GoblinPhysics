@@ -1,3 +1,12 @@
+/**
+ * The non-penetration half of a contact: a single-row, one-sided ([0, Infinity]) constraint along
+ * the contact normal that prevents two bodies from interpenetrating, with restitution folded into
+ * its bias. Always built and solved alongside a FrictionConstraint for the same ContactDetails -
+ * see IterativeSolver.processContactManifolds.
+ *
+ * @class ContactConstraint
+ * @constructor
+ */
 Goblin.ContactConstraint = function() {
 	Goblin.Constraint.call( this );
 
@@ -5,6 +14,13 @@ Goblin.ContactConstraint = function() {
 };
 Goblin.ContactConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Initializes this constraint from a ContactDetails: sets object_a/object_b, wires a listener so
+ * the constraint deactivates itself if the contact is destroyed, and builds the initial row.
+ *
+ * @method buildFromContact
+ * @param contact {ContactDetails} the contact this constraint enforces
+ */
 Goblin.ContactConstraint.prototype.buildFromContact = function( contact ) {
 	this.object_a = contact.object_a;
 	this.object_b = contact.object_b;
@@ -24,6 +40,15 @@ Goblin.ContactConstraint.prototype.buildFromContact = function( contact ) {
 
 	this.update();
 };
+
+/**
+ * Recomputes the constraint's single row from current body/contact state: the normal-direction
+ * jacobian for both bodies, the restitution bias from relative velocity at the contact point, and
+ * the perpendicular-lever correction (see `_bleedPerpLever`) that removes rounding-scale phantom
+ * torque on a near-centered contact.
+ *
+ * @method update
+ */
 
 Goblin.ContactConstraint.prototype.update = function() {
 	var row = this.rows[0];

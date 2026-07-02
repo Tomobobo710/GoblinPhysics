@@ -108,7 +108,8 @@ Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
 /**
  * Adds a contact point to the manifold
  *
- * @param {Goblin.ContactDetails} contact
+ * @method addContact
+ * @param contact {ContactDetails} the contact to add
  */
 Goblin.ContactManifold.prototype.addContact = function( contact ) {
 	//@TODO add feature-ids to detect duplicate contacts

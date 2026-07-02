@@ -1,3 +1,15 @@
+/**
+ * Constrains a point on one body (or one body and a fixed world point) to coincide with a point on
+ * another - a ball-and-socket joint. Three rows lock relative linear velocity at the pivot; no
+ * rotational constraint, so both bodies remain free to rotate about the shared point.
+ *
+ * @class PointConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param point_a {Vector3} pivot point, in object_a's local space
+ * @param object_b {RigidBody} second body, or null/undefined to anchor object_a to a fixed world point
+ * @param point_b {Vector3} pivot point in object_b's local space (only used when object_b is set)
+ */
 Goblin.PointConstraint = function( object_a, point_a, object_b, point_b ) {
 	Goblin.Constraint.call( this );
 
@@ -28,6 +40,13 @@ Goblin.PointConstraint = function( object_a, point_a, object_b, point_b ) {
 };
 Goblin.PointConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Recomputes the three positional rows from current body state, plus their bias terms driving the
+ * two pivot points back together at rate `erp / time_delta`.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.PointConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
 		r2 = new Goblin.Vector3();

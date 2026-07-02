@@ -1,5 +1,5 @@
 /**
- * Physics-based character controller with advanced slope handling, movement projection, and state management.
+ * Spring-based character controller with advanced slope handling, movement projection, and state management.
  *
  * @class CharacterController
  * @constructor

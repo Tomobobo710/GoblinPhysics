@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>src\classes\ContactManifold.js - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1 class="file-heading">File: src\classes\ContactManifold.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+/**
+ * Structure which holds information about the contact points between two objects
+ *
+ * @Class ContactManifold
+ * @constructor
+ */
+Goblin.ContactManifold = function() {
+	/**
+	 * first body in the contact
+	 *
+	 * @property object_a
+	 * @type {RigidBody}
+	 */
+	this.object_a = null;
+
+	/**
+	 * second body in the contact
+	 *
+	 * @property object_b
+	 * @type {RigidBody}
+	 */
+	this.object_b = null;
+
+	/**
+	 * array of the active contact points for this manifold
+	 *
+	 * @property points
+	 * @type {Array}
+	 */
+	this.points = [];
+
+	/**
+	 * reference to the next &#x60;ContactManifold&#x60; in the list
+	 *
+	 * @property next_manifold
+	 * @type {ContactManifold}
+	 */
+	this.next_manifold = null;
+};
+
+/**
+ * Determines which cached contact should be replaced with the new contact
+ *
+ * @method findWeakestContact
+ * @param {ContactDetails} new_contact
+ */
+Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
+	// Find which of the current contacts has the deepest penetration
+	var max_penetration_index = -1,
+		max_penetration = new_contact.penetration_depth,
+		i,
+		contact;
+	for ( i = 0; i &lt; 4; i++ ) {
+		contact = this.points[i];
+		if ( contact.penetration_depth &gt; max_penetration ) {
+			max_penetration = contact.penetration_depth;
+			max_penetration_index = i;
+		}
+	}
+
+	// Estimate contact areas
+	var res0 = 0,
+		res1 = 0,
+		res2 = 0,
+		res3 = 0;
+	if ( max_penetration_index !== 0 ) {
+		_tmp_vec3_1.subtractVectors( new_contact.contact_point_in_a, this.points[1].contact_point_in_a );
+		_tmp_vec3_2.subtractVectors( this.points[3].contact_point_in_a, this.points[2].contact_point_in_a );
+		_tmp_vec3_1.cross( _tmp_vec3_2 );
+		res0 = _tmp_vec3_1.lengthSquared();
+	}
+	if ( max_penetration_index !== 1 ) {
+		_tmp_vec3_1.subtractVectors( new_contact.contact_point_in_a, this.points[0].contact_point_in_a );
+		_tmp_vec3_2.subtractVectors( this.points[3].contact_point_in_a, this.points[2].contact_point_in_a );
+		_tmp_vec3_1.cross( _tmp_vec3_2 );
+		res1 = _tmp_vec3_1.lengthSquared();
+	}
+	if ( max_penetration_index !== 2 ) {
+		_tmp_vec3_1.subtractVectors( new_contact.contact_point_in_a, this.points[0].contact_point_in_a );
+		_tmp_vec3_2.subtractVectors( this.points[3].contact_point_in_a, this.points[1].contact_point_in_a );
+		_tmp_vec3_1.cross( _tmp_vec3_2 );
+		res2 = _tmp_vec3_1.lengthSquared();
+	}
+	if ( max_penetration_index !== 3 ) {
+		_tmp_vec3_1.subtractVectors( new_contact.contact_point_in_a, this.points[0].contact_point_in_a );
+		_tmp_vec3_2.subtractVectors( this.points[2].contact_point_in_a, this.points[1].contact_point_in_a );
+		_tmp_vec3_1.cross( _tmp_vec3_2 );
+		res3 = _tmp_vec3_1.lengthSquared();
+	}
+
+	var max_index = 0,
+		max_val = res0;
+	if ( res1 &gt; max_val ) {
+		max_index = 1;
+		max_val = res1;
+	}
+	if ( res2 &gt; max_val ) {
+		max_index = 2;
+		max_val = res2;
+	}
+	if ( res3 &gt; max_val ) {
+		max_index = 3;
+	}
+
+	return max_index;
+};
+
+/**
+ * Adds a contact point to the manifold
+ *
+ * @method addContact
+ * @param contact {ContactDetails} the contact to add
+ */
+Goblin.ContactManifold.prototype.addContact = function( contact ) {
+	//@TODO add feature-ids to detect duplicate contacts
+	var i;
+	var is_sphere_contact = contact.object_a.shape instanceof Goblin.SphereShape ||
+		contact.object_b.shape instanceof Goblin.SphereShape;
+	for ( i = 0; i &lt; this.points.length; i++ ) {
+		if ( this.points[i].contact_point.distanceTo( contact.contact_point ) &lt;= 0.02 ) {
+			if ( is_sphere_contact ) {
+				// A sphere touches at a single analytic point recomputed every frame; the fresh
+				// contact carries the true penetration, so it replaces the cached duplicate rather
+				// than being dropped (cached points re-derive penetration from anchors, which a
+				// rolling sphere invalidates).
+				this.points[i].destroy();
+				this.points.splice( i, 1 );
+				break;
+			}
+			contact.destroy();
+			return;
+		}
+	}
+
+	var use_contact = false;
+	if ( contact != null ) {
+		use_contact = contact.object_a.emit( &#x27;speculativeContact&#x27;, contact.object_b, contact );
+		if ( use_contact !== false ) {
+			use_contact = contact.object_b.emit( &#x27;speculativeContact&#x27;, contact.object_a, contact );
+		}
+
+		if ( use_contact === false ) {
+			contact.destroy();
+			return;
+		} else {
+			contact.object_a.emit( &#x27;contact&#x27;, contact.object_b, contact );
+			contact.object_b.emit( &#x27;contact&#x27;, contact.object_a, contact );
+		}
+	}
+
+	// Add contact if we don&#x27;t have enough points yet
+	if ( this.points.length &lt; 4 ) {
+		this.points.push( contact );
+	} else {
+		var replace_index = this.findWeakestContact( contact );
+		this.points[replace_index].destroy();
+		this.points[replace_index] = contact;
+	}
+};
+
+/**
+ * Updates all of this manifold&#x27;s ContactDetails with the correct contact location &amp; penetration depth
+ *
+ * @method update
+ */
+Goblin.ContactManifold.prototype.update = function() {
+	// Update positions / depths of contacts
+	var i,
+		j,
+		point,
+		object_a_world_coords = new Goblin.Vector3(),
+		object_b_world_coords = new Goblin.Vector3(),
+		vector_difference = new Goblin.Vector3(),
+		starting_points_length = this.points.length;
+
+	for ( i = 0; i &lt; this.points.length; i++ ) {
+		point = this.points[i];
+
+		// Convert the local contact points into world coordinates
+		point.object_a.transform.transformVector3Into( point.contact_point_in_a, object_a_world_coords );
+		point.object_b.transform.transformVector3Into( point.contact_point_in_b, object_b_world_coords );
+
+		// Find new world contact point
+		point.contact_point.addVectors( object_a_world_coords, object_b_world_coords );
+		point.contact_point.scale( 0.5  );
+
+		// Find the new penetration depth
+		vector_difference.subtractVectors( object_a_world_coords, object_b_world_coords );
+		point.penetration_depth = vector_difference.dot( point.contact_normal );
+
+		// If distance from contact is too great remove this contact point
+		if ( point.penetration_depth &lt; -0.02 ) {
+			// Points are too far away along the contact normal
+			point.destroy();
+			for ( j = i; j &lt; this.points.length; j++ ) {
+				this.points[j] = this.points[j + 1];
+			}
+			this.points.length = this.points.length - 1;
+			this.object_a.emit( &#x27;endContact&#x27;, this.object_b );
+			this.object_b.emit( &#x27;endContact&#x27;, this.object_a );
+		} else {
+			// Check if points are too far away orthogonally
+			_tmp_vec3_1.scaleVector( point.contact_normal, point.penetration_depth );
+			_tmp_vec3_1.subtractVectors( object_a_world_coords, _tmp_vec3_1 );
+
+			_tmp_vec3_1.subtractVectors( object_b_world_coords, _tmp_vec3_1 );
+			var distance = _tmp_vec3_1.lengthSquared();
+			if ( distance &gt; 0.2 * 0.2 ) {
+				// Points are indeed too far away
+				point.destroy();
+				for ( j = i; j &lt; this.points.length; j++ ) {
+					this.points[j] = this.points[j + 1];
+				}
+				this.points.length = this.points.length - 1;
+				this.object_a.emit( &#x27;endContact&#x27;, this.object_b );
+				this.object_b.emit( &#x27;endContact&#x27;, this.object_a );
+			}
+		}
+	}
+
+	if (starting_points_length &gt; 0 &amp;&amp; this.points.length === 0) {
+		// this update removed all contact points
+		this.object_a.emit( &#x27;endAllContact&#x27;, this.object_b );
+		this.object_b.emit( &#x27;endAllContact&#x27;, this.object_a );
+	}
+};
+    </pre>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

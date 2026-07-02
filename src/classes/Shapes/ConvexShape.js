@@ -14,6 +14,8 @@ Goblin.ConvexShape = function( vertices ) {
 
 	/**
 	 * faces composing the convex hull
+	 *
+	 * @property faces
 	 * @type {Array}
 	 */
 	this.faces = [];

@@ -311,6 +311,7 @@ Goblin.NarrowPhase.prototype.addContact = function( object_a, object_b, contact 
  * Loops over the passed array of object pairs which may be in contact
  * valid contacts are put in this object's `contacts` property
  *
+ * @method generateContacts
  * @param possible_contacts {Array}
  */
 Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
