@@ -113,8 +113,19 @@ Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
 Goblin.ContactManifold.prototype.addContact = function( contact ) {
 	//@TODO add feature-ids to detect duplicate contacts
 	var i;
+	var is_sphere_contact = contact.object_a.shape instanceof Goblin.SphereShape ||
+		contact.object_b.shape instanceof Goblin.SphereShape;
 	for ( i = 0; i < this.points.length; i++ ) {
 		if ( this.points[i].contact_point.distanceTo( contact.contact_point ) <= 0.02 ) {
+			if ( is_sphere_contact ) {
+				// A sphere touches at a single analytic point recomputed every frame; the fresh
+				// contact carries the true penetration, so it replaces the cached duplicate rather
+				// than being dropped (cached points re-derive penetration from anchors, which a
+				// rolling sphere invalidates).
+				this.points[i].destroy();
+				this.points.splice( i, 1 );
+				break;
+			}
 			contact.destroy();
 			return;
 		}
