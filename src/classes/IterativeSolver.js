@@ -464,10 +464,168 @@ Goblin.IterativeSolver.prototype.solveConstraints = function() {
 			}
 		}
 
+		// Block-solve paired normal contacts (2-point manifolds) as a coupled 2x2 each sweep.
+		// See solveNormalBlocks: sequential Gauss-Seidel on two one-sided normal constraints of the
+		// same body leaves an antisymmetric impulse residual = a phantom torque, which spins a
+		// resting cylinder/capsule up from nothing. This re-couples them.
+		this.solveNormalBlocks();
+
 		if ( max_impulse <= 0.1 ) {
 			break;
 		}
 	}
+};
+
+/**
+ * Block-solves the normal rows of a 2-point contact manifold as a coupled 2x2 LCP (Catto/Box2D
+ * style). Two normal ContactConstraints on the same body pair are the ends of one resting manifold;
+ * solved sequentially, each one's impulse applies a torque that violates the other, leaving an
+ * antisymmetric residual that spins a low-inertia body up from rest and that more iterations only
+ * worsen. Solving both normals together, with the [0, inf] one-sided limit enumerated over four
+ * cases, cancels the cross-coupling in one shot. Runs each sweep over the shared solver_impulse and
+ * row.multiplier state; friction rows stay 1x1.
+ *
+ * @method solveNormalBlocks
+ */
+Goblin.IterativeSolver.prototype.solveNormalBlocks = function() {
+	var cc = this.contact_constraints;
+	var n = cc.length;
+	for ( var a = 0; a < n; a++ ) {
+		var c1 = cc[a];
+		if ( c1.active === false || c1._blockPaired ) {
+			continue;
+		}
+		var c2 = null;
+		for ( var b = a + 1; b < n; b++ ) {
+			var cand = cc[b];
+			if ( cand.active === false || cand._blockPaired ) {
+				continue;
+			}
+			if ( cand.object_a === c1.object_a && cand.object_b === c1.object_b ) { c2 = cand; break; }
+		}
+		if ( c2 === null ) {
+			continue;
+		}
+
+		var r1 = c1.rows[0], r2 = c2.rows[0];
+
+		var jdot1 = Goblin.IterativeSolver._rowJdot( c1, r1 );
+		var jdot2 = Goblin.IterativeSolver._rowJdot( c2, r2 );
+
+		var K11 = r1.D, K22 = r2.D;
+		var K12 = Goblin.IterativeSolver._rowCross( r1, r2 );
+		if ( K11 <= 0 || K22 <= 0 ) {
+			continue;
+		}
+
+		var x1 = r1.multiplier, x2 = r2.multiplier;
+		// "velocity if these two rows' impulses were zero"
+		var a1 = jdot1 - ( K11 * x1 + K12 * x2 );
+		var a2 = jdot2 - ( K12 * x1 + K22 * x2 );
+		// want A x' + a = eta  ->  A x' = (eta - a)
+		var rhs1 = r1.eta - a1;
+		var rhs2 = r2.eta - a2;
+
+		var nx1, nx2;
+		var det = K11 * K22 - K12 * K12;
+
+		// Case 1: both active
+		if ( Math.abs( det ) > 1e-12 ) {
+			nx1 = ( rhs1 * K22 - rhs2 * K12 ) / det;
+			nx2 = ( rhs2 * K11 - rhs1 * K12 ) / det;
+			if ( nx1 >= 0 && nx2 >= 0 ) {
+				this._applyBlock( c1, r1, nx1 - x1 );
+				this._applyBlock( c2, r2, nx2 - x2 );
+				r1.multiplier = nx1; r2.multiplier = nx2;
+				c1._blockPaired = c2._blockPaired = true;
+				continue;
+			}
+		}
+		// Case 2: only point 1
+		nx1 = rhs1 / K11;
+		if ( nx1 >= 0 && ( K12 * nx1 + a2 ) >= r2.eta ) {
+			this._applyBlock( c1, r1, nx1 - x1 );
+			this._applyBlock( c2, r2, 0 - x2 );
+			r1.multiplier = nx1; r2.multiplier = 0;
+			c1._blockPaired = c2._blockPaired = true;
+			continue;
+		}
+		// Case 3: only point 2
+		nx2 = rhs2 / K22;
+		if ( nx2 >= 0 && ( K12 * nx2 + a1 ) >= r1.eta ) {
+			this._applyBlock( c1, r1, 0 - x1 );
+			this._applyBlock( c2, r2, nx2 - x2 );
+			r1.multiplier = 0; r2.multiplier = nx2;
+			c1._blockPaired = c2._blockPaired = true;
+			continue;
+		}
+		// Case 4: neither
+		if ( a1 >= r1.eta && a2 >= r2.eta ) {
+			this._applyBlock( c1, r1, 0 - x1 );
+			this._applyBlock( c2, r2, 0 - x2 );
+			r1.multiplier = 0; r2.multiplier = 0;
+			c1._blockPaired = c2._blockPaired = true;
+		}
+	}
+	for ( var k = 0; k < n; k++ ) {
+		cc[k]._blockPaired = false;
+	}
+};
+
+Goblin.IterativeSolver.prototype._applyBlock = function( constraint, row, delta_lambda ) {
+	if ( delta_lambda === 0 ) {
+		return;
+	}
+	if ( constraint.object_a && constraint.object_a._mass !== Infinity ) {
+		constraint.object_a.solver_impulse[0] += delta_lambda * row.B[0];
+		constraint.object_a.solver_impulse[1] += delta_lambda * row.B[1];
+		constraint.object_a.solver_impulse[2] += delta_lambda * row.B[2];
+		constraint.object_a.solver_impulse[3] += delta_lambda * row.B[3];
+		constraint.object_a.solver_impulse[4] += delta_lambda * row.B[4];
+		constraint.object_a.solver_impulse[5] += delta_lambda * row.B[5];
+	}
+	if ( constraint.object_b && constraint.object_b._mass !== Infinity ) {
+		constraint.object_b.solver_impulse[0] += delta_lambda * row.B[6];
+		constraint.object_b.solver_impulse[1] += delta_lambda * row.B[7];
+		constraint.object_b.solver_impulse[2] += delta_lambda * row.B[8];
+		constraint.object_b.solver_impulse[3] += delta_lambda * row.B[9];
+		constraint.object_b.solver_impulse[4] += delta_lambda * row.B[10];
+		constraint.object_b.solver_impulse[5] += delta_lambda * row.B[11];
+	}
+};
+
+Goblin.IterativeSolver._rowJdot = function( constraint, row ) {
+	var jdot = 0;
+	if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+		jdot += (
+			row.jacobian[0] * constraint.object_a.linear_factor.x * constraint.object_a.solver_impulse[0] +
+			row.jacobian[1] * constraint.object_a.linear_factor.y * constraint.object_a.solver_impulse[1] +
+			row.jacobian[2] * constraint.object_a.linear_factor.z * constraint.object_a.solver_impulse[2] +
+			row.jacobian[3] * constraint.object_a.angular_factor.x * constraint.object_a.solver_impulse[3] +
+			row.jacobian[4] * constraint.object_a.angular_factor.y * constraint.object_a.solver_impulse[4] +
+			row.jacobian[5] * constraint.object_a.angular_factor.z * constraint.object_a.solver_impulse[5]
+		);
+	}
+	if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+		jdot += (
+			row.jacobian[6] * constraint.object_b.linear_factor.x * constraint.object_b.solver_impulse[0] +
+			row.jacobian[7] * constraint.object_b.linear_factor.y * constraint.object_b.solver_impulse[1] +
+			row.jacobian[8] * constraint.object_b.linear_factor.z * constraint.object_b.solver_impulse[2] +
+			row.jacobian[9] * constraint.object_b.angular_factor.x * constraint.object_b.solver_impulse[3] +
+			row.jacobian[10] * constraint.object_b.angular_factor.y * constraint.object_b.solver_impulse[4] +
+			row.jacobian[11] * constraint.object_b.angular_factor.z * constraint.object_b.solver_impulse[5]
+		);
+	}
+	return jdot;
+};
+
+Goblin.IterativeSolver._rowCross = function( rowA, rowB ) {
+	return (
+		rowA.jacobian[0] * rowB.B[0] + rowA.jacobian[1] * rowB.B[1] + rowA.jacobian[2] * rowB.B[2] +
+		rowA.jacobian[3] * rowB.B[3] + rowA.jacobian[4] * rowB.B[4] + rowA.jacobian[5] * rowB.B[5] +
+		rowA.jacobian[6] * rowB.B[6] + rowA.jacobian[7] * rowB.B[7] + rowA.jacobian[8] * rowB.B[8] +
+		rowA.jacobian[9] * rowB.B[9] + rowA.jacobian[10] * rowB.B[10] + rowA.jacobian[11] * rowB.B[11]
+	);
 };
 
 Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
