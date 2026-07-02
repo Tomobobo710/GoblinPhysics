@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>src\classes\Collision\GjkEpa.js - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1 class="file-heading">File: src\classes\Collision\GjkEpa.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+/**
+ * Provides the classes and algorithms for running GJK+EPA based collision detection
+ *
+ * @class GjkEpa
+ * @static
+ */
+Goblin.GjkEpa = {
+	margins: 0.01,
+	result: null,
+
+    max_iterations: 20,
+    epa_condition: 0.001,
+
+    /**
+     * Holds a point on the edge of a Minkowski difference along with that point&#x27;s witnesses and the direction used to find the point
+     *
+     * @class SupportPoint
+     * @param witness_a {vec3} Point in first object used to find the supporting point
+     * @param witness_b {vec3} Point in the second object ued to find th supporting point
+     * @param point {vec3} The support point on the edge of the Minkowski difference
+     * @constructor
+     */
+    SupportPoint: function( witness_a, witness_b, point ) {
+        this.witness_a = witness_a;
+        this.witness_b = witness_b;
+        this.point = point;
+    },
+
+    /**
+     * Finds the extant point on the edge of the Minkowski difference for &#x60;object_a&#x60; - &#x60;object_b&#x60; in &#x60;direction&#x60;
+     *
+     * @method findSupportPoint
+     * @param object_a {Goblin.RigidBody} First object in the search
+     * @param object_b {Goblin.RigidBody} Second object in the search
+     * @param direction {vec3} Direction to find the extant point in
+     * @param gjk_point {Goblin.GjkEpa.SupportPoint} &#x60;SupportPoint&#x60; class to store the resulting point &amp; witnesses in
+     */
+    findSupportPoint: (function(){
+        var temp = new Goblin.Vector3();
+        return function( object_a, object_b, direction, support_point ) {
+            // Find witnesses from the objects
+            object_a.findSupportPoint( direction, support_point.witness_a );
+            temp.scaleVector( direction, -1 );
+            object_b.findSupportPoint( temp, support_point.witness_b );
+
+            // Find the CSO support point
+            support_point.point.subtractVectors( support_point.witness_a, support_point.witness_b );
+        };
+    })(),
+
+	testCollision: function( object_a, object_b ) {
+		var simplex = Goblin.GjkEpa.GJK( object_a, object_b );
+		if ( Goblin.GjkEpa.result != null ) {
+			return Goblin.GjkEpa.result;
+		} else if ( simplex != null ) {
+			return Goblin.GjkEpa.EPA( simplex );
+		}
+	},
+
+    /**
+     * Perform GJK algorithm against two objects. Returns a ContactDetails object if there is a collision, else null
+     *
+     * @method GJK
+     * @param object_a {Goblin.RigidBody}
+     * @param object_b {Goblin.RigidBody}
+     * @return {Goblin.ContactDetails|Boolean} Returns &#x60;null&#x60; if no collision, else a &#x60;ContactDetails&#x60; object
+     */
+	GJK: (function(){
+        return function( object_a, object_b ) {
+            var simplex = new Goblin.GjkEpa.Simplex( object_a, object_b ),
+                last_point;
+
+			Goblin.GjkEpa.result = null;
+
+            while ( ( last_point = simplex.addPoint() ) ){}
+
+            // If last_point is false then there is no collision
+            if ( last_point === false ) {
+				Goblin.GjkEpa.freeSimplex( simplex );
+                return null;
+            }
+
+            return simplex;
+        };
+    })(),
+
+	freeSimplex: function( simplex ) {
+		// Free the support points used by this simplex
+		for ( var i = 0, points_length = simplex.points.length; i &lt; points_length; i++ ) {
+			Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, simplex.points[i] );
+		}
+	},
+
+	freePolyhedron: function( polyhedron ) {
+		// Free the support points used by the polyhedron (includes the points from the simplex used to create the polyhedron
+		var pool = Goblin.ObjectPool.pools[&#x27;GJK2SupportPoint&#x27;];
+
+		for ( var i = 0, faces_length = polyhedron.faces.length; i &lt; faces_length; i++ ) {
+			// The indexOf checking is required because vertices are shared between faces
+			if ( pool.indexOf( polyhedron.faces[i].a ) === -1 ) {
+				Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, polyhedron.faces[i].a );
+			}
+			if ( pool.indexOf( polyhedron.faces[i].b ) === -1 ) {
+				Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, polyhedron.faces[i].b );
+			}
+			if ( pool.indexOf( polyhedron.faces[i].c ) === -1 ) {
+				Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, polyhedron.faces[i].c );
+			}
+		}
+	},
+
+    /**
+     * Performs the Expanding Polytope Algorithm a GJK simplex
+     *
+     * @method EPA
+     * @param simplex {Goblin.GjkEpa.Simplex} Simplex generated by the GJK algorithm
+     * @return {Goblin.ContactDetails}
+     */
+    EPA: (function(){
+		var barycentric = new Goblin.Vector3(),
+			confirm = {
+				a: new Goblin.Vector3(),
+				b: new Goblin.Vector3(),
+				c: new Goblin.Vector3()
+			};
+		return function( simplex ) {
+            // Time to convert the simplex to real faces
+            // @TODO this should be a priority queue where the position in the queue is ordered by distance from face to origin
+			var polyhedron = new Goblin.GjkEpa.Polyhedron( simplex );
+
+			var i = 0;
+
+            // Expand the polyhedron until it doesn&#x27;t expand any more
+			while ( ++i ) {
+				polyhedron.findFaceClosestToOrigin();
+
+				// Find a new support point in the direction of the closest point
+				if ( polyhedron.closest_face_distance &lt; Goblin.EPSILON ) {
+					_tmp_vec3_1.copy( polyhedron.faces[polyhedron.closest_face].normal );
+				} else {
+					_tmp_vec3_1.copy( polyhedron.closest_point );
+				}
+
+				var support_point = Goblin.ObjectPool.getObject( &#x27;GJK2SupportPoint&#x27; );
+				Goblin.GjkEpa.findSupportPoint( simplex.object_a, simplex.object_b, _tmp_vec3_1, support_point );
+
+				// Check for terminating condition
+                _tmp_vec3_1.subtractVectors( support_point.point, polyhedron.closest_point );
+                var gap = _tmp_vec3_1.lengthSquared();
+
+				if ( i === Goblin.GjkEpa.max_iterations || ( gap &lt; Goblin.GjkEpa.epa_condition &amp;&amp; polyhedron.closest_face_distance &gt; Goblin.EPSILON ) ) {
+
+					// Get a ContactDetails object and fill out its details
+					var contact = Goblin.ObjectPool.getObject( &#x27;ContactDetails&#x27; );
+					contact.object_a = simplex.object_a;
+					contact.object_b = simplex.object_b;
+
+					contact.contact_normal.normalizeVector( polyhedron.closest_point );
+					if ( contact.contact_normal.lengthSquared() === 0 ) {
+						contact.contact_normal.subtractVectors( contact.object_b.position, contact.object_a.position );
+					}
+					contact.contact_normal.normalize();
+
+					Goblin.GeometryMethods.findBarycentricCoordinates( polyhedron.closest_point, polyhedron.faces[polyhedron.closest_face].a.point, polyhedron.faces[polyhedron.closest_face].b.point, polyhedron.faces[polyhedron.closest_face].c.point, barycentric );
+
+					if ( isNaN( barycentric.x ) ) {
+                        // @TODO: Avoid this degenerate case
+						//console.log( &#x27;Point not in triangle&#x27; );
+						//debugger;
+						Goblin.GjkEpa.freePolyhedron( polyhedron );
+						return null;
+					}
+
+					// Contact coordinates of object a
+					confirm.a.scaleVector( polyhedron.faces[polyhedron.closest_face].a.witness_a, barycentric.x );
+					confirm.b.scaleVector( polyhedron.faces[polyhedron.closest_face].b.witness_a, barycentric.y );
+					confirm.c.scaleVector( polyhedron.faces[polyhedron.closest_face].c.witness_a, barycentric.z );
+					contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+					contact.contact_point_in_a.add( confirm.c );
+
+					// Contact coordinates of object b
+					confirm.a.scaleVector( polyhedron.faces[polyhedron.closest_face].a.witness_b, barycentric.x );
+					confirm.b.scaleVector( polyhedron.faces[polyhedron.closest_face].b.witness_b, barycentric.y );
+					confirm.c.scaleVector( polyhedron.faces[polyhedron.closest_face].c.witness_b, barycentric.z );
+					contact.contact_point_in_b.addVectors( confirm.a, confirm.b );
+					contact.contact_point_in_b.add( confirm.c );
+
+					// Find actual contact point
+					contact.contact_point.addVectors( contact.contact_point_in_a, contact.contact_point_in_b );
+					contact.contact_point.scale( 0.5  );
+
+					// Set objects&#x27; local points
+					contact.object_a.transform_inverse.transformVector3( contact.contact_point_in_a );
+					contact.object_b.transform_inverse.transformVector3( contact.contact_point_in_b );
+
+					// Calculate penetration depth
+					contact.penetration_depth = polyhedron.closest_point.length() + Goblin.GjkEpa.margins;
+
+					contact.restitution = ( simplex.object_a.restitution + simplex.object_b.restitution ) / 2;
+					contact.friction = ( simplex.object_a.friction + simplex.object_b.friction ) / 2;
+
+					Goblin.GjkEpa.freePolyhedron( polyhedron );
+
+					return contact;
+				}
+
+                polyhedron.addVertex( support_point );
+			}
+
+			Goblin.GjkEpa.freePolyhedron( polyhedron );
+            return null;
+        };
+    })(),
+
+    Face: function( polyhedron, a, b, c ) {
+		this.active = true;
+		//this.polyhedron = polyhedron;
+        this.a = a;
+        this.b = b;
+        this.c = c;
+        this.normal = new Goblin.Vector3();
+		this.neighbors = [];
+
+        _tmp_vec3_1.subtractVectors( b.point, a.point );
+        _tmp_vec3_2.subtractVectors( c.point, a.point );
+        this.normal.crossVectors( _tmp_vec3_1, _tmp_vec3_2 );
+        this.normal.normalize();
+    }
+};
+
+Goblin.GjkEpa.Polyhedron = function( simplex ) {
+	this.closest_face = null;
+	this.closest_face_distance = null;
+	this.closest_point = new Goblin.Vector3();
+
+	this.faces = [
+		//BCD, ACB, CAD, DAB
+		new Goblin.GjkEpa.Face( this, simplex.points[2], simplex.points[1], simplex.points[0] ),
+		new Goblin.GjkEpa.Face( this, simplex.points[3], simplex.points[1], simplex.points[2] ),
+		new Goblin.GjkEpa.Face( this, simplex.points[1], simplex.points[3], simplex.points[0] ),
+		new Goblin.GjkEpa.Face( this, simplex.points[0], simplex.points[3], simplex.points[2] )
+	];
+
+	this.faces[0].neighbors.push( this.faces[1], this.faces[2], this.faces[3] );
+	this.faces[1].neighbors.push( this.faces[2], this.faces[0], this.faces[3] );
+	this.faces[2].neighbors.push( this.faces[1], this.faces[3], this.faces[0] );
+	this.faces[3].neighbors.push( this.faces[2], this.faces[1], this.faces[0] );
+};
+Goblin.GjkEpa.Polyhedron.prototype = {
+    addVertex: function( vertex )
+    {
+        var edges = [], faces = [], i, j, a, b, last_b;
+        this.faces[this.closest_face].silhouette( vertex, edges );
+
+        // Re-order the edges if needed
+        for ( i = 0; i &lt; edges.length - 5; i += 5 ) {
+            a = edges[i+3];
+            b = edges[i+4];
+
+            // Ensure this edge really should be the next one
+            if ( i !== 0 &amp;&amp; last_b !== a ) {
+                // It shouldn&#x27;t
+                for ( j = i + 5; j &lt; edges.length; j += 5 ) {
+                    if ( edges[j+3] === last_b ) {
+                        // Found it
+                        var tmp = edges.slice( i, i + 5 );
+                        edges[i] = edges[j];
+                        edges[i+1] = edges[j+1];
+                        edges[i+2] = edges[j+2];
+                        edges[i+3] = edges[j+3];
+                        edges[i+4] = edges[j+4];
+                        edges[j] = tmp[0];
+                        edges[j+1] = tmp[1];
+                        edges[j+2] = tmp[2];
+                        edges[j+3] = tmp[3];
+                        edges[j+4] = tmp[4];
+
+                        a = edges[i+3];
+                        b = edges[i+4];
+                        break;
+                    }
+                }
+            }
+            last_b = b;
+        }
+
+        for ( i = 0; i &lt; edges.length; i += 5 ) {
+            var neighbor = edges[i];
+            a = edges[i+3];
+            b = edges[i+4];
+
+            var face = new Goblin.GjkEpa.Face( this, b, vertex, a );
+            face.neighbors[2] = edges[i];
+            faces.push( face );
+
+            neighbor.neighbors[neighbor.neighbors.indexOf( edges[i+2] )] = face;
+        }
+
+        for ( i = 0; i &lt; faces.length; i++ ) {
+            faces[i].neighbors[0] = faces[ i + 1 === faces.length ? 0 : i + 1 ];
+            faces[i].neighbors[1] = faces[ i - 1 &lt; 0 ? faces.length - 1 : i - 1 ];
+        }
+
+		Array.prototype.push.apply( this.faces, faces );
+
+        return edges;
+    },
+
+	findFaceClosestToOrigin: (function(){
+		var origin = new Goblin.Vector3(),
+			point = new Goblin.Vector3();
+
+		return function() {
+			this.closest_face_distance = Infinity;
+
+			var distance, i;
+
+			for ( i = 0; i &lt; this.faces.length; i++ ) {
+				if ( this.faces[i].active === false ) {
+					continue;
+				}
+
+				Goblin.GeometryMethods.findClosestPointInTriangle( origin, this.faces[i].a.point, this.faces[i].b.point, this.faces[i].c.point, point );
+				distance = point.lengthSquared();
+				if ( distance &lt; this.closest_face_distance ) {
+					this.closest_face_distance = distance;
+					this.closest_face = i;
+					this.closest_point.copy( point );
+				}
+			}
+		};
+	})()
+};
+
+Goblin.GjkEpa.Face.prototype = {
+	/**
+	 * Determines if a vertex is in front of or behind the face
+	 *
+	 * @method classifyVertex
+	 * @param vertex {vec3} Vertex to classify
+	 * @return {Number} If greater than 0 then &#x60;vertex&#x27; is in front of the face
+	 */
+	classifyVertex: function( vertex ) {
+		var w = this.normal.dot( this.a.point );
+		return this.normal.dot( vertex.point ) - w;
+	},
+
+	silhouette: function( point, edges, source ) {
+        if ( this.active === false ) {
+            return;
+        }
+
+        if ( this.classifyVertex( point ) &gt; 0 ) {
+			// This face is visible from &#x60;point&#x60;. Deactivate this face and alert the neighbors
+			this.active = false;
+
+			this.neighbors[0].silhouette( point, edges, this );
+			this.neighbors[1].silhouette( point, edges, this );
+            this.neighbors[2].silhouette( point, edges, this );
+		} else if ( source ) {
+			// This face is a neighbor to a now-silhouetted face, determine which neighbor and replace it
+			var neighbor_idx = this.neighbors.indexOf( source ),
+                a, b;
+            if ( neighbor_idx === 0 ) {
+                a = this.a;
+                b = this.b;
+            } else if ( neighbor_idx === 1 ) {
+                a = this.b;
+                b = this.c;
+            } else {
+                a = this.c;
+                b = this.a;
+            }
+			edges.push( this, neighbor_idx, source, b, a );
+		}
+	}
+};
+
+(function(){
+    var origin = new Goblin.Vector3(),
+		ao = new Goblin.Vector3(),
+        ab = new Goblin.Vector3(),
+        ac = new Goblin.Vector3(),
+        ad = new Goblin.Vector3();
+
+	var barycentric = new Goblin.Vector3(),
+		confirm = {
+			a: new Goblin.Vector3(),
+			b: new Goblin.Vector3(),
+			c: new Goblin.Vector3()
+		};
+
+    Goblin.GjkEpa.Simplex = function( object_a, object_b ) {
+        this.object_a = object_a;
+        this.object_b = object_b;
+        this.points = [];
+        this.iterations = 0;
+        this.next_direction = new Goblin.Vector3();
+        this.updateDirection();
+    };
+    Goblin.GjkEpa.Simplex.prototype = {
+        addPoint: function() {
+            if ( ++this.iterations === Goblin.GjkEpa.max_iterations ) {
+                return false;
+            }
+
+            var support_point = Goblin.ObjectPool.getObject( &#x27;GJK2SupportPoint&#x27; );
+            Goblin.GjkEpa.findSupportPoint( this.object_a, this.object_b, this.next_direction, support_point );
+            this.points.push( support_point );
+
+			if ( support_point.point.dot( this.next_direction ) &lt; 0 &amp;&amp; this.points.length &gt; 1 ) {
+				// Check the margins first
+				// @TODO this can be expanded to support 1-simplex (2 points)
+				if ( this.points.length &gt;= 3 ) {
+					Goblin.GeometryMethods.findClosestPointInTriangle(
+						origin,
+						this.points[0].point,
+						this.points[1].point,
+						this.points[2].point,
+						_tmp_vec3_1
+					);
+					var distanceSquared = _tmp_vec3_1.lengthSquared();
+
+					if ( distanceSquared &lt;= Goblin.GjkEpa.margins * Goblin.GjkEpa.margins ) {
+						// Get a ContactDetails object and fill out its details
+						var contact = Goblin.ObjectPool.getObject( &#x27;ContactDetails&#x27; );
+						contact.object_a = this.object_a;
+						contact.object_b = this.object_b;
+
+						contact.contact_normal.normalizeVector( _tmp_vec3_1 );
+						if ( contact.contact_normal.lengthSquared() === 0 ) {
+							contact.contact_normal.subtractVectors( contact.object_b.position, contact.object_a.position );
+						}
+						contact.contact_normal.normalize();
+						contact.contact_normal.scale( -1 );
+
+						contact.penetration_depth = Goblin.GjkEpa.margins - Math.sqrt( distanceSquared );
+
+						Goblin.GeometryMethods.findBarycentricCoordinates( _tmp_vec3_1, this.points[0].point, this.points[1].point, this.points[2].point, barycentric );
+
+						if ( isNaN( barycentric.x ) ) {
+							//debugger;
+							return false;
+						}
+
+						// Contact coordinates of object a
+						confirm.a.scaleVector( this.points[0].witness_a, barycentric.x );
+						confirm.b.scaleVector( this.points[1].witness_a, barycentric.y );
+						confirm.c.scaleVector( this.points[2].witness_a, barycentric.z );
+						contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+						contact.contact_point_in_a.add( confirm.c );
+
+						// Contact coordinates of object b
+						contact.contact_point_in_b.scaleVector( contact.contact_normal, -contact.penetration_depth );
+						contact.contact_point_in_b.add( contact.contact_point_in_a );
+
+						// Find actual contact point
+						contact.contact_point.addVectors( contact.contact_point_in_a, contact.contact_point_in_b );
+						contact.contact_point.scale( 0.5  );
+
+						// Set objects&#x27; local points
+						contact.object_a.transform_inverse.transformVector3( contact.contact_point_in_a );
+						contact.object_b.transform_inverse.transformVector3( contact.contact_point_in_b );
+
+						contact.restitution = ( this.object_a.restitution + this.object_b.restitution ) / 2;
+						contact.friction = ( this.object_a.friction + this.object_b.friction ) / 2;
+
+						//Goblin.GjkEpa.freePolyhedron( polyhedron );
+
+						Goblin.GjkEpa.result = contact;
+						return null;
+					}
+				}
+
+				// if the last added point was not past the origin in the direction
+				// then the Minkowski difference cannot contain the origin because
+				// point added is past the edge of the Minkowski difference
+				return false;
+			}
+
+            if ( this.updateDirection() === true ) {
+                // Found a collision
+                return null;
+            }
+
+            return support_point;
+        },
+
+        findDirectionFromLine: function() {
+            ao.scaleVector( this.points[1].point, -1 );
+            ab.subtractVectors( this.points[0].point, this.points[1].point );
+
+            if ( ab.dot( ao ) &lt; 0 ) {
+                // Origin is on the opposite side of A from B
+                this.next_direction.copy( ao );
+				Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, this.points[1] );
+                this.points.length = 1; // Remove second point
+			} else {
+                // Origin lies between A and B, move on to a 2-simplex
+                this.next_direction.crossVectors( ab, ao );
+                this.next_direction.cross( ab );
+
+                // In the case that &#x60;ab&#x60; and &#x60;ao&#x60; are parallel vectors, direction becomes a 0-vector
+                if (
+                    this.next_direction.x === 0 &amp;&amp;
+                    this.next_direction.y === 0 &amp;&amp;
+                    this.next_direction.z === 0
+                ) {
+                    ab.normalize();
+                    this.next_direction.x = 1 - Math.abs( ab.x );
+                    this.next_direction.y = 1 - Math.abs( ab.y );
+                    this.next_direction.z = 1 - Math.abs( ab.z );
+                }
+            }
+        },
+
+        findDirectionFromTriangle: function() {
+            // Triangle
+            var a = this.points[2],
+                b = this.points[1],
+                c = this.points[0];
+
+            ao.scaleVector( a.point, -1 ); // ao
+            ab.subtractVectors( b.point, a.point ); // ab
+            ac.subtractVectors( c.point, a.point ); // ac
+
+            // Determine the triangle&#x27;s normal
+            _tmp_vec3_1.crossVectors( ab, ac );
+
+            // Edge cross products
+            _tmp_vec3_2.crossVectors( ab, _tmp_vec3_1 );
+            _tmp_vec3_3.crossVectors( _tmp_vec3_1, ac );
+
+            if ( _tmp_vec3_3.dot( ao ) &gt;= 0 ) {
+                // Origin lies on side of ac opposite the triangle
+                if ( ac.dot( ao ) &gt;= 0 ) {
+                    // Origin outside of the ac line, so we form a new
+                    // 1-simplex (line) with points A and C, leaving B behind
+                    this.points.length = 0;
+                    this.points.push( c, a );
+					Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, b );
+
+                    // New search direction is from ac towards the origin
+                    this.next_direction.crossVectors( ac, ao );
+                    this.next_direction.cross( ac );
+                } else {
+                    // *
+                    if ( ab.dot( ao ) &gt;= 0 ) {
+                        // Origin outside of the ab line, so we form a new
+                        // 1-simplex (line) with points A and B, leaving C behind
+                        this.points.length = 0;
+                        this.points.push( b, a );
+						Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, c );
+
+                        // New search direction is from ac towards the origin
+                        this.next_direction.crossVectors( ab, ao );
+                        this.next_direction.cross( ab );
+                    } else {
+                        // only A gives us a good reference point, start over with a 0-simplex
+                        this.points.length = 0;
+                        this.points.push( a );
+						Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, b );
+						Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, c );
+                    }
+                    // *
+                }
+
+            } else {
+
+                // Origin lies on the triangle side of ac
+                if ( _tmp_vec3_2.dot( ao ) &gt;= 0 ) {
+                    // Origin lies on side of ab opposite the triangle
+
+                    // *
+                    if ( ab.dot( ao ) &gt;= 0 ) {
+                        // Origin outside of the ab line, so we form a new
+                        // 1-simplex (line) with points A and B, leaving C behind
+                        this.points.length = 0;
+                        this.points.push( b, a );
+						Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, c );
+
+                        // New search direction is from ac towards the origin
+                        this.next_direction.crossVectors( ab, ao );
+                        this.next_direction.cross( ab );
+                    } else {
+                        // only A gives us a good reference point, start over with a 0-simplex
+                        this.points.length = 0;
+                        this.points.push( a );
+						Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, b );
+						Goblin.ObjectPool.freeObject( &#x27;GJK2SupportPoint&#x27;, c );
+                    }
+                    // *
+
+                } else {
+
+                    // Origin lies somewhere in the triangle or above/below it
+                    if ( _tmp_vec3_1.dot( ao ) &gt;= 0 ) {
+                        // Origin is on the front side of the triangle
+                        this.next_direction.copy( _tmp_vec3_1 );
+						this.points.length = 0;
+						this.points.push( a, b, c );
+                    } else {
+                        // Origin is on the back side of the triangle
+                        this.next_direction.copy( _tmp_vec3_1 );
+                        this.next_direction.scale( -1 );
+                    }
+
+                }
+
+            }
+        },
+
+        getFaceNormal: function( a, b, c, destination ) {
+            ab.subtractVectors( b.point, a.point );
+            ac.subtractVectors( c.point, a.point );
+            destination.crossVectors( ab, ac );
+            destination.normalize();
+        },
+
+        faceNormalDotOrigin: function( a, b, c ) {
+            // Find face normal
+            this.getFaceNormal( a, b, c, _tmp_vec3_1 );
+
+            // Find direction of origin from center of face
+            _tmp_vec3_2.addVectors( a.point, b.point );
+            _tmp_vec3_2.add( c.point );
+			_tmp_vec3_2.scale( -3 );
+			_tmp_vec3_2.normalize();
+
+            return _tmp_vec3_1.dot( _tmp_vec3_2 );
+        },
+
+        findDirectionFromTetrahedron: function() {
+            var a = this.points[3],
+                b = this.points[2],
+                c = this.points[1],
+                d = this.points[0];
+
+			// Check each of the four sides to see which one is facing the origin.
+			// Then keep the three points for that triangle and use its normal as the search direction
+			// The four faces are BCD, ACB, CAD, DAB
+			var closest_face = null,
+				closest_dot = Goblin.EPSILON,
+				face_dot;
+
+			// @TODO we end up calculating the &quot;winning&quot; face normal twice, don&#x27;t do that
+
+			face_dot = this.faceNormalDotOrigin( b, c, d );
+			if ( face_dot &gt; closest_dot ) {
+				closest_face = 1;
+				closest_dot = face_dot;
+			}
+
+			face_dot = this.faceNormalDotOrigin( a, c, b );
+			if ( face_dot &gt; closest_dot ) {
+				closest_face = 2;
+				closest_dot = face_dot;
+			}
+
+			face_dot = this.faceNormalDotOrigin( c, a, d );
+			if ( face_dot &gt; closest_dot ) {
+				closest_face = 3;
+				closest_dot = face_dot;
+			}
+
+			face_dot = this.faceNormalDotOrigin( d, a, b );
+			if ( face_dot &gt; closest_dot ) {
+				closest_face = 4;
+				closest_dot = face_dot;
+			}
+
+			if ( closest_face === null ) {
+				// We have a collision, ready for EPA
+				return true;
+			} else if ( closest_face === 1 ) {
+				// BCD
+				this.points.length = 0;
+				this.points.push( b, c, d );
+				this.getFaceNormal( b, c, d, _tmp_vec3_1 );
+				this.next_direction.copy( _tmp_vec3_1 );
+			} else if ( closest_face === 2 ) {
+				// ACB
+				this.points.length = 0;
+				this.points.push( a, c, b );
+				this.getFaceNormal( a, c, b, _tmp_vec3_1 );
+				this.next_direction.copy( _tmp_vec3_1 );
+			} else if ( closest_face === 3 ) {
+				// CAD
+				this.points.length = 0;
+				this.points.push( c, a, d );
+				this.getFaceNormal( c, a, d, _tmp_vec3_1 );
+				this.next_direction.copy( _tmp_vec3_1 );
+			} else if ( closest_face === 4 ) {
+				// DAB
+				this.points.length = 0;
+				this.points.push( d, a, b );
+				this.getFaceNormal( d, a, b, _tmp_vec3_1 );
+				this.next_direction.copy( _tmp_vec3_1 );
+			}
+        },
+
+        containsOrigin: function() {
+			var a = this.points[3],
+                b = this.points[2],
+                c = this.points[1],
+                d = this.points[0];
+
+            // Check DCA
+            ab.subtractVectors( d.point, a.point );
+            ad.subtractVectors( c.point, a.point );
+            _tmp_vec3_1.crossVectors( ab, ad );
+            if ( _tmp_vec3_1.dot( a.point ) &gt; 0 ) {
+                return false;
+            }
+
+            // Check CBA
+            ab.subtractVectors( c.point, a.point );
+            ad.subtractVectors( b.point, a.point );
+            _tmp_vec3_1.crossVectors( ab, ad );
+            if ( _tmp_vec3_1.dot( a.point ) &gt; 0 ) {
+                return false;
+            }
+
+            // Check ADB
+            ab.subtractVectors( b.point, a.point );
+            ad.subtractVectors( d.point, a.point );
+            _tmp_vec3_1.crossVectors( ab, ad );
+            if ( _tmp_vec3_1.dot( a.point ) &gt; 0 ) {
+                return false;
+            }
+
+            // Check DCB
+            ab.subtractVectors( d.point, c.point );
+            ad.subtractVectors( b.point, c.point );
+            _tmp_vec3_1.crossVectors( ab, ad );
+            if ( _tmp_vec3_1.dot( d.point ) &gt; 0 ) {
+                return false;
+            }
+
+            return true;
+        },
+
+        updateDirection: function() {
+            if ( this.points.length === 0 ) {
+
+                this.next_direction.subtractVectors( this.object_b.position, this.object_a.position );
+
+            } else if ( this.points.length === 1 ) {
+
+                this.next_direction.scale( -1 );
+
+            } else if ( this.points.length === 2 ) {
+
+                this.findDirectionFromLine();
+
+            } else if ( this.points.length === 3 ) {
+
+                this.findDirectionFromTriangle();
+
+            } else {
+
+                return this.findDirectionFromTetrahedron();
+
+            }
+        }
+    };
+})();
+
+    </pre>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

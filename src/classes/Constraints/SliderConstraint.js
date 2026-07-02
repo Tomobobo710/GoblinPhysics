@@ -1,3 +1,17 @@
+/**
+ * Constrains two bodies to slide relative to each other only along a shared axis, like a piston:
+ * two rows lock relative linear velocity orthogonal to the axis (leaving motion along it free),
+ * three more lock relative rotation entirely. Note: the rotational rows' `bias` (position-error
+ * correction for accumulated angular drift) is computed in `_updateAngularConstraints` but
+ * currently commented out before being assigned, so rotation is velocity-constrained but not
+ * drift-corrected; only the two linear rows get bias-driven error correction.
+ *
+ * @class SliderConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param axis {Vector3} slide axis, in object_a's local space
+ * @param object_b {RigidBody} second body
+ */
 Goblin.SliderConstraint = function( object_a, axis, object_b ) {
 	Goblin.Constraint.call( this );
 
@@ -35,6 +49,13 @@ Goblin.SliderConstraint = function( object_a, axis, object_b ) {
 };
 Goblin.SliderConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Recomputes all five rows from current body state by delegating to
+ * `_updateLinearConstraints`/`_updateAngularConstraints`.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.SliderConstraint.prototype.update = (function(){
 	var _axis = new Goblin.Vector3(),
 		n1 = new Goblin.Vector3(),
@@ -52,6 +73,16 @@ Goblin.SliderConstraint.prototype.update = (function(){
 	};
 })();
 
+/**
+ * Recomputes the two linear rows constraining relative velocity orthogonal to the slide axis
+ * (`n1`/`n2`), plus their bias terms driving accumulated off-axis position error back to zero.
+ *
+ * @method _updateLinearConstraints
+ * @param time_delta {Number} the step's time delta, in seconds
+ * @param n1 {Vector3} first world-space axis orthogonal to the slide axis
+ * @param n2 {Vector3} second world-space axis orthogonal to the slide axis (and to n1)
+ * @private
+ */
 Goblin.SliderConstraint.prototype._updateLinearConstraints = function( time_delta, n1, n2 ) {
 	var c = new Goblin.Vector3();
 	c.subtractVectors( this.object_b.position, this.object_a.position );
@@ -100,6 +131,17 @@ Goblin.SliderConstraint.prototype._updateLinearConstraints = function( time_delt
 	this.rows[1].bias = -n2.dot( _tmp_vec3_2 );
 };
 
+/**
+ * Recomputes the three rotational rows locking relative rotation entirely. Also computes the
+ * rotational drift `error` but does not currently assign it to the rows' `bias` (see the class
+ * doc) - this method locks rotational velocity but does not correct accumulated angular drift.
+ *
+ * @method _updateAngularConstraints
+ * @param time_delta {Number} the step's time delta, in seconds
+ * @param n1 {Vector3} first world-space axis orthogonal to the slide axis (unused directly here)
+ * @param n2 {Vector3} second world-space axis orthogonal to the slide axis (unused directly here)
+ * @private
+ */
 Goblin.SliderConstraint.prototype._updateAngularConstraints = function( time_delta, n1, n2, axis ) {
 	this.rows[2].jacobian[3] = this.rows[3].jacobian[4] = this.rows[4].jacobian[5] = -1;
 	this.rows[2].jacobian[9] = this.rows[3].jacobian[10] = this.rows[4].jacobian[11] = 1;

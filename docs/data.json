@@ -1,0 +1,4591 @@
+{
+    "project": {
+        "name": "goblinphysics",
+        "description": "3D physics engine for JavaScript",
+        "version": "0.10.0",
+        "url": "https://github.com/chandlerprall/GoblinPhysics"
+    },
+    "files": {
+        "src\\classes\\BroadPhases\\BasicBroadphase.js": {
+            "name": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "modules": {},
+            "classes": {
+                "BasicBroadphase": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\BroadPhases\\SAPBroadphase.js": {
+            "name": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "modules": {},
+            "classes": {
+                "SAPMarker": 1,
+                "SAPBroadphase": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Collision\\GjkEpa.js": {
+            "name": "src\\classes\\Collision\\GjkEpa.js",
+            "modules": {},
+            "classes": {
+                "GjkEpa": 1,
+                "SupportPoint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Collision\\TriangleTriangle.js": {
+            "name": "src\\classes\\Collision\\TriangleTriangle.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\Constraint.js": {
+            "name": "src\\classes\\Constraints\\Constraint.js",
+            "modules": {},
+            "classes": {
+                "Constraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\ConstraintLimit.js": {
+            "name": "src\\classes\\Constraints\\ConstraintLimit.js",
+            "modules": {},
+            "classes": {
+                "ConstraintLimit": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\ConstraintMotor.js": {
+            "name": "src\\classes\\Constraints\\ConstraintMotor.js",
+            "modules": {},
+            "classes": {
+                "ConstraintMotor": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\ConstraintRow.js": {
+            "name": "src\\classes\\Constraints\\ConstraintRow.js",
+            "modules": {},
+            "classes": {
+                "ConstraintRow": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\ContactConstraint.js": {
+            "name": "src\\classes\\Constraints\\ContactConstraint.js",
+            "modules": {},
+            "classes": {
+                "ContactConstraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\FrictionConstraint.js": {
+            "name": "src\\classes\\Constraints\\FrictionConstraint.js",
+            "modules": {},
+            "classes": {
+                "FrictionConstraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\HingeConstraint.js": {
+            "name": "src\\classes\\Constraints\\HingeConstraint.js",
+            "modules": {},
+            "classes": {
+                "HingeConstraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\PointConstraint.js": {
+            "name": "src\\classes\\Constraints\\PointConstraint.js",
+            "modules": {},
+            "classes": {
+                "PointConstraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\SliderConstraint.js": {
+            "name": "src\\classes\\Constraints\\SliderConstraint.js",
+            "modules": {},
+            "classes": {
+                "SliderConstraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Constraints\\WeldConstraint.js": {
+            "name": "src\\classes\\Constraints\\WeldConstraint.js",
+            "modules": {},
+            "classes": {
+                "WeldConstraint": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\ForceGenerators\\DragForce.js": {
+            "name": "src\\classes\\ForceGenerators\\DragForce.js",
+            "modules": {},
+            "classes": {
+                "DragForce": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\Swept\\LineSweptShape.js": {
+            "name": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "modules": {},
+            "classes": {
+                "LineSweptShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\BoxShape.js": {
+            "name": "src\\classes\\Shapes\\BoxShape.js",
+            "modules": {},
+            "classes": {
+                "BoxShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\CapsuleShape.js": {
+            "name": "src\\classes\\Shapes\\CapsuleShape.js",
+            "modules": {},
+            "classes": {
+                "CapsuleShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\CompoundShape.js": {
+            "name": "src\\classes\\Shapes\\CompoundShape.js",
+            "modules": {},
+            "classes": {
+                "CompoundShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\CompoundShapeChild.js": {
+            "name": "src\\classes\\Shapes\\CompoundShapeChild.js",
+            "modules": {},
+            "classes": {
+                "CompoundShapeChild": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\ConeShape.js": {
+            "name": "src\\classes\\Shapes\\ConeShape.js",
+            "modules": {},
+            "classes": {
+                "ConeShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\ConvexShape.js": {
+            "name": "src\\classes\\Shapes\\ConvexShape.js",
+            "modules": {},
+            "classes": {
+                "ConvexShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\CylinderShape.js": {
+            "name": "src\\classes\\Shapes\\CylinderShape.js",
+            "modules": {},
+            "classes": {
+                "CylinderShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\MeshShape.js": {
+            "name": "src\\classes\\Shapes\\MeshShape.js",
+            "modules": {},
+            "classes": {
+                "MeshShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\PlaneShape.js": {
+            "name": "src\\classes\\Shapes\\PlaneShape.js",
+            "modules": {},
+            "classes": {
+                "PlaneShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\SphereShape.js": {
+            "name": "src\\classes\\Shapes\\SphereShape.js",
+            "modules": {},
+            "classes": {
+                "SphereShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Shapes\\TriangleShape.js": {
+            "name": "src\\classes\\Shapes\\TriangleShape.js",
+            "modules": {},
+            "classes": {
+                "TriangleShape": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\Utils\\Geometry.js": {
+            "name": "src\\classes\\Utils\\Geometry.js",
+            "modules": {},
+            "classes": {
+                "GeometryMethods": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\AABB.js": {
+            "name": "src\\classes\\AABB.js",
+            "modules": {},
+            "classes": {
+                "AABB": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\BVH.js": {
+            "name": "src\\classes\\BVH.js",
+            "modules": {},
+            "classes": {
+                "BVHNode": 1,
+                "AAC": 1,
+                "BVH": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController.js": {
+            "name": "src\\classes\\CharacterController.js",
+            "modules": {},
+            "classes": {
+                "CharacterController": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\ContactDetails.js": {
+            "name": "src\\classes\\ContactDetails.js",
+            "modules": {},
+            "classes": {
+                "ContactDetails": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\ContactManifold.js": {
+            "name": "src\\classes\\ContactManifold.js",
+            "modules": {},
+            "classes": {
+                "ContactManifold": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\ContactManifoldList.js": {
+            "name": "src\\classes\\ContactManifoldList.js",
+            "modules": {},
+            "classes": {
+                "ContactManifoldList": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\ForceGenerator.js": {
+            "name": "src\\classes\\ForceGenerator.js",
+            "modules": {},
+            "classes": {
+                "ForceGenerator": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\IterativeSolver.js": {
+            "name": "src\\classes\\IterativeSolver.js",
+            "modules": {},
+            "classes": {
+                "IterativeSolver": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\NarrowPhase.js": {
+            "name": "src\\classes\\NarrowPhase.js",
+            "modules": {},
+            "classes": {
+                "NarrowPhase": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\ObjectPool.js": {
+            "name": "src\\classes\\ObjectPool.js",
+            "modules": {},
+            "classes": {
+                "ObjectPool": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\RigidBody.js": {
+            "name": "src\\classes\\RigidBody.js",
+            "modules": {},
+            "classes": {
+                "RigidBody": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\World.js": {
+            "name": "src\\classes\\World.js",
+            "modules": {},
+            "classes": {
+                "World": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\intro.js": {
+            "name": "src\\intro.js",
+            "modules": {
+                "Goblin": 1
+            },
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        }
+    },
+    "modules": {
+        "Goblin": {
+            "name": "Goblin",
+            "submodules": {},
+            "elements": {},
+            "classes": {
+                "BasicBroadphase": 1,
+                "SAPMarker": 1,
+                "SAPBroadphase": 1,
+                "GjkEpa": 1,
+                "SupportPoint": 1,
+                "Constraint": 1,
+                "ConstraintLimit": 1,
+                "ConstraintMotor": 1,
+                "ConstraintRow": 1,
+                "ContactConstraint": 1,
+                "FrictionConstraint": 1,
+                "HingeConstraint": 1,
+                "PointConstraint": 1,
+                "SliderConstraint": 1,
+                "WeldConstraint": 1,
+                "DragForce": 1,
+                "LineSweptShape": 1,
+                "BoxShape": 1,
+                "CapsuleShape": 1,
+                "CompoundShape": 1,
+                "CompoundShapeChild": 1,
+                "ConeShape": 1,
+                "ConvexShape": 1,
+                "CylinderShape": 1,
+                "MeshShape": 1,
+                "PlaneShape": 1,
+                "SphereShape": 1,
+                "TriangleShape": 1,
+                "GeometryMethods": 1,
+                "AABB": 1,
+                "BVHNode": 1,
+                "AAC": 1,
+                "BVH": 1,
+                "CharacterController": 1,
+                "ContactDetails": 1,
+                "ContactManifold": 1,
+                "ContactManifoldList": 1,
+                "ForceGenerator": 1,
+                "IterativeSolver": 1,
+                "NarrowPhase": 1,
+                "ObjectPool": 1,
+                "RigidBody": 1,
+                "World": 1
+            },
+            "fors": {},
+            "namespaces": {},
+            "tag": "module",
+            "file": "src\\classes\\World.js",
+            "line": 1,
+            "description": "Goblin Physics"
+        }
+    },
+    "classes": {
+        "BasicBroadphase": {
+            "name": "BasicBroadphase",
+            "shortname": "BasicBroadphase",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 1,
+            "description": "Performs a n^2 check of all collision objects to see if any could be in contact",
+            "is_constructor": 1
+        },
+        "SAPMarker": {
+            "name": "SAPMarker",
+            "shortname": "SAPMarker",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 2,
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "marker_type",
+                    "description": "",
+                    "type": "SAPMarker.TYPES"
+                },
+                {
+                    "name": "body",
+                    "description": "",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "position",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "SAPBroadphase": {
+            "name": "SAPBroadphase",
+            "shortname": "SAPBroadphase",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 28,
+            "description": "Sweep and Prune broadphase",
+            "is_constructor": 1
+        },
+        "GjkEpa": {
+            "name": "GjkEpa",
+            "shortname": "GjkEpa",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Collision\\GjkEpa.js",
+            "line": 1,
+            "description": "Provides the classes and algorithms for running GJK+EPA based collision detection",
+            "static": 1
+        },
+        "SupportPoint": {
+            "name": "SupportPoint",
+            "shortname": "SupportPoint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Collision\\GjkEpa.js",
+            "line": 14,
+            "description": "Holds a point on the edge of a Minkowski difference along with that point's witnesses and the direction used to find the point",
+            "params": [
+                {
+                    "name": "witness_a",
+                    "description": "Point in first object used to find the supporting point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "witness_b",
+                    "description": "Point in the second object ued to find th supporting point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "point",
+                    "description": "The support point on the edge of the Minkowski difference",
+                    "type": "Vec3"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "Constraint": {
+            "name": "Constraint",
+            "shortname": "Constraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\Constraint.js",
+            "line": 1,
+            "description": "Base class for velocity constraints solved by the IterativeSolver. Not used directly - concrete\nconstraints (ContactConstraint, FrictionConstraint, HingeConstraint, PointConstraint,\nSliderConstraint, WeldConstraint) extend this via `Object.create( Goblin.Constraint.prototype )`\nand populate `rows` with the ConstraintRow(s) that express their particular restriction.",
+            "is_constructor": 1
+        },
+        "ConstraintLimit": {
+            "name": "ConstraintLimit",
+            "shortname": "ConstraintLimit",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\ConstraintLimit.js",
+            "line": 1,
+            "description": "Optional lower/upper bound on a constraint's separating value (e.g. a HingeConstraint's angle\nabout its axis). Owned by the constraint it limits; only allocates its ConstraintRow lazily,\non demand, when the bound is actually violated.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "limit_lower",
+                    "description": "lower bound, or null/undefined to leave that side unconstrained",
+                    "type": "Number"
+                },
+                {
+                    "name": "limit_upper",
+                    "description": "upper bound, or null/undefined to leave that side unconstrained",
+                    "type": "Number"
+                }
+            ]
+        },
+        "ConstraintMotor": {
+            "name": "ConstraintMotor",
+            "shortname": "ConstraintMotor",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\ConstraintMotor.js",
+            "line": 1,
+            "description": "Optional powered drive on a constraint (e.g. a HingeConstraint spinning its axis under a bounded\ntorque up to a target speed). Owned by the constraint it drives; only allocates its\nConstraintRow lazily, on demand, once enabled.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "torque",
+                    "description": "maximum torque/force the motor may apply, or null/undefined to disable",
+                    "type": "Number"
+                },
+                {
+                    "name": "max_speed",
+                    "description": "target speed the motor drives toward, or null/undefined to disable",
+                    "type": "Number"
+                }
+            ]
+        },
+        "ConstraintRow": {
+            "name": "ConstraintRow",
+            "shortname": "ConstraintRow",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\ConstraintRow.js",
+            "line": 1,
+            "description": "One scalar row of a Constraint's velocity-level equation: `jacobian . v = bias`, solved by the\nIterativeSolver as a 1D LCP bounded by `lower_limit`/`upper_limit`. `jacobian` packs both\nbodies' linear and angular coefficients into 12 slots (object_a: [0..2] linear, [3..5] angular;\nobject_b: [6..8] linear, [9..11] angular). A Constraint may own several rows (e.g. a\nHingeConstraint's 5 positional + rotational rows).",
+            "is_constructor": 1
+        },
+        "ContactConstraint": {
+            "name": "ContactConstraint",
+            "shortname": "ContactConstraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\ContactConstraint.js",
+            "line": 1,
+            "description": "The non-penetration half of a contact: a single-row, one-sided ([0, Infinity]) constraint along\nthe contact normal that prevents two bodies from interpenetrating, with restitution folded into\nits bias. Always built and solved alongside a FrictionConstraint for the same ContactDetails -\nsee IterativeSolver.processContactManifolds.",
+            "is_constructor": 1
+        },
+        "FrictionConstraint": {
+            "name": "FrictionConstraint",
+            "shortname": "FrictionConstraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\FrictionConstraint.js",
+            "line": 1,
+            "description": "The tangential half of a contact: two rows constraining relative velocity along a pair of axes\northogonal to the contact normal, bounded by +/- (friction coefficient * normal mass) so the\nfriction force can never exceed what Coulomb friction allows for the current normal load. Always\nbuilt and solved alongside a ContactConstraint for the same ContactDetails - see\nIterativeSolver.processContactManifolds.",
+            "is_constructor": 1
+        },
+        "HingeConstraint": {
+            "name": "HingeConstraint",
+            "shortname": "HingeConstraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\HingeConstraint.js",
+            "line": 1,
+            "description": "Constrains two bodies (or one body and the world) to rotate about a shared axis and pivot point,\nlike a door hinge: 3 rows lock relative position at the pivot, 2 more lock rotation to the single\ndegree of freedom about the hinge axis. Optionally bounded by a ConstraintLimit (swing angle) and\ndriven by a ConstraintMotor (powered rotation).",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "first body",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "hinge_a",
+                    "description": "hinge axis, in object_a's local space",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "point_a",
+                    "description": "pivot point, in object_a's local space",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "object_b",
+                    "description": "second body, or null/undefined to hinge object_a to the world",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "point_b",
+                    "description": "pivot point in object_b's local space (only used when object_b is set)",
+                    "type": "Vector3"
+                }
+            ]
+        },
+        "PointConstraint": {
+            "name": "PointConstraint",
+            "shortname": "PointConstraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\PointConstraint.js",
+            "line": 1,
+            "description": "Constrains a point on one body (or one body and a fixed world point) to coincide with a point on\nanother - a ball-and-socket joint. Three rows lock relative linear velocity at the pivot; no\nrotational constraint, so both bodies remain free to rotate about the shared point.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "first body",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "point_a",
+                    "description": "pivot point, in object_a's local space",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "object_b",
+                    "description": "second body, or null/undefined to anchor object_a to a fixed world point",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "point_b",
+                    "description": "pivot point in object_b's local space (only used when object_b is set)",
+                    "type": "Vector3"
+                }
+            ]
+        },
+        "SliderConstraint": {
+            "name": "SliderConstraint",
+            "shortname": "SliderConstraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\SliderConstraint.js",
+            "line": 1,
+            "description": "Constrains two bodies to slide relative to each other only along a shared axis, like a piston:\ntwo rows lock relative linear velocity orthogonal to the axis (leaving motion along it free),\nthree more lock relative rotation entirely. Note: the rotational rows' `bias` (position-error\ncorrection for accumulated angular drift) is computed in `_updateAngularConstraints` but\ncurrently commented out before being assigned, so rotation is velocity-constrained but not\ndrift-corrected; only the two linear rows get bias-driven error correction.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "first body",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "axis",
+                    "description": "slide axis, in object_a's local space",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "object_b",
+                    "description": "second body",
+                    "type": "RigidBody"
+                }
+            ]
+        },
+        "WeldConstraint": {
+            "name": "WeldConstraint",
+            "shortname": "WeldConstraint",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Constraints\\WeldConstraint.js",
+            "line": 1,
+            "description": "Rigidly fuses two bodies together at a shared point (or fixes one body in place relative to the\nworld): three rows lock relative linear velocity at the point, three more lock relative angular\nvelocity entirely, so the pair moves as if welded.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "first body",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "point_a",
+                    "description": "weld point, in object_a's local space",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "object_b",
+                    "description": "second body, or null/undefined to weld object_a fixed to the world",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "point_b",
+                    "description": "weld point in object_b's local space (only used when object_b is set)",
+                    "type": "Vector3"
+                }
+            ]
+        },
+        "DragForce": {
+            "name": "DragForce",
+            "shortname": "DragForce",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\ForceGenerators\\DragForce.js",
+            "line": 1,
+            "description": "adds a drag force to associated objects",
+            "extends": "ForceGenerator",
+            "is_constructor": 1
+        },
+        "LineSweptShape": {
+            "name": "LineSweptShape",
+            "shortname": "LineSweptShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 1,
+            "description": "Extends a given shape by sweeping a line around it",
+            "params": [
+                {
+                    "name": "start",
+                    "description": "starting point of the line",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "end",
+                    "description": "line's end point",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "shape",
+                    "description": "any Goblin shape object"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "BoxShape": {
+            "name": "BoxShape",
+            "shortname": "BoxShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "half_width",
+                    "description": "half width of the cube ( X axis )",
+                    "type": "Number"
+                },
+                {
+                    "name": "half_height",
+                    "description": "half height of the cube ( Y axis )",
+                    "type": "Number"
+                },
+                {
+                    "name": "half_depth",
+                    "description": "half depth of the cube ( Z axis )",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "CapsuleShape": {
+            "name": "CapsuleShape",
+            "shortname": "CapsuleShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 1,
+            "description": "A capsule shape consisting of a cylinder with hemispheres at both ends",
+            "params": [
+                {
+                    "name": "radius",
+                    "description": "radius of both the cylinder portion and hemisphere caps",
+                    "type": "Number"
+                },
+                {
+                    "name": "total_height",
+                    "description": "total height of the capsule including both hemisphere caps",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "CompoundShape": {
+            "name": "CompoundShape",
+            "shortname": "CompoundShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\CompoundShape.js",
+            "line": 1,
+            "is_constructor": 1
+        },
+        "CompoundShapeChild": {
+            "name": "CompoundShapeChild",
+            "shortname": "CompoundShapeChild",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\CompoundShapeChild.js",
+            "line": 1,
+            "is_constructor": 1
+        },
+        "ConeShape": {
+            "name": "ConeShape",
+            "shortname": "ConeShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "radius",
+                    "description": "radius of the cylinder",
+                    "type": "Number"
+                },
+                {
+                    "name": "half_height",
+                    "description": "half height of the cylinder",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "ConvexShape": {
+            "name": "ConvexShape",
+            "shortname": "ConvexShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "vertices",
+                    "description": "array of vertices composing the convex hull",
+                    "type": "Array<vec3>"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "CylinderShape": {
+            "name": "CylinderShape",
+            "shortname": "CylinderShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "radius",
+                    "description": "radius of the cylinder",
+                    "type": "Number"
+                },
+                {
+                    "name": "half_height",
+                    "description": "half height of the cylinder",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "MeshShape": {
+            "name": "MeshShape",
+            "shortname": "MeshShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "vertices",
+                    "description": "vertices comprising the mesh",
+                    "type": "Array<Vector3>"
+                },
+                {
+                    "name": "faces",
+                    "description": "array of indices indicating which vertices compose a face; faces[0..2] represent the first face, faces[3..5] are the second, etc",
+                    "type": "Array<Number>"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "PlaneShape": {
+            "name": "PlaneShape",
+            "shortname": "PlaneShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "orientation",
+                    "description": "index of axis which is the plane's normal ( 0 = X, 1 = Y, 2 = Z )",
+                    "type": "Number"
+                },
+                {
+                    "name": "half_width",
+                    "description": "half width of the plane",
+                    "type": "Number"
+                },
+                {
+                    "name": "half_length",
+                    "description": "half height of the plane",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "SphereShape": {
+            "name": "SphereShape",
+            "shortname": "SphereShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\SphereShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "radius",
+                    "description": "sphere radius",
+                    "type": "Number"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "TriangleShape": {
+            "name": "TriangleShape",
+            "shortname": "TriangleShape",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "vertex_a",
+                    "description": "first vertex",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "vertex_b",
+                    "description": "second vertex",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "vertex_c",
+                    "description": "third vertex",
+                    "type": "Vector3"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "GeometryMethods": {
+            "name": "GeometryMethods",
+            "shortname": "GeometryMethods",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\Utils\\Geometry.js",
+            "line": 1,
+            "description": "Provides methods useful for working with various types of geometries",
+            "static": 1
+        },
+        "AABB": {
+            "name": "AABB",
+            "shortname": "AABB",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\AABB.js",
+            "line": 1,
+            "params": [
+                {
+                    "name": "min",
+                    "description": "",
+                    "type": "Vec3",
+                    "optional": true
+                },
+                {
+                    "name": "max",
+                    "description": "",
+                    "type": "Vec3",
+                    "optional": true
+                }
+            ],
+            "is_constructor": 1
+        },
+        "BVHNode": {
+            "name": "BVHNode",
+            "shortname": "BVHNode",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\BVH.js",
+            "line": 9,
+            "description": "Tree node for a BVH",
+            "params": [
+                {
+                    "name": "object",
+                    "description": "leaf object in the BVH tree",
+                    "type": "Object",
+                    "optional": true
+                }
+            ],
+            "is_constructor": 1,
+            "access": "private",
+            "tagname": ""
+        },
+        "AAC": {
+            "name": "AAC",
+            "shortname": "AAC",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\BVH.js",
+            "line": 49,
+            "description": "Bottom-up BVH construction based on \"Efficient BVH Construction via Approximate Agglomerative Clustering\", Yan Gu 2013",
+            "static": 1,
+            "access": "private",
+            "tagname": ""
+        },
+        "BVH": {
+            "name": "BVH",
+            "shortname": "BVH",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\BVH.js",
+            "line": 205,
+            "description": "Creates a bounding volume hierarchy around a group of objects which have AABBs",
+            "params": [
+                {
+                    "name": "bounded_objects",
+                    "description": "group of objects to be hierarchized",
+                    "type": "Array"
+                }
+            ],
+            "is_constructor": 1
+        },
+        "CharacterController": {
+            "name": "CharacterController",
+            "shortname": "CharacterController",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\CharacterController.js",
+            "line": 1,
+            "description": "Spring-based character controller with advanced slope handling, movement projection, and state management.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "world",
+                    "description": "- Physics world instance",
+                    "type": "Goblin.World"
+                },
+                {
+                    "name": "options",
+                    "description": "- Configuration options",
+                    "type": "Object",
+                    "optional": true,
+                    "props": [
+                        {
+                            "name": "width",
+                            "description": "- Character width in meters",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "1"
+                        },
+                        {
+                            "name": "height",
+                            "description": "- Character height in meters",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "2"
+                        },
+                        {
+                            "name": "depth",
+                            "description": "- Character depth in meters",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "1"
+                        },
+                        {
+                            "name": "mass",
+                            "description": "- Character mass in kg",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "1"
+                        },
+                        {
+                            "name": "moveSpeed",
+                            "description": "- Base movement speed",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "5"
+                        },
+                        {
+                            "name": "allowYRotation",
+                            "description": "- Whether character can rotate around Y axis",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "true"
+                        }
+                    ]
+                },
+                {
+                    "name": "[options.airAccleration=0.3] - How quickly to acclerate horizontally in air\n* @param {Number} [options.groundAccleration=0.3]",
+                    "description": "- How quickly to acclerate horizontally on ground",
+                    "type": "Number"
+                }
+            ]
+        },
+        "ContactDetails": {
+            "name": "ContactDetails",
+            "shortname": "ContactDetails",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 1,
+            "description": "Structure which holds information about a contact between two objects",
+            "is_constructor": 1
+        },
+        "ContactManifold": {
+            "name": "ContactManifold",
+            "shortname": "ContactManifold",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 1,
+            "description": "Structure which holds information about the contact points between two objects",
+            "is_constructor": 1
+        },
+        "ContactManifoldList": {
+            "name": "ContactManifoldList",
+            "shortname": "ContactManifoldList",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\ContactManifoldList.js",
+            "line": 1,
+            "description": "List/Manager of ContactManifolds",
+            "is_constructor": 1
+        },
+        "ForceGenerator": {
+            "name": "ForceGenerator",
+            "shortname": "ForceGenerator",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 1,
+            "description": "adds a constant force to associated objects",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "force",
+                    "description": "[optional] force the generator applies",
+                    "type": "Vec3"
+                }
+            ]
+        },
+        "IterativeSolver": {
+            "name": "IterativeSolver",
+            "shortname": "IterativeSolver",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 1,
+            "description": "Adapted from BulletPhysics's btIterativeSolver",
+            "is_constructor": 1
+        },
+        "NarrowPhase": {
+            "name": "NarrowPhase",
+            "shortname": "NarrowPhase",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 1,
+            "description": "Takes possible contacts found by a broad phase and determines if they are legitimate contacts",
+            "is_constructor": 1
+        },
+        "ObjectPool": {
+            "name": "ObjectPool",
+            "shortname": "ObjectPool",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\ObjectPool.js",
+            "line": 1,
+            "description": "Manages pools for various types of objects, provides methods for creating and freeing pooled objects",
+            "static": 1
+        },
+        "RigidBody": {
+            "name": "RigidBody",
+            "shortname": "RigidBody",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\RigidBody.js",
+            "line": 1,
+            "description": "Represents a rigid body",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "shape",
+                    "description": ""
+                },
+                {
+                    "name": "mass",
+                    "description": "",
+                    "type": "Number"
+                }
+            ]
+        },
+        "World": {
+            "name": "World",
+            "shortname": "World",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\World.js",
+            "line": 1,
+            "description": "Manages the physics simulation",
+            "params": [
+                {
+                    "name": "broadphase",
+                    "description": "the broadphase used by the world to find possible contacts",
+                    "type": "Goblin.Broadphase"
+                },
+                {
+                    "name": "narrowphase",
+                    "description": "the narrowphase used by the world to generate valid contacts",
+                    "type": "Goblin.NarrowPhase"
+                }
+            ],
+            "is_constructor": 1
+        }
+    },
+    "elements": {},
+    "classitems": [
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 8,
+            "description": "Holds all of the collision objects that the broadphase is responsible for",
+            "itemtype": "property",
+            "name": "bodies",
+            "type": "{Array}",
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 16,
+            "description": "Array of all (current) collision pairs between the broadphases' bodies",
+            "itemtype": "property",
+            "name": "collision_pairs",
+            "type": "{Array}",
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 25,
+            "description": "Adds a body to the broadphase for contact checking",
+            "itemtype": "method",
+            "name": "addBody",
+            "params": [
+                {
+                    "name": "body",
+                    "description": "body to add to the broadphase contact checking",
+                    "type": "RigidBody"
+                }
+            ],
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 35,
+            "description": "Removes a body from the broadphase contact checking",
+            "itemtype": "method",
+            "name": "removeBody",
+            "params": [
+                {
+                    "name": "body",
+                    "description": "body to remove from the broadphase contact checking",
+                    "type": "RigidBody"
+                }
+            ],
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 53,
+            "description": "Checks all collision objects to find any which are possibly in contact\n resulting contact pairs are held in the object's `collision_pairs` property",
+            "itemtype": "method",
+            "name": "update",
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 89,
+            "description": "Returns an array of objects the given body may be colliding with",
+            "itemtype": "method",
+            "name": "intersectsWith",
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "",
+                    "type": "RigidBody"
+                }
+            ],
+            "return": {
+                "description": "Array<RigidBody>"
+            },
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\BasicBroadphase.js",
+            "line": 117,
+            "description": "Checks if a ray segment intersects with objects in the world",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "an unsorted array of intersections",
+                "type": "Array<RayIntersection>"
+            },
+            "class": "BasicBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 35,
+            "description": "linked list of the start/end markers along the X axis",
+            "itemtype": "property",
+            "name": "bodies",
+            "type": "{SAPMarker<SAPMarker>}",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 43,
+            "description": "linked list of the start/end markers along the Y axis",
+            "itemtype": "property",
+            "name": "bodies",
+            "type": "{SAPMarker<SAPMarker>}",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 51,
+            "description": "linked list of the start/end markers along the Z axis",
+            "itemtype": "property",
+            "name": "bodies",
+            "type": "{SAPMarker<SAPMarker>}",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 59,
+            "description": "maintains count of axis over which two bodies overlap; if count is three, their AABBs touch/penetrate",
+            "itemtype": "property",
+            "name": "overlap_counter",
+            "type": "{Object}",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 67,
+            "description": "array of all (current) collision pairs between the broadphases' bodies",
+            "itemtype": "property",
+            "name": "collision_pairs",
+            "type": "{Array}",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 75,
+            "description": "array of bodies which have been added to the broadphase since the last update",
+            "itemtype": "property",
+            "name": "pending_bodies",
+            "type": "{Array<RigidBody>}",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 129,
+            "description": "Adds a body to the broadphase for contact checking",
+            "itemtype": "method",
+            "name": "addBody",
+            "params": [
+                {
+                    "name": "body",
+                    "description": "body to add to the broadphase contact checking",
+                    "type": "RigidBody"
+                }
+            ],
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 307,
+            "description": "Updates the broadphase's internal representation and current predicted contacts",
+            "itemtype": "method",
+            "name": "update",
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 349,
+            "description": "Returns an array of objects the given body may be colliding with",
+            "itemtype": "method",
+            "name": "intersectsWith",
+            "params": [
+                {
+                    "name": "body",
+                    "description": "",
+                    "type": "RigidBody"
+                }
+            ],
+            "return": {
+                "description": "Array<RigidBody>"
+            },
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\BroadPhases\\SAPBroadphase.js",
+            "line": 373,
+            "description": "Checks if a ray segment intersects with objects in the world",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "an unsorted array of intersections",
+                "type": "Array<RayIntersection>"
+            },
+            "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\Collision\\GjkEpa.js",
+            "line": 29,
+            "description": "Finds the extant point on the edge of the Minkowski difference for `object_a` - `object_b` in `direction`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "First object in the search",
+                    "type": "Goblin.RigidBody"
+                },
+                {
+                    "name": "object_b",
+                    "description": "Second object in the search",
+                    "type": "Goblin.RigidBody"
+                },
+                {
+                    "name": "direction",
+                    "description": "Direction to find the extant point in",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "gjk_point",
+                    "description": "`SupportPoint` class to store the resulting point & witnesses in",
+                    "type": "Goblin.GjkEpa.SupportPoint"
+                }
+            ],
+            "class": "SupportPoint"
+        },
+        {
+            "file": "src\\classes\\Collision\\GjkEpa.js",
+            "line": 60,
+            "description": "Perform GJK algorithm against two objects. Returns a ContactDetails object if there is a collision, else null",
+            "itemtype": "method",
+            "name": "GJK",
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "",
+                    "type": "Goblin.RigidBody"
+                },
+                {
+                    "name": "object_b",
+                    "description": "",
+                    "type": "Goblin.RigidBody"
+                }
+            ],
+            "return": {
+                "description": "Returns `null` if no collision, else a `ContactDetails` object",
+                "type": "Goblin.ContactDetails|Boolean"
+            },
+            "class": "SupportPoint"
+        },
+        {
+            "file": "src\\classes\\Collision\\GjkEpa.js",
+            "line": 112,
+            "description": "Performs the Expanding Polytope Algorithm a GJK simplex",
+            "itemtype": "method",
+            "name": "EPA",
+            "params": [
+                {
+                    "name": "simplex",
+                    "description": "Simplex generated by the GJK algorithm",
+                    "type": "Goblin.GjkEpa.Simplex"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Goblin.ContactDetails"
+            },
+            "class": "SupportPoint"
+        },
+        {
+            "file": "src\\classes\\Collision\\GjkEpa.js",
+            "line": 336,
+            "description": "Determines if a vertex is in front of or behind the face",
+            "itemtype": "method",
+            "name": "classifyVertex",
+            "params": [
+                {
+                    "name": "vertex",
+                    "description": "Vertex to classify",
+                    "type": "Vec3"
+                }
+            ],
+            "return": {
+                "description": "If greater than 0 then `vertex' is in front of the face",
+                "type": "Number"
+            },
+            "class": "SupportPoint"
+        },
+        {
+            "file": "src\\classes\\Collision\\TriangleTriangle.js",
+            "line": 1,
+            "description": "Performs an intersection test between two triangles",
+            "itemtype": "method",
+            "name": "TriangleTriangle",
+            "params": [
+                {
+                    "name": "tri_a",
+                    "description": "",
+                    "type": "TriangleShape"
+                },
+                {
+                    "name": "tri_b",
+                    "description": "",
+                    "type": "TriangleShape"
+                }
+            ],
+            "class": "Constraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\Constraint.js",
+            "line": 39,
+            "description": "Marks this constraint inactive and emits a `deactivate` event, so the solver drops it from\n`all_constraints` and any listeners (e.g. a manifold's contact/friction constraint pair) can\nclean up in response.",
+            "itemtype": "method",
+            "name": "deactivate",
+            "class": "Constraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\Constraint.js",
+            "line": 51,
+            "description": "Recomputes this constraint's row(s) (jacobian, bias) from current body state. Called once per\nsolver iteration before the rows are consumed. No-op on the base class; concrete constraints\noverride this.",
+            "itemtype": "method",
+            "name": "update",
+            "class": "Constraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintLimit.js",
+            "line": 18,
+            "description": "Updates the lower/upper bounds and re-derives `enabled` from whether either bound is set.",
+            "itemtype": "method",
+            "name": "set",
+            "params": [
+                {
+                    "name": "limit_lower",
+                    "description": "lower bound, or null/undefined to leave that side unconstrained",
+                    "type": "Number"
+                },
+                {
+                    "name": "limit_upper",
+                    "description": "upper bound, or null/undefined to leave that side unconstrained",
+                    "type": "Number"
+                }
+            ],
+            "class": "ConstraintLimit"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintLimit.js",
+            "line": 32,
+            "description": "Allocates this limit's ConstraintRow from the object pool. Called by the owning constraint the\nfirst time the limit is actually violated in a given step.",
+            "itemtype": "method",
+            "name": "createConstraintRow",
+            "class": "ConstraintLimit"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintMotor.js",
+            "line": 16,
+            "description": "Updates the motor's torque/speed and re-derives `enabled` from whether both are set.",
+            "itemtype": "method",
+            "name": "set",
+            "params": [
+                {
+                    "name": "torque",
+                    "description": "maximum torque/force the motor may apply, or null/undefined to disable",
+                    "type": "Number"
+                },
+                {
+                    "name": "max_speed",
+                    "description": "target speed the motor drives toward, or null/undefined to disable",
+                    "type": "Number"
+                }
+            ],
+            "class": "ConstraintMotor"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintMotor.js",
+            "line": 29,
+            "description": "Allocates this motor's ConstraintRow from the object pool. Called by the owning constraint the\nfirst time the motor is enabled.",
+            "itemtype": "method",
+            "name": "createConstraintRow",
+            "class": "ConstraintMotor"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintRow.js",
+            "line": 26,
+            "description": "Fetches a ConstraintRow from the object pool and resets it to a fresh, unbounded, zero-jacobian\nstate, ready for a constraint to populate. Preferred over `new Goblin.ConstraintRow()` in the\nper-step solve path to avoid churn.",
+            "itemtype": "method",
+            "name": "createConstraintRow",
+            "return": {
+                "description": "a pooled row reset to defaults",
+                "type": "ConstraintRow"
+            },
+            "static": 1,
+            "class": "ConstraintRow"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintRow.js",
+            "line": 49,
+            "description": "Computes `B`, the jacobian pre-multiplied by each body's inverse mass and inverse inertia tensor\n(and clamped by its linear/angular factor). `B` is the row's effective impulse-per-unit-lambda;\nit's reused by `computeD` and by the solver's per-iteration impulse application.",
+            "itemtype": "method",
+            "name": "computeB",
+            "params": [
+                {
+                    "name": "constraint",
+                    "description": "the owning constraint, for its object_a/object_b",
+                    "type": "Constraint"
+                }
+            ],
+            "class": "ConstraintRow"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintRow.js",
+            "line": 98,
+            "description": "Computes `D`, the effective mass of this row (`jacobian . B`) - the denominator used when\nsolving for the impulse `lambda` that satisfies this row's velocity constraint.",
+            "itemtype": "method",
+            "name": "computeD",
+            "class": "ConstraintRow"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ConstraintRow.js",
+            "line": 121,
+            "description": "Computes `eta`, the amount of work needed this step to satisfy the row's constraint: the\nvelocity implied by each body's current velocity plus its accumulated (unresolved) force/torque,\nprojected through the jacobian, offset by the row's position-error `bias`. This is the target\nthe solver drives `jacobian . v` toward.",
+            "itemtype": "method",
+            "name": "computeEta",
+            "params": [
+                {
+                    "name": "constraint",
+                    "description": "the owning constraint, for its object_a/object_b",
+                    "type": "Constraint"
+                },
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "ConstraintRow"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ContactConstraint.js",
+            "line": 17,
+            "description": "Initializes this constraint from a ContactDetails: sets object_a/object_b, wires a listener so\nthe constraint deactivates itself if the contact is destroyed, and builds the initial row.",
+            "itemtype": "method",
+            "name": "buildFromContact",
+            "params": [
+                {
+                    "name": "contact",
+                    "description": "the contact this constraint enforces",
+                    "type": "ContactDetails"
+                }
+            ],
+            "class": "ContactConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ContactConstraint.js",
+            "line": 44,
+            "description": "Recomputes the constraint's single row from current body/contact state: the normal-direction\njacobian for both bodies, the restitution bias from relative velocity at the contact point, and\nthe perpendicular-lever correction (see `_bleedPerpLever`) that removes rounding-scale phantom\ntorque on a near-centered contact.",
+            "itemtype": "method",
+            "name": "update",
+            "class": "ContactConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ContactConstraint.js",
+            "line": 115,
+            "description": "Perpendicular lever-arm length below which a contact is treated as centered under the body and its\nnormal-impulse torque is zeroed. Above it the contact is genuinely off-center and left untouched.",
+            "itemtype": "property",
+            "name": "PERP_GATE",
+            "type": "{Number}",
+            "static": 1,
+            "class": "ContactConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\ContactConstraint.js",
+            "line": 125,
+            "description": "Zeroes the phantom torque a normal impulse would apply through a near-centered contact's lever arm.\nThe normal row's angular jacobian is (contact_point - body.position) x contact_normal; its component\nperpendicular to the normal is the torque lever. When that lever is within `PERP_GATE` the contact is\ncentered under the body and the lever is floating-point noise, so it is dropped (the jacobian becomes\nthe along-normal cross product, which is zero). Genuinely off-center contacts have a larger lever and\nare left unchanged.",
+            "itemtype": "method",
+            "name": "_bleedPerpLever",
+            "params": [
+                {
+                    "name": "row",
+                    "description": "the normal constraint row to correct",
+                    "type": "ConstraintRow"
+                },
+                {
+                    "name": "jbase",
+                    "description": "angular jacobian offset for the body ( 3 for object_a, 9 for object_b )",
+                    "type": "Number"
+                },
+                {
+                    "name": "contact_point",
+                    "description": "world-space contact point",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "body",
+                    "description": "the body whose lever arm is measured",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "normal",
+                    "description": "world-space contact normal",
+                    "type": "Vector3"
+                }
+            ],
+            "static": 1,
+            "access": "private",
+            "tagname": "",
+            "class": "ContactConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\FrictionConstraint.js",
+            "line": 18,
+            "description": "Initializes this constraint from a ContactDetails: allocates its two rows, sets\nobject_a/object_b, wires a listener so the constraint deactivates itself if the contact is\ndestroyed, and builds the initial rows.",
+            "itemtype": "method",
+            "name": "buildFromContact",
+            "params": [
+                {
+                    "name": "contact",
+                    "description": "the contact this constraint enforces",
+                    "type": "ContactDetails"
+                }
+            ],
+            "class": "FrictionConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\FrictionConstraint.js",
+            "line": 44,
+            "description": "Recomputes both rows from current body/contact state: the two tangent-direction jacobians\n(found via `contact_normal.findOrthogonal`) and the current friction limit, derived from the\ncontact's friction coefficient scaled by both bodies' mass.",
+            "itemtype": "method",
+            "name": "update",
+            "class": "FrictionConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\HingeConstraint.js",
+            "line": 69,
+            "description": "Adds or removes this hinge's limit row depending on whether the current swing angle about\n`world_axis` violates `this.limit`. Lazily allocates the row on first violation and drops it once\nthe limit is no longer active, so an unlimited or currently-satisfied hinge costs nothing extra.",
+            "itemtype": "method",
+            "name": "updateLimits",
+            "params": [
+                {
+                    "name": "world_axis",
+                    "description": "the hinge axis, already transformed into world space",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "HingeConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\HingeConstraint.js",
+            "line": 146,
+            "description": "Adds or removes this hinge's motor row depending on whether `this.motor` is enabled, and (when\nenabled) updates its target speed and torque limit for this step.",
+            "itemtype": "method",
+            "name": "updateMotor",
+            "params": [
+                {
+                    "name": "world_axis",
+                    "description": "the hinge axis, already transformed into world space",
+                    "type": "Vector3"
+                }
+            ],
+            "class": "HingeConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\HingeConstraint.js",
+            "line": 183,
+            "description": "Recomputes the hinge's rows from current body state: the 3 positional rows and 2 rotational rows\ndescribed in the constructor, plus their bias terms for positional/angular error correction, and\nthen delegates to `updateLimits`/`updateMotor` for the optional limit/motor rows.",
+            "itemtype": "method",
+            "name": "update",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "HingeConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\PointConstraint.js",
+            "line": 43,
+            "description": "Recomputes the three positional rows from current body state, plus their bias terms driving the\ntwo pivot points back together at rate `erp / time_delta`.",
+            "itemtype": "method",
+            "name": "update",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "PointConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\SliderConstraint.js",
+            "line": 52,
+            "description": "Recomputes all five rows from current body state by delegating to\n`_updateLinearConstraints`/`_updateAngularConstraints`.",
+            "itemtype": "method",
+            "name": "update",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "SliderConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\SliderConstraint.js",
+            "line": 76,
+            "description": "Recomputes the two linear rows constraining relative velocity orthogonal to the slide axis\n(`n1`/`n2`), plus their bias terms driving accumulated off-axis position error back to zero.",
+            "itemtype": "method",
+            "name": "_updateLinearConstraints",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                },
+                {
+                    "name": "n1",
+                    "description": "first world-space axis orthogonal to the slide axis",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "n2",
+                    "description": "second world-space axis orthogonal to the slide axis (and to n1)",
+                    "type": "Vector3"
+                }
+            ],
+            "access": "private",
+            "tagname": "",
+            "class": "SliderConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\SliderConstraint.js",
+            "line": 134,
+            "description": "Recomputes the three rotational rows locking relative rotation entirely. Also computes the\nrotational drift `error` but does not currently assign it to the rows' `bias` (see the class\ndoc) - this method locks rotational velocity but does not correct accumulated angular drift.",
+            "itemtype": "method",
+            "name": "_updateAngularConstraints",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                },
+                {
+                    "name": "n1",
+                    "description": "first world-space axis orthogonal to the slide axis (unused directly here)",
+                    "type": "Vector3"
+                },
+                {
+                    "name": "n2",
+                    "description": "second world-space axis orthogonal to the slide axis (unused directly here)",
+                    "type": "Vector3"
+                }
+            ],
+            "access": "private",
+            "tagname": "",
+            "class": "SliderConstraint"
+        },
+        {
+            "file": "src\\classes\\Constraints\\WeldConstraint.js",
+            "line": 72,
+            "description": "Recomputes all six rows from current body state, plus bias terms driving both accumulated\npositional and rotational error back to zero at rate `erp / time_delta`. No-op when object_b is\nnull: a world-welded body's rows are set once in the constructor and never need updating.",
+            "itemtype": "method",
+            "name": "update",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "the step's time delta, in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "WeldConstraint"
+        },
+        {
+            "file": "src\\classes\\ForceGenerators\\DragForce.js",
+            "line": 9,
+            "description": "drag coefficient",
+            "itemtype": "property",
+            "name": "drag_coefficient",
+            "type": "{Number}",
+            "default": "0",
+            "class": "DragForce"
+        },
+        {
+            "file": "src\\classes\\ForceGenerators\\DragForce.js",
+            "line": 18,
+            "description": "drag coefficient",
+            "itemtype": "property",
+            "name": "drag_coefficient",
+            "type": "{Number}",
+            "default": "0",
+            "class": "DragForce"
+        },
+        {
+            "file": "src\\classes\\ForceGenerators\\DragForce.js",
+            "line": 27,
+            "description": "whether or not the force generator is enabled",
+            "itemtype": "property",
+            "name": "enabled",
+            "type": "{Boolean}",
+            "default": "true",
+            "class": "DragForce"
+        },
+        {
+            "file": "src\\classes\\ForceGenerators\\DragForce.js",
+            "line": 36,
+            "description": "array of objects affected by the generator",
+            "itemtype": "property",
+            "name": "affected",
+            "type": "{Array}",
+            "default": "[]",
+            "access": "private",
+            "tagname": "",
+            "class": "DragForce"
+        },
+        {
+            "file": "src\\classes\\ForceGenerators\\DragForce.js",
+            "line": 50,
+            "description": "applies force to the associated objects",
+            "itemtype": "method",
+            "name": "applyForce",
+            "class": "DragForce"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 11,
+            "description": "starting point of the line",
+            "itemtype": "property",
+            "name": "start",
+            "type": "{Vector3}",
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 19,
+            "description": "line's end point",
+            "itemtype": "property",
+            "name": "end",
+            "type": "{Vector3}",
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 27,
+            "description": "shape being swept",
+            "itemtype": "property",
+            "name": "shape",
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 34,
+            "description": "unit direction of the line",
+            "itemtype": "property",
+            "name": "direction",
+            "type": "{Vector3}",
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 43,
+            "description": "length of the line",
+            "itemtype": "property",
+            "name": "length",
+            "type": "{Number}",
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 52,
+            "description": "axis-aligned bounding box of this shape",
+            "itemtype": "property",
+            "name": "aabb",
+            "type": "{AABB}",
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 62,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 85,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\Swept\\LineSweptShape.js",
+            "line": 106,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3} end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "LineSweptShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 9,
+            "description": "Half width of the cube ( X axis )",
+            "itemtype": "property",
+            "name": "half_width",
+            "type": "{Number}",
+            "class": "BoxShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 17,
+            "description": "Half height of the cube ( Y axis )",
+            "itemtype": "property",
+            "name": "half_height",
+            "type": "{Number}",
+            "class": "BoxShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 25,
+            "description": "Half width of the cube ( Z axis )",
+            "itemtype": "property",
+            "name": "half_height",
+            "type": "{Number}",
+            "class": "BoxShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 37,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "BoxShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 65,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "BoxShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\BoxShape.js",
+            "line": 102,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3} end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "BoxShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 10,
+            "description": "radius of both the cylinder and hemisphere caps",
+            "itemtype": "property",
+            "name": "radius",
+            "type": "{Number}",
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 18,
+            "description": "total height of the capsule including hemisphere caps",
+            "itemtype": "property",
+            "name": "total_height",
+            "type": "{Number}",
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 26,
+            "description": "half of the total capsule height",
+            "itemtype": "property",
+            "name": "half_height",
+            "type": "{Number}",
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 34,
+            "description": "height of just the cylinder portion (excluding hemispheres)",
+            "itemtype": "property",
+            "name": "cylinder_height",
+            "type": "{Number}",
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 42,
+            "description": "half height of just the cylinder portion",
+            "itemtype": "property",
+            "name": "cylinder_half_height",
+            "type": "{Number}",
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 59,
+            "description": "Calculates this shape's local AABB (Axis-Aligned Bounding Box) and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "AABB object to store the results",
+                    "type": "AABB"
+                }
+            ],
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 73,
+            "description": "Returns this shape's local-space \"rest axis\" - the line along which its barrel surface actually\ntouches a flat plane when resting on its side, as two local-space endpoints. Only the straight\nbarrel section contacts a flat plane (the hemisphere caps only touch if standing on an end), so\nthis uses cylinder_half_height, not the capsule's total half_height.",
+            "itemtype": "method",
+            "name": "getRestAxis",
+            "params": [
+                {
+                    "name": "localNormal",
+                    "description": "the contact normal, in this shape's local space",
+                    "type": "Vector3"
+                }
+            ],
+            "return": {
+                "description": "[Vector3, Vector3] two local-space points defining the rest line",
+                "type": "Array"
+            },
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 94,
+            "description": "Calculates and returns the inertia tensor for the capsule\nCombines cylinder and sphere inertia based on their respective volumes and mass distribution",
+            "itemtype": "method",
+            "name": "getInertiaTensor",
+            "params": [
+                {
+                    "name": "mass",
+                    "description": "total mass of the capsule",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "3x3 matrix representing the inertia tensor",
+                "type": "Matrix3"
+            },
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 132,
+            "description": "Given a direction, finds the point in this capsule which is the most extreme in that direction.\nThis support point is calculated in local coordinates and stored in the second parameter\nUsed primarily in collision detection algorithms like GJK",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 154,
+            "description": "Helper method that checks if a ray segment intersects with a sphere.\nUsed by rayIntersect to handle the capsule's hemispherical caps.",
+            "itemtype": "method",
+            "name": "sphereIntersect",
+            "params": [
+                {
+                    "name": "start",
+                    "description": "start point of the ray segment",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "end",
+                    "description": "end point of the ray segment",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "radius",
+                    "description": "radius of the sphere to check intersection with",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else null",
+                "type": "RayIntersection|null"
+            },
+            "access": "private",
+            "tagname": "",
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CapsuleShape.js",
+            "line": 204,
+            "description": "Checks if a ray segment intersects with the capsule shape.\nPerforms intersection tests against both the cylindrical portion and hemispherical caps,\nreturning the closest intersection point if any exists.",
+            "itemtype": "method",
+            "name": "rayIntersect",
+            "params": [
+                {
+                    "name": "start",
+                    "description": "start point of the ray segment",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "end",
+                    "description": "end point of the ray segment",
+                    "type": "Vec3"
+                }
+            ],
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else null",
+                "type": "RayIntersection|null"
+            },
+            "class": "CapsuleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CompoundShape.js",
+            "line": 12,
+            "description": "Adds the child shape at `position` and `rotation` relative to the compound shape",
+            "itemtype": "method",
+            "name": "addChildShape",
+            "params": [
+                {
+                    "name": "shape",
+                    "description": ""
+                },
+                {
+                    "name": "position",
+                    "description": ""
+                },
+                {
+                    "name": "rotation",
+                    "description": ""
+                }
+            ],
+            "class": "CompoundShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CompoundShape.js",
+            "line": 25,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "CompoundShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CompoundShape.js",
+            "line": 99,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "ray_end {vec3} end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "CompoundShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 12,
+            "description": "radius of the cylinder",
+            "itemtype": "property",
+            "name": "radius",
+            "type": "{Number}",
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 20,
+            "description": "half height of the cylinder",
+            "itemtype": "property",
+            "name": "half_height",
+            "type": "{Number}",
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 31,
+            "description": "sin of the cone's angle",
+            "itemtype": "property",
+            "name": "_sinagle",
+            "type": "{Number}",
+            "access": "private",
+            "tagname": "",
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 40,
+            "description": "cos of the cone's angle",
+            "itemtype": "property",
+            "name": "_cosangle",
+            "type": "{Number}",
+            "access": "private",
+            "tagname": "",
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 50,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 64,
+            "description": "Returns this shape's local-space rest axis: the line along which the cone touches a flat plane when\nlying on its side, as two local-space endpoints. A cone tapers, so this line is not centered under\nthe centroid - it runs from the apex to a single point on the base rim.",
+            "itemtype": "method",
+            "name": "getRestAxis",
+            "params": [
+                {
+                    "name": "localNormal",
+                    "description": "the contact normal, in this shape's local space",
+                    "type": "Vector3"
+                }
+            ],
+            "return": {
+                "description": "[Vector3, Vector3] two local-space points defining the rest line: apex, then base rim",
+                "type": "Array"
+            },
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 95,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 122,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConeShape.js",
+            "line": 214,
+            "description": "Checks if a ray segment intersects with the cone definition",
+            "itemtype": "property",
+            "name": "point {vec3} (out) location of intersection",
+            "type": "Vec3",
+            "access": "private",
+            "tagname": "",
+            "return": {
+                "description": "if the segment intersects, point where the segment intersects the cone, else `null`",
+                "type": "Vec3|null"
+            },
+            "class": "ConeShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 7,
+            "description": "vertices composing the convex hull",
+            "itemtype": "property",
+            "name": "vertices",
+            "type": "{Array<vec3>}",
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 15,
+            "description": "faces composing the convex hull",
+            "itemtype": "property",
+            "name": "faces",
+            "type": "{Array}",
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 23,
+            "description": "the convex hull's volume",
+            "itemtype": "property",
+            "name": "volume",
+            "type": "{number}",
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 30,
+            "description": "coordinates of the hull's COM",
+            "itemtype": "property",
+            "name": "center_of_mass",
+            "type": "{vec3}",
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 37,
+            "description": "used in computing the convex hull's center of mass & volume",
+            "itemtype": "property",
+            "name": "_intergral",
+            "type": "{Float32Array}",
+            "access": "private",
+            "tagname": "",
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 173,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 313,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\ConvexShape.js",
+            "line": 337,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "ConvexShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 8,
+            "description": "radius of the cylinder",
+            "itemtype": "property",
+            "name": "radius",
+            "type": "{Number}",
+            "class": "CylinderShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 16,
+            "description": "half height of the cylinder",
+            "itemtype": "property",
+            "name": "half_height",
+            "type": "{Number}",
+            "class": "CylinderShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 28,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "CylinderShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 42,
+            "description": "Returns this shape's local-space \"rest axis\" - the line along which its barrel surface actually\ntouches a flat plane when resting on its side, as two local-space endpoints. Unlike the cone,\nthe cylinder/capsule barrel is symmetric about the Y axis, so the radial direction of the\ncontact line depends on which way the (local-space) contact normal points; pass it in.",
+            "itemtype": "method",
+            "name": "getRestAxis",
+            "params": [
+                {
+                    "name": "localNormal",
+                    "description": "the contact normal, in this shape's local space",
+                    "type": "Vector3"
+                }
+            ],
+            "return": {
+                "description": "[Vector3, Vector3] two local-space points defining the rest line",
+                "type": "Array"
+            },
+            "class": "CylinderShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 73,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "CylinderShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\CylinderShape.js",
+            "line": 99,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "CylinderShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 15,
+            "description": "the convex mesh's volume",
+            "itemtype": "property",
+            "name": "volume",
+            "type": "{number}",
+            "class": "MeshShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 22,
+            "description": "coordinates of the mesh's COM",
+            "itemtype": "property",
+            "name": "center_of_mass",
+            "type": "{vec3}",
+            "class": "MeshShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 29,
+            "description": "used in computing the mesh's center of mass & volume",
+            "itemtype": "property",
+            "name": "_intergral",
+            "type": "{Float32Array}",
+            "access": "private",
+            "tagname": "",
+            "class": "MeshShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 56,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "MeshShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 81,
+            "description": "noop",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "MeshShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\MeshShape.js",
+            "line": 92,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3} end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "MeshShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 9,
+            "description": "index of axis which is the plane's normal ( 0 = X, 1 = Y, 2 = Z )\nwhen 0, width is Y and length is Z\nwhen 1, width is X and length is Z\nwhen 2, width is X and length is Y",
+            "itemtype": "property",
+            "name": "half_width",
+            "type": "{Number}",
+            "class": "PlaneShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 20,
+            "description": "half width of the plane",
+            "itemtype": "property",
+            "name": "half_height",
+            "type": "{Number}",
+            "class": "PlaneShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 28,
+            "description": "half length of the plane",
+            "itemtype": "property",
+            "name": "half_length",
+            "type": "{Number}",
+            "class": "PlaneShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 55,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "PlaneShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 131,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "PlaneShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\PlaneShape.js",
+            "line": 168,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "PlaneShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\SphereShape.js",
+            "line": 13,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "SphereShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\SphereShape.js",
+            "line": 33,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in local coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "SphereShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\SphereShape.js",
+            "line": 49,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "SphereShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 9,
+            "description": "first vertex of the triangle",
+            "itemtype": "property",
+            "name": "a",
+            "type": "{Vector3}",
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 17,
+            "description": "second vertex of the triangle",
+            "itemtype": "property",
+            "name": "b",
+            "type": "{Vector3}",
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 25,
+            "description": "third vertex of the triangle",
+            "itemtype": "property",
+            "name": "c",
+            "type": "{Vector3}",
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 33,
+            "description": "normal vector of the triangle",
+            "itemtype": "property",
+            "name": "normal",
+            "type": "{Goblin.Vector3}",
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 44,
+            "description": "area of the triangle",
+            "itemtype": "property",
+            "name": "volume",
+            "type": "{Number}",
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 58,
+            "description": "Calculates this shape's local AABB and stores it in the passed AABB object",
+            "itemtype": "method",
+            "name": "calculateLocalAABB",
+            "params": [
+                {
+                    "name": "aabb",
+                    "description": "",
+                    "type": "AABB"
+                }
+            ],
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 88,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Shapes\\TriangleShape.js",
+            "line": 117,
+            "description": "Checks if a ray segment intersects with the shape",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "if the segment intersects, a RayIntersection is returned, else `null`",
+                "type": "RayIntersection|null"
+            },
+            "class": "TriangleShape"
+        },
+        {
+            "file": "src\\classes\\Utils\\Geometry.js",
+            "line": 8,
+            "description": "determines the location in a triangle closest to a given point",
+            "itemtype": "method",
+            "name": "findClosestPointInTriangle",
+            "params": [
+                {
+                    "name": "p",
+                    "description": "point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "a",
+                    "description": "first triangle vertex",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "b",
+                    "description": "second triangle vertex",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "c",
+                    "description": "third triangle vertex",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "out",
+                    "description": "vector where the result will be stored",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "GeometryMethods"
+        },
+        {
+            "file": "src\\classes\\Utils\\Geometry.js",
+            "line": 101,
+            "description": "Finds the Barycentric coordinates of point `p` in the triangle `a`, `b`, `c`",
+            "itemtype": "method",
+            "name": "findBarycentricCoordinates",
+            "params": [
+                {
+                    "name": "p",
+                    "description": "point to calculate coordinates of",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "a",
+                    "description": "first point in the triangle",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "b",
+                    "description": "second point in the triangle",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "c",
+                    "description": "third point in the triangle",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "out",
+                    "description": "resulting Barycentric coordinates of point `p`",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "GeometryMethods"
+        },
+        {
+            "file": "src\\classes\\Utils\\Geometry.js",
+            "line": 133,
+            "description": "Calculates the distance from point `p` to line `ab`",
+            "itemtype": "method",
+            "name": "findSquaredDistanceFromSegment",
+            "params": [
+                {
+                    "name": "p",
+                    "description": "point to calculate distance to",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "a",
+                    "description": "first point in line",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "b",
+                    "description": "second point in line",
+                    "type": "Vec3"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Number"
+            },
+            "class": "GeometryMethods"
+        },
+        {
+            "file": "src\\classes\\AABB.js",
+            "line": 8,
+            "itemtype": "property",
+            "name": "min",
+            "type": "{vec3}",
+            "class": "AABB"
+        },
+        {
+            "file": "src\\classes\\AABB.js",
+            "line": 14,
+            "itemtype": "property",
+            "name": "max",
+            "type": "{vec3}",
+            "class": "AABB"
+        },
+        {
+            "file": "src\\classes\\AABB.js",
+            "line": 104,
+            "description": "Checks if a ray segment intersects with this AABB",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "",
+                "type": "Boolean"
+            },
+            "class": "AABB"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 83,
+            "description": "Initializes all available character states and their behaviors",
+            "itemtype": "method",
+            "name": "_initializeStates",
+            "access": "private",
+            "tagname": "",
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 189,
+            "description": "Requests a jump to be processed on next update",
+            "itemtype": "method",
+            "name": "wishJump",
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 200,
+            "description": "Changes the current state of the character",
+            "itemtype": "method",
+            "name": "changeState",
+            "params": [
+                {
+                    "name": "newStateName",
+                    "description": "- Name of state to transition to",
+                    "type": "String"
+                }
+            ],
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 230,
+            "description": "Stores input direction for processing during update",
+            "itemtype": "method",
+            "name": "handleInput",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "- Normalized input direction",
+                    "type": "Goblin.Vector3"
+                }
+            ],
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 246,
+            "description": "Updates character physics and state\nShould be called each frame after handleInput",
+            "itemtype": "method",
+            "name": "update",
+            "params": [
+                {
+                    "name": "deltaTime",
+                    "description": "- Time step in seconds",
+                    "type": "Number"
+                }
+            ],
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 265,
+            "description": "Updates ground spring forces to maintain ride height\nShould be called each physics step while in FALLING or GROUNDED states",
+            "itemtype": "method",
+            "name": "updateGroundSpring",
+            "access": "private",
+            "tagname": "",
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 314,
+            "description": "Projects and applies movement forces to the character, handling slopes",
+            "itemtype": "method",
+            "name": "move",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "- Normalized input direction",
+                    "type": "Goblin.Vector3"
+                },
+                {
+                    "name": "deltaTime",
+                    "description": "- Time step in seconds",
+                    "type": "Number"
+                }
+            ],
+            "access": "private",
+            "tagname": "",
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController.js",
+            "line": 363,
+            "description": "Gets comprehensive debug information about current movement state",
+            "itemtype": "method",
+            "name": "getDebugInfo",
+            "return": {
+                "description": "Debug state information including forces and contacts",
+                "type": "Object"
+            },
+            "class": "CharacterController"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 10,
+            "description": "first body in the  contact",
+            "itemtype": "property",
+            "name": "object_a",
+            "type": "{Goblin.RigidBody}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 18,
+            "description": "second body in the  contact",
+            "itemtype": "property",
+            "name": "object_b",
+            "type": "{Goblin.RigidBody}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 26,
+            "description": "point of contact in world coordinates",
+            "itemtype": "property",
+            "name": "contact_point",
+            "type": "{vec3}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 34,
+            "description": "contact point in local frame of `object_a`",
+            "itemtype": "property",
+            "name": "contact_point_in_a",
+            "type": "{vec3}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 42,
+            "description": "contact point in local frame of `object_b`",
+            "itemtype": "property",
+            "name": "contact_point_in_b",
+            "type": "{vec3}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 50,
+            "description": "normal vector, in world coordinates, of the contact",
+            "itemtype": "property",
+            "name": "contact_normal",
+            "type": "{vec3}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 58,
+            "description": "how far the objects are penetrated at the point of contact",
+            "itemtype": "property",
+            "name": "penetration_depth",
+            "type": "{Number}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 66,
+            "description": "amount of restitution between the objects in contact",
+            "itemtype": "property",
+            "name": "restitution",
+            "type": "{Number}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactDetails.js",
+            "line": 74,
+            "description": "amount of friction between the objects in contact",
+            "itemtype": "property",
+            "name": "friction",
+            "type": "{*}",
+            "class": "ContactDetails"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 8,
+            "description": "first body in the contact",
+            "itemtype": "property",
+            "name": "object_a",
+            "type": "{RigidBody}",
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 16,
+            "description": "second body in the contact",
+            "itemtype": "property",
+            "name": "object_b",
+            "type": "{RigidBody}",
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 24,
+            "description": "array of the active contact points for this manifold",
+            "itemtype": "property",
+            "name": "points",
+            "type": "{Array}",
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 32,
+            "description": "reference to the next `ContactManifold` in the list",
+            "itemtype": "property",
+            "name": "next_manifold",
+            "type": "{ContactManifold}",
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 41,
+            "description": "Determines which cached contact should be replaced with the new contact",
+            "itemtype": "method",
+            "name": "findWeakestContact",
+            "params": [
+                {
+                    "name": "new_contact",
+                    "description": "",
+                    "type": "ContactDetails"
+                }
+            ],
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 108,
+            "description": "Adds a contact point to the manifold",
+            "itemtype": "method",
+            "name": "addContact",
+            "params": [
+                {
+                    "name": "contact",
+                    "description": "the contact to add",
+                    "type": "ContactDetails"
+                }
+            ],
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifold.js",
+            "line": 161,
+            "description": "Updates all of this manifold's ContactDetails with the correct contact location & penetration depth",
+            "itemtype": "method",
+            "name": "update",
+            "class": "ContactManifold"
+        },
+        {
+            "file": "src\\classes\\ContactManifoldList.js",
+            "line": 8,
+            "description": "The first ContactManifold in the list",
+            "itemtype": "property",
+            "name": "first",
+            "type": "{ContactManifold}",
+            "class": "ContactManifoldList"
+        },
+        {
+            "file": "src\\classes\\ContactManifoldList.js",
+            "line": 17,
+            "description": "Inserts a ContactManifold into the list",
+            "itemtype": "method",
+            "name": "insert",
+            "params": [
+                {
+                    "name": "contact_manifold",
+                    "description": "contact manifold to insert into the list",
+                    "type": "ContactManifold"
+                }
+            ],
+            "class": "ContactManifoldList"
+        },
+        {
+            "file": "src\\classes\\ContactManifoldList.js",
+            "line": 29,
+            "description": "Returns (and possibly creates) a ContactManifold for the two rigid bodies",
+            "itemtype": "method",
+            "name": "getManifoldForObjects",
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "first body",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "object_b",
+                    "description": "second body",
+                    "type": "RigidBody"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "ContactManifold"
+            },
+            "class": "ContactManifoldList"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 9,
+            "description": "force which will be applied to affected objects",
+            "itemtype": "property",
+            "name": "force",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 18,
+            "description": "whether or not the force generator is enabled",
+            "itemtype": "property",
+            "name": "enabled",
+            "type": "{Boolean}",
+            "default": "true",
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 27,
+            "description": "array of objects affected by the generator",
+            "itemtype": "property",
+            "name": "affected",
+            "type": "{Array}",
+            "default": "[]",
+            "access": "private",
+            "tagname": "",
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 37,
+            "description": "applies force to the associated objects",
+            "itemtype": "method",
+            "name": "applyForce",
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 52,
+            "description": "enables the force generator",
+            "itemtype": "method",
+            "name": "enable",
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 60,
+            "description": "disables the force generator",
+            "itemtype": "method",
+            "name": "disable",
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 68,
+            "description": "adds an object to be affected by the generator",
+            "itemtype": "method",
+            "name": "affect",
+            "params": [
+                {
+                    "name": "object",
+                    "description": "object to be affected, must have `applyForce` method",
+                    "type": "Mixed"
+                }
+            ],
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\ForceGenerator.js",
+            "line": 85,
+            "description": "removes an object from being affected by the generator",
+            "itemtype": "method",
+            "name": "unaffect",
+            "params": [
+                {
+                    "name": "object",
+                    "description": "object to be affected, must have `applyForce` method",
+                    "type": "Mixed"
+                }
+            ],
+            "class": "ForceGenerator"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 10,
+            "description": "Holds contact constraints generated from contact manifolds",
+            "itemtype": "property",
+            "name": "contact_constraints",
+            "type": "{Array}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 18,
+            "description": "Holds friction constraints generated from contact manifolds",
+            "itemtype": "property",
+            "name": "friction_constraints",
+            "type": "{Array}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 26,
+            "description": "array of all constraints being solved",
+            "itemtype": "property",
+            "name": "all_constraints",
+            "type": "{Array}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 34,
+            "description": "array of constraints on the system, excluding contact & friction",
+            "itemtype": "property",
+            "name": "constraints",
+            "type": "{Array}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 42,
+            "description": "maximum solver iterations per time step",
+            "itemtype": "property",
+            "name": "max_iterations",
+            "type": "{number}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 50,
+            "description": "maximum solver iterations per time step to resolve contacts",
+            "itemtype": "property",
+            "name": "penetrations_max_iterations",
+            "type": "{number}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 58,
+            "description": "used to relax the contact position solver, 0 is no position correction and 1 is full correction",
+            "itemtype": "property",
+            "name": "relaxation",
+            "type": "{number}",
+            "default": "0.9",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 67,
+            "description": "weighting used in the Gauss-Seidel successive over-relaxation solver",
+            "itemtype": "property",
+            "name": "sor_weight",
+            "type": "{number}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 75,
+            "description": "how much of the solution to start with on the next solver pass",
+            "itemtype": "property",
+            "name": "warmstarting_factor",
+            "type": "{number}",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 85,
+            "description": "used to remove contact constraints from the system when their contacts are destroyed",
+            "itemtype": "method",
+            "name": "onContactDeactivate",
+            "access": "private",
+            "tagname": "",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 99,
+            "description": "used to remove friction constraints from the system when their contacts are destroyed",
+            "itemtype": "method",
+            "name": "onFrictionDeactivate",
+            "access": "private",
+            "tagname": "",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 113,
+            "description": "adds a constraint to the solver",
+            "itemtype": "method",
+            "name": "addConstraint",
+            "params": [
+                {
+                    "name": "constraint",
+                    "description": "constraint to be added",
+                    "type": "Goblin.Constraint"
+                }
+            ],
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 125,
+            "description": "removes a constraint from the solver",
+            "itemtype": "method",
+            "name": "removeConstraint",
+            "params": [
+                {
+                    "name": "constraint",
+                    "description": "constraint to be removed",
+                    "type": "Goblin.Constraint"
+                }
+            ],
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 138,
+            "description": "Converts contact manifolds into contact constraints",
+            "itemtype": "method",
+            "name": "processContactManifolds",
+            "params": [
+                {
+                    "name": "contact_manifolds",
+                    "description": "contact manifolds to process",
+                    "type": "Array"
+                }
+            ],
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\IterativeSolver.js",
+            "line": 479,
+            "description": "Block-solves the normal rows of a 2-point contact manifold as a coupled 2x2 LCP (Catto/Box2D\nstyle). Two normal ContactConstraints on the same body pair are the ends of one resting manifold;\nsolved sequentially, each one's impulse applies a torque that violates the other, leaving an\nantisymmetric residual that spins a low-inertia body up from rest and that more iterations only\nworsen. Solving both normals together, with the [0, inf] one-sided limit enumerated over four\ncases, cancels the cross-coupling in one shot. Runs each sweep over the shared solver_impulse and\nrow.multiplier state; friction rows stay 1x1.",
+            "itemtype": "method",
+            "name": "solveNormalBlocks",
+            "class": "IterativeSolver"
+        },
+        {
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 8,
+            "description": "holds all contacts which currently exist in the scene",
+            "itemtype": "property",
+            "name": "contact_manifolds",
+            "type": "Goblin.ContactManifoldList",
+            "class": "NarrowPhase"
+        },
+        {
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 17,
+            "description": "Iterates over all contact manifolds, updating penetration depth & contact locations",
+            "itemtype": "method",
+            "name": "updateContactManifolds",
+            "class": "NarrowPhase"
+        },
+        {
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 264,
+            "description": "Tests two objects for contact",
+            "itemtype": "method",
+            "name": "getContact",
+            "params": [
+                {
+                    "name": "object_a",
+                    "description": "",
+                    "type": "RigidBody"
+                },
+                {
+                    "name": "object_b",
+                    "description": "",
+                    "type": "RigidBody"
+                }
+            ],
+            "class": "NarrowPhase"
+        },
+        {
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 310,
+            "description": "Loops over the passed array of object pairs which may be in contact\nvalid contacts are put in this object's `contacts` property",
+            "itemtype": "method",
+            "name": "generateContacts",
+            "params": [
+                {
+                    "name": "possible_contacts",
+                    "description": "",
+                    "type": "Array"
+                }
+            ],
+            "class": "NarrowPhase"
+        },
+        {
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 336,
+            "description": "Collapses any sphere manifold to a single contact point under the sphere's center. A sphere touches\na surface at exactly one point along the contact normal, but the persistent ContactManifold caches\nup to four points, each recomputed from a local anchor fixed on the sphere surface. As the sphere\nrolls those anchors rotate with it, so cached points trail behind the true bottom while still\nshallowly penetrating, forming an off-center cluster whose lever arm under the vertical normal is a\nphantom torque that pumps the sphere's spin and keeps it rolling. This keeps the single deepest\npoint, re-places it (and its local anchors) at the sphere center projected onto the surface along\nthe normal, so it is recomputed from the center each frame and rolling cannot smear it.",
+            "itemtype": "method",
+            "name": "collapseSphereContacts",
+            "class": "NarrowPhase"
+        },
+        {
+            "file": "src\\classes\\NarrowPhase.js",
+            "line": 412,
+            "description": "Snaps a round or tapered body's side-rest contact points onto its true line contact. A cylinder,\ncapsule, or cone lying on its side touches a flat surface along a line fixed by the shape's own\ngeometry (see each shape's `getRestAxis`), but GJK/EPA place their points off that line; any such\npoint applies a torque about the line every step, spinning the body up into an endless roll. For any\nshape exposing `getRestAxis(localNormal)` this transforms that rest line into world space and\nre-projects each contact point onto it (clamped to the segment), correcting only the in-plane\ncomponent and leaving the along-normal penetration untouched. Guarded to the genuine side-rest case:\nat least two points sharing a near-identical normal, with that normal roughly perpendicular to the\nbody's own axis; anything else is left as EPA produced it.",
+            "itemtype": "method",
+            "name": "symmetrizeRoundContacts",
+            "class": "NarrowPhase"
+        },
+        {
+            "file": "src\\classes\\ObjectPool.js",
+            "line": 8,
+            "description": "key/value map of registered types",
+            "itemtype": "property",
+            "name": "types",
+            "access": "private",
+            "tagname": "",
+            "class": "ObjectPool"
+        },
+        {
+            "file": "src\\classes\\ObjectPool.js",
+            "line": 16,
+            "description": "key/pool map of object type - to - object pool",
+            "itemtype": "property",
+            "name": "pools",
+            "access": "private",
+            "tagname": "",
+            "class": "ObjectPool"
+        },
+        {
+            "file": "src\\classes\\ObjectPool.js",
+            "line": 24,
+            "description": "registers a type of object to be available in pools",
+            "itemtype": "method",
+            "name": "registerType",
+            "params": [
+                {
+                    "name": "key",
+                    "description": "key associated with the object to register",
+                    "type": "String"
+                },
+                {
+                    "name": "constructing_function",
+                    "description": "function which will return a new object",
+                    "type": "Function"
+                }
+            ],
+            "class": "ObjectPool"
+        },
+        {
+            "file": "src\\classes\\ObjectPool.js",
+            "line": 36,
+            "description": "retrieve a free object from the specified pool, or creates a new object if one is not available",
+            "itemtype": "method",
+            "name": "getObject",
+            "params": [
+                {
+                    "name": "key",
+                    "description": "key of the object type to retrieve",
+                    "type": "String"
+                }
+            ],
+            "return": {
+                "description": "object of the type asked for, when done release it with `ObjectPool.freeObject`",
+                "type": "Mixed"
+            },
+            "class": "ObjectPool"
+        },
+        {
+            "file": "src\\classes\\ObjectPool.js",
+            "line": 53,
+            "description": "adds on object to the object pool so it can be reused",
+            "itemtype": "method",
+            "name": "freeObject",
+            "params": [
+                {
+                    "name": "key",
+                    "description": "type of the object being freed, matching the key given to `registerType`",
+                    "type": "String"
+                },
+                {
+                    "name": "object",
+                    "description": "object to release into the pool",
+                    "type": "Mixed"
+                }
+            ],
+            "class": "ObjectPool"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 13,
+            "description": "goblin ID of the body",
+            "itemtype": "property",
+            "name": "id",
+            "type": "{Number}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 21,
+            "description": "shape definition for this rigid body",
+            "itemtype": "property",
+            "name": "shape",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 28,
+            "description": "axis-aligned bounding box enclosing this body",
+            "itemtype": "property",
+            "name": "aabb",
+            "type": "{AABB}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 36,
+            "description": "the rigid body's mass",
+            "itemtype": "property",
+            "name": "mass",
+            "type": "{Number}",
+            "default": "Infinity",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 46,
+            "description": "the rigid body's current position",
+            "itemtype": "property",
+            "name": "position",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 55,
+            "description": "rotation of the rigid body",
+            "itemtype": "property",
+            "name": "rotation",
+            "type": "{quat4}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 63,
+            "description": "the rigid body's current linear velocity",
+            "itemtype": "property",
+            "name": "linear_velocity",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 72,
+            "description": "the rigid body's current angular velocity",
+            "itemtype": "property",
+            "name": "angular_velocity",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 81,
+            "description": "transformation matrix transforming points from object space to world space",
+            "itemtype": "property",
+            "name": "transform",
+            "type": "{mat4}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 90,
+            "description": "transformation matrix transforming points from world space to object space",
+            "itemtype": "property",
+            "name": "transform_inverse",
+            "type": "{mat4}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 108,
+            "description": "the rigid body's current acceleration",
+            "itemtype": "property",
+            "name": "acceleration",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 117,
+            "description": "amount of restitution this object has",
+            "itemtype": "property",
+            "name": "restitution",
+            "type": "{Number}",
+            "default": "0.1",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 126,
+            "description": "amount of friction this object has",
+            "itemtype": "property",
+            "name": "friction",
+            "type": "{Number}",
+            "default": "0.5",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 135,
+            "description": "bitmask indicating what collision groups this object belongs to",
+            "itemtype": "property",
+            "name": "collision_groups",
+            "type": "{Number}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 143,
+            "description": "collision groups mask for the object, specifying what groups to not collide with (BIT 1=0) or which groups to only collide with (Bit 1=1)",
+            "itemtype": "property",
+            "name": "collision_mask",
+            "type": "{Number}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 151,
+            "description": "the rigid body's custom gravity",
+            "itemtype": "property",
+            "name": "gravity",
+            "type": "{vec3}",
+            "default": "null",
+            "access": "private",
+            "tagname": "",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 161,
+            "description": "proportion of linear velocity lost per second ( 0.0 - 1.0 )",
+            "itemtype": "property",
+            "name": "linear_damping",
+            "type": "{Number}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 169,
+            "description": "proportion of angular velocity lost per second ( 0.0 - 1.0 )",
+            "itemtype": "property",
+            "name": "angular_damping",
+            "type": "{Number}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 177,
+            "description": "multiplier of linear force applied to this body",
+            "itemtype": "property",
+            "name": "linear_factor",
+            "type": "{Goblin.Vector3}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 185,
+            "description": "multiplier of angular force applied to this body",
+            "itemtype": "property",
+            "name": "angular_factor",
+            "type": "{Goblin.Vector3}",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 193,
+            "description": "the world to which the rigid body has been added,\nthis is set when the rigid body is added to a world",
+            "itemtype": "property",
+            "name": "world",
+            "type": "{Goblin.World}",
+            "default": "null",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 203,
+            "description": "all resultant force accumulated by the rigid body\nthis force is applied in the next occurring integration",
+            "itemtype": "property",
+            "name": "accumulated_force",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "access": "private",
+            "tagname": "",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 214,
+            "description": "All resultant torque accumulated by the rigid body\nthis torque is applied in the next occurring integration",
+            "itemtype": "property",
+            "name": "accumulated_force",
+            "type": "{vec3}",
+            "default": "[ 0, 0, 0 ]",
+            "access": "private",
+            "tagname": "",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 253,
+            "description": "Given `direction`, find the point in this body which is the most extreme in that direction.\nThis support point is calculated in world coordinates and stored in the second parameter `support_point`",
+            "itemtype": "method",
+            "name": "findSupportPoint",
+            "params": [
+                {
+                    "name": "direction",
+                    "description": "direction to use in finding the support point",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "support_point",
+                    "description": "vec3 variable which will contain the supporting point after calling this method",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 275,
+            "description": "Checks if a ray segment intersects with the object",
+            "itemtype": "property",
+            "name": "intersection_list {Array} array to append intersection to",
+            "type": "Vec3",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 307,
+            "description": "Updates the rigid body's position, velocity, and acceleration",
+            "itemtype": "method",
+            "name": "integrate",
+            "params": [
+                {
+                    "name": "timestep",
+                    "description": "time, in seconds, to use in integration",
+                    "type": "Number"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 359,
+            "description": "Sets a custom gravity value for this rigid_body",
+            "itemtype": "method",
+            "name": "setGravity",
+            "params": [
+                {
+                    "name": "x",
+                    "description": "gravity to apply on x axis",
+                    "type": "Number"
+                },
+                {
+                    "name": "y",
+                    "description": "gravity to apply on y axis",
+                    "type": "Number"
+                },
+                {
+                    "name": "z",
+                    "description": "gravity to apply on z axis",
+                    "type": "Number"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 377,
+            "description": "Directly adds linear velocity to the body",
+            "itemtype": "method",
+            "name": "applyImpulse",
+            "params": [
+                {
+                    "name": "impulse",
+                    "description": "linear velocity to add to the body",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 388,
+            "description": "Adds a force to the rigid_body which will be used only for the next integration",
+            "itemtype": "method",
+            "name": "applyForce",
+            "params": [
+                {
+                    "name": "force",
+                    "description": "force to apply to the rigid_body",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 398,
+            "description": "Applies the vector `force` at world coordinate `point`",
+            "itemtype": "method",
+            "name": "applyForceAtWorldPoint",
+            "params": [
+                {
+                    "name": "force",
+                    "description": "Force to apply",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "point",
+                    "description": "world coordinates where force originates",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 414,
+            "description": "Applies vector `force` to body at position `point` in body's frame",
+            "itemtype": "method",
+            "name": "applyForceAtLocalPoint",
+            "params": [
+                {
+                    "name": "force",
+                    "description": "Force to apply",
+                    "type": "Vec3"
+                },
+                {
+                    "name": "point",
+                    "description": "local frame coordinates where force originates",
+                    "type": "Vec3"
+                }
+            ],
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\RigidBody.js",
+            "line": 436,
+            "description": "Sets the rigid body's transformation matrix to the current position and rotation",
+            "itemtype": "method",
+            "name": "updateDerived",
+            "class": "RigidBody"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 10,
+            "description": "How many time steps have been simulated. If the steps are always the same length then total simulation time = world.ticks * time_step",
+            "itemtype": "property",
+            "name": "ticks",
+            "type": "{number}",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 18,
+            "description": "The broadphase used by the world to find possible contacts",
+            "itemtype": "property",
+            "name": "broadphase",
+            "type": "{Goblin.Broadphase}",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 26,
+            "description": "The narrowphase used by the world to generate valid contacts",
+            "itemtype": "property",
+            "name": "narrowphasee",
+            "type": "{Goblin.NarrowPhase}",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 34,
+            "description": "The contact solver used by the world to calculate and apply impulses resulting from contacts",
+            "itemtype": "property",
+            "name": "solver",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 42,
+            "description": "Array of rigid bodies in the world",
+            "itemtype": "property",
+            "name": "rigid_bodies",
+            "type": "{Array}",
+            "default": "[]",
+            "access": "private",
+            "tagname": "",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 52,
+            "description": "Array of ghost bodies in the world",
+            "itemtype": "property",
+            "name": "ghost_bodies",
+            "type": "{Array}",
+            "default": "[]",
+            "access": "private",
+            "tagname": "",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 62,
+            "description": "the world's gravity, applied by default to all objects in the world",
+            "itemtype": "property",
+            "name": "gravity",
+            "type": "{vec3}",
+            "default": "[ 0, -9.8, 0 ]",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 71,
+            "description": "array of force generators in the world",
+            "itemtype": "property",
+            "name": "force_generators",
+            "type": "{Array}",
+            "default": "[]",
+            "access": "private",
+            "tagname": "",
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 85,
+            "description": "Steps the physics simulation according to the time delta",
+            "itemtype": "method",
+            "name": "step",
+            "params": [
+                {
+                    "name": "time_delta",
+                    "description": "amount of time to simulate, in seconds",
+                    "type": "Number"
+                },
+                {
+                    "name": "max_step",
+                    "description": "maximum time step size, in seconds",
+                    "type": "Number",
+                    "optional": true
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 163,
+            "description": "Adds a rigid body to the world",
+            "itemtype": "method",
+            "name": "addRigidBody",
+            "params": [
+                {
+                    "name": "rigid_body",
+                    "description": "rigid body to add to the world",
+                    "type": "Goblin.RigidBody"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 176,
+            "description": "Removes a rigid body from the world",
+            "itemtype": "method",
+            "name": "removeRigidBody",
+            "params": [
+                {
+                    "name": "rigid_body",
+                    "description": "rigid body to remove from the world",
+                    "type": "Goblin.RigidBody"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 199,
+            "description": "Adds a ghost body to the world",
+            "itemtype": "method",
+            "name": "addGhostBody",
+            "params": [
+                {
+                    "name": "ghost_body",
+                    "description": "ghost body to add to the world",
+                    "type": "Goblin.GhostBody"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 212,
+            "description": "Removes a ghost body from the world",
+            "itemtype": "method",
+            "name": "removeGhostBody",
+            "params": [
+                {
+                    "name": "ghost_body",
+                    "description": "ghost body to remove from the world",
+                    "type": "Goblin.GhostBody"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 228,
+            "description": "Adds a force generator to the world",
+            "itemtype": "method",
+            "name": "addForceGenerator",
+            "params": [
+                {
+                    "name": "force_generator",
+                    "description": "force generator object to be added",
+                    "type": "Goblin.ForceGenerator"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 246,
+            "description": "removes a force generator from the world",
+            "itemtype": "method",
+            "name": "removeForceGenerator",
+            "params": [
+                {
+                    "name": "force_generatorv",
+                    "description": "force generator object to be removed",
+                    "type": "Goblin.ForceGenerator"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 262,
+            "description": "adds a constraint to the world",
+            "itemtype": "method",
+            "name": "addConstraint",
+            "params": [
+                {
+                    "name": "constraint",
+                    "description": "constraint to be added",
+                    "type": "Goblin.Constraint"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 272,
+            "description": "removes a constraint from the world",
+            "itemtype": "method",
+            "name": "removeConstraint",
+            "params": [
+                {
+                    "name": "constraint",
+                    "description": "constraint to be removed",
+                    "type": "Goblin.Constraint"
+                }
+            ],
+            "class": "World"
+        },
+        {
+            "file": "src\\classes\\World.js",
+            "line": 293,
+            "description": "Checks if a ray segment intersects with objects in the world",
+            "itemtype": "property",
+            "name": "end {vec3{ end point of the segment",
+            "type": "Vec3",
+            "return": {
+                "description": "an array of intersections, sorted by distance from `start`",
+                "type": "Array<RayIntersection>"
+            },
+            "class": "World"
+        }
+    ],
+    "warnings": []
+}

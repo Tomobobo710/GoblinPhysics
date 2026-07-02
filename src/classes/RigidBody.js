@@ -55,6 +55,7 @@ Goblin.RigidBody = (function() {
 		/**
 		 * rotation of the rigid body
 		 *
+		 * @property rotation
 		 * @type {quat4}
 		 */
 		this.rotation = new Goblin.Quaternion( 0, 0, 0, 1 );
@@ -133,13 +134,17 @@ Goblin.RigidBody = (function() {
 
 		/**
 		 * bitmask indicating what collision groups this object belongs to
-		 * @type {number}
+		 *
+		 * @property collision_groups
+		 * @type {Number}
 		 */
 		this.collision_groups = 0;
 
 		/**
 		 * collision groups mask for the object, specifying what groups to not collide with (BIT 1=0) or which groups to only collide with (Bit 1=1)
-		 * @type {number}
+		 *
+		 * @property collision_mask
+		 * @type {Number}
 		 */
 		this.collision_mask = 0;
 

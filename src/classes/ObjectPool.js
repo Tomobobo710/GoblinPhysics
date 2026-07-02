@@ -24,6 +24,7 @@ Goblin.ObjectPool = {
 	/**
 	 * registers a type of object to be available in pools
 	 *
+	 * @method registerType
 	 * @param key {String} key associated with the object to register
 	 * @param constructing_function {Function} function which will return a new object
 	 */
@@ -35,6 +36,7 @@ Goblin.ObjectPool = {
 	/**
 	 * retrieve a free object from the specified pool, or creates a new object if one is not available
 	 *
+	 * @method getObject
 	 * @param key {String} key of the object type to retrieve
 	 * @return {Mixed} object of the type asked for, when done release it with `ObjectPool.freeObject`
 	 */
@@ -51,6 +53,7 @@ Goblin.ObjectPool = {
 	/**
 	 * adds on object to the object pool so it can be reused
 	 *
+	 * @method freeObject
 	 * @param key {String} type of the object being freed, matching the key given to `registerType`
 	 * @param object {Mixed} object to release into the pool
 	 */

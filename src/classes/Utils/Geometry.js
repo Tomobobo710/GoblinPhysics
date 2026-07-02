@@ -132,10 +132,12 @@ Goblin.GeometryMethods = {
 
 	/**
 	 * Calculates the distance from point `p` to line `ab`
+	 *
+	 * @method findSquaredDistanceFromSegment
 	 * @param p {vec3} point to calculate distance to
 	 * @param a {vec3} first point in line
-	 * @param b [vec3] second point in line
-	 * @returns {number}
+	 * @param b {vec3} second point in line
+	 * @return {Number}
 	 */
 	findSquaredDistanceFromSegment: (function(){
 		var ab = new Goblin.Vector3(),

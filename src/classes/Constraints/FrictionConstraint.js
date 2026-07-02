@@ -1,3 +1,13 @@
+/**
+ * The tangential half of a contact: two rows constraining relative velocity along a pair of axes
+ * orthogonal to the contact normal, bounded by +/- (friction coefficient * normal mass) so the
+ * friction force can never exceed what Coulomb friction allows for the current normal load. Always
+ * built and solved alongside a ContactConstraint for the same ContactDetails - see
+ * IterativeSolver.processContactManifolds.
+ *
+ * @class FrictionConstraint
+ * @constructor
+ */
 Goblin.FrictionConstraint = function() {
 	Goblin.Constraint.call( this );
 
@@ -5,6 +15,14 @@ Goblin.FrictionConstraint = function() {
 };
 Goblin.FrictionConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Initializes this constraint from a ContactDetails: allocates its two rows, sets
+ * object_a/object_b, wires a listener so the constraint deactivates itself if the contact is
+ * destroyed, and builds the initial rows.
+ *
+ * @method buildFromContact
+ * @param contact {ContactDetails} the contact this constraint enforces
+ */
 Goblin.FrictionConstraint.prototype.buildFromContact = function( contact ) {
 	this.rows[0] = this.rows[0] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	this.rows[1] = this.rows[1] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
@@ -23,6 +41,13 @@ Goblin.FrictionConstraint.prototype.buildFromContact = function( contact ) {
 	this.update();
 };
 
+/**
+ * Recomputes both rows from current body/contact state: the two tangent-direction jacobians
+ * (found via `contact_normal.findOrthogonal`) and the current friction limit, derived from the
+ * contact's friction coefficient scaled by both bodies' mass.
+ *
+ * @method update
+ */
 Goblin.FrictionConstraint.prototype.update = (function(){
 	var rel_a = new Goblin.Vector3(),
 		rel_b = new Goblin.Vector3(),

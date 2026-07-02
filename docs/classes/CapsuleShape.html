@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>CapsuleShape - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1>CapsuleShape Class</h1>
+<div class="box meta">
+
+
+        <div class="foundat">
+            Defined in: <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l1"><code>src\classes\Shapes\CapsuleShape.js:1</code></a>
+        </div>
+
+            Module: <a href="../modules/Goblin.html">Goblin</a>
+
+</div>
+
+
+<div class="box intro">
+    <p>A capsule shape consisting of a cylinder with hemispheres at both ends</p>
+
+</div>
+
+    <div class="constructor">
+        <h2>Constructor</h2>
+<div id="method_CapsuleShape" class="method item">
+    <h3 class="name"><code>CapsuleShape</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>radius</code>
+                </li>
+                <li class="arg">
+                        <code>total_height</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l1"><code>src\classes\Shapes\CapsuleShape.js:1</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">radius</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <p>radius of both the cylinder portion and hemisphere caps</p>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">total_height</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <p>total height of the capsule including both hemisphere caps</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+    </div>
+
+<div id="classdocs" class="tabview">
+    <ul class="api-class-tabs">
+        <li class="api-class-tab index"><a href="#index">Index</a></li>
+
+            <li class="api-class-tab methods"><a href="#methods">Methods</a></li>
+            <li class="api-class-tab properties"><a href="#properties">Properties</a></li>
+    </ul>
+
+    <div>
+        <div id="index" class="api-class-tabpanel index">
+            <h2 class="off-left">Item Index</h2>
+
+                <div class="index-section methods">
+                    <h3>Methods</h3>
+
+                    <ul class="index-list methods">
+                            <li class="index-item method">
+                                <a href="#method_calculateLocalAABB">calculateLocalAABB</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_findSupportPoint">findSupportPoint</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getInertiaTensor">getInertiaTensor</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getRestAxis">getRestAxis</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_rayIntersect">rayIntersect</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method_sphereIntersect">sphereIntersect</a>
+
+                            </li>
+                    </ul>
+                </div>
+
+                <div class="index-section properties">
+                    <h3>Properties</h3>
+
+                    <ul class="index-list properties">
+                            <li class="index-item property">
+                                <a href="#property_cylinder_half_height">cylinder_half_height</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_cylinder_height">cylinder_height</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_half_height">half_height</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_radius">radius</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_total_height">total_height</a>
+
+                            </li>
+                    </ul>
+                </div>
+
+
+        </div>
+
+            <div id="methods" class="api-class-tabpanel">
+                <h2 class="off-left">Methods</h2>
+
+<div id="method_calculateLocalAABB" class="method item">
+    <h3 class="name"><code>calculateLocalAABB</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>aabb</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l59"><code>src\classes\Shapes\CapsuleShape.js:59</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Calculates this shape's local AABB (Axis-Aligned Bounding Box) and stores it in the passed AABB object</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">aabb</code>
+                        <span class="type"><a href="../classes/AABB.html" class="crosslink">AABB</a></span>
+
+
+                    <div class="param-description">
+                        <p>AABB object to store the results</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_findSupportPoint" class="method item">
+    <h3 class="name"><code>findSupportPoint</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>direction</code>
+                </li>
+                <li class="arg">
+                        <code>support_point</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l132"><code>src\classes\Shapes\CapsuleShape.js:132</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Given a direction, finds the point in this capsule which is the most extreme in that direction.
+This support point is calculated in local coordinates and stored in the second parameter
+Used primarily in collision detection algorithms like GJK</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">direction</code>
+                        <span class="type">Vec3</span>
+
+
+                    <div class="param-description">
+                        <p>direction to use in finding the support point</p>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">support_point</code>
+                        <span class="type">Vec3</span>
+
+
+                    <div class="param-description">
+                        <p>vec3 variable which will contain the supporting point after calling this method</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_getInertiaTensor" class="method item">
+    <h3 class="name"><code>getInertiaTensor</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>mass</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Matrix3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l94"><code>src\classes\Shapes\CapsuleShape.js:94</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Calculates and returns the inertia tensor for the capsule
+Combines cylinder and sphere inertia based on their respective volumes and mass distribution</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">mass</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <p>total mass of the capsule</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Matrix3</span>:
+                    <p>3x3 matrix representing the inertia tensor</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method_getRestAxis" class="method item">
+    <h3 class="name"><code>getRestAxis</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>localNormal</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Array</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l73"><code>src\classes\Shapes\CapsuleShape.js:73</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Returns this shape's local-space &quot;rest axis&quot; - the line along which its barrel surface actually
+touches a flat plane when resting on its side, as two local-space endpoints. Only the straight
+barrel section contacts a flat plane (the hemisphere caps only touch if standing on an end), so
+this uses cylinder_half_height, not the capsule's total half_height.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">localNormal</code>
+                        <span class="type">Vector3</span>
+
+
+                    <div class="param-description">
+                        <p>the contact normal, in this shape's local space</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Array</span>:
+                    <p>[Vector3, Vector3] two local-space points defining the rest line</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method_rayIntersect" class="method item">
+    <h3 class="name"><code>rayIntersect</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>start</code>
+                </li>
+                <li class="arg">
+                        <code>end</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">RayIntersection | Null</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l204"><code>src\classes\Shapes\CapsuleShape.js:204</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Checks if a ray segment intersects with the capsule shape.
+Performs intersection tests against both the cylindrical portion and hemispherical caps,
+returning the closest intersection point if any exists.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">start</code>
+                        <span class="type">Vec3</span>
+
+
+                    <div class="param-description">
+                        <p>start point of the ray segment</p>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">end</code>
+                        <span class="type">Vec3</span>
+
+
+                    <div class="param-description">
+                        <p>end point of the ray segment</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">RayIntersection | Null</span>:
+                    <p>if the segment intersects, a RayIntersection is returned, else null</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method_sphereIntersect" class="method item private">
+    <h3 class="name"><code>sphereIntersect</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>start</code>
+                </li>
+                <li class="arg">
+                        <code>end</code>
+                </li>
+                <li class="arg">
+                        <code>radius</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">RayIntersection | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l154"><code>src\classes\Shapes\CapsuleShape.js:154</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Helper method that checks if a ray segment intersects with a sphere.
+Used by rayIntersect to handle the capsule's hemispherical caps.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">start</code>
+                        <span class="type">Vec3</span>
+
+
+                    <div class="param-description">
+                        <p>start point of the ray segment</p>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">end</code>
+                        <span class="type">Vec3</span>
+
+
+                    <div class="param-description">
+                        <p>end point of the ray segment</p>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">radius</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <p>radius of the sphere to check intersection with</p>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">RayIntersection | Null</span>:
+                    <p>if the segment intersects, a RayIntersection is returned, else null</p>
+
+            </div>
+        </div>
+
+
+</div>
+            </div>
+
+            <div id="properties" class="api-class-tabpanel">
+                <h2 class="off-left">Properties</h2>
+
+<div id="property_cylinder_half_height" class="property item">
+    <h3 class="name"><code>cylinder_half_height</code></h3>
+    <span class="type">Number</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l42"><code>src\classes\Shapes\CapsuleShape.js:42</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>half height of just the cylinder portion</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_cylinder_height" class="property item">
+    <h3 class="name"><code>cylinder_height</code></h3>
+    <span class="type">Number</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l34"><code>src\classes\Shapes\CapsuleShape.js:34</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>height of just the cylinder portion (excluding hemispheres)</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_half_height" class="property item">
+    <h3 class="name"><code>half_height</code></h3>
+    <span class="type">Number</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l26"><code>src\classes\Shapes\CapsuleShape.js:26</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>half of the total capsule height</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_radius" class="property item">
+    <h3 class="name"><code>radius</code></h3>
+    <span class="type">Number</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l10"><code>src\classes\Shapes\CapsuleShape.js:10</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>radius of both the cylinder and hemisphere caps</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_total_height" class="property item">
+    <h3 class="name"><code>total_height</code></h3>
+    <span class="type">Number</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_Shapes_CapsuleShape.js.html#l18"><code>src\classes\Shapes\CapsuleShape.js:18</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>total height of the capsule including hemisphere caps</p>
+
+    </div>
+
+
+
+</div>
+            </div>
+
+
+    </div>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

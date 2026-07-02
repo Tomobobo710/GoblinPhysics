@@ -858,6 +858,7 @@ Goblin.RigidBody = (function() {
 		/**
 		 * rotation of the rigid body
 		 *
+		 * @property rotation
 		 * @type {quat4}
 		 */
 		this.rotation = new Goblin.Quaternion( 0, 0, 0, 1 );
@@ -936,13 +937,17 @@ Goblin.RigidBody = (function() {
 
 		/**
 		 * bitmask indicating what collision groups this object belongs to
-		 * @type {number}
+		 *
+		 * @property collision_groups
+		 * @type {Number}
 		 */
 		this.collision_groups = 0;
 
 		/**
 		 * collision groups mask for the object, specifying what groups to not collide with (BIT 1=0) or which groups to only collide with (Bit 1=1)
-		 * @type {number}
+		 *
+		 * @property collision_mask
+		 * @type {Number}
 		 */
 		this.collision_mask = 0;
 
@@ -1554,6 +1559,7 @@ Goblin.BasicBroadphase.prototype.rayIntersect = function( start, end ) {
 		/**
 		 * maintains count of axis over which two bodies overlap; if count is three, their AABBs touch/penetrate
 		 *
+		 * @property overlap_counter
 		 * @type {Object}
 		 */
 		this.overlap_counter = {};
@@ -1569,6 +1575,7 @@ Goblin.BasicBroadphase.prototype.rayIntersect = function( start, end ) {
 		/**
 		 * array of bodies which have been added to the broadphase since the last update
 		 *
+		 * @property pending_bodies
 		 * @type {Array<RigidBody>}
 		 */
 		this.pending_bodies = [];
@@ -3184,6 +3191,15 @@ Goblin.TriangleTriangle = function( tri_a, tri_b ) {
 	return null;
 };
 
+/**
+ * Base class for velocity constraints solved by the IterativeSolver. Not used directly - concrete
+ * constraints (ContactConstraint, FrictionConstraint, HingeConstraint, PointConstraint,
+ * SliderConstraint, WeldConstraint) extend this via `Object.create( Goblin.Constraint.prototype )`
+ * and populate `rows` with the ConstraintRow(s) that express their particular restriction.
+ *
+ * @class Constraint
+ * @constructor
+ */
 Goblin.Constraint = (function() {
 	var constraint_count = 0;
 
@@ -3213,12 +3229,36 @@ Goblin.Constraint = (function() {
 })();
 Goblin.EventEmitter.apply( Goblin.Constraint );
 
+/**
+ * Marks this constraint inactive and emits a `deactivate` event, so the solver drops it from
+ * `all_constraints` and any listeners (e.g. a manifold's contact/friction constraint pair) can
+ * clean up in response.
+ *
+ * @method deactivate
+ */
 Goblin.Constraint.prototype.deactivate = function() {
 	this.active = false;
 	this.emit( 'deactivate' );
 };
 
+/**
+ * Recomputes this constraint's row(s) (jacobian, bias) from current body state. Called once per
+ * solver iteration before the rows are consumed. No-op on the base class; concrete constraints
+ * override this.
+ *
+ * @method update
+ */
 Goblin.Constraint.prototype.update = function(){};
+/**
+ * Optional lower/upper bound on a constraint's separating value (e.g. a HingeConstraint's angle
+ * about its axis). Owned by the constraint it limits; only allocates its ConstraintRow lazily,
+ * on demand, when the bound is actually violated.
+ *
+ * @class ConstraintLimit
+ * @constructor
+ * @param limit_lower {Number} lower bound, or null/undefined to leave that side unconstrained
+ * @param limit_upper {Number} upper bound, or null/undefined to leave that side unconstrained
+ */
 Goblin.ConstraintLimit = function( limit_lower, limit_upper ) {
 	this.erp = 0.3;
 	this.constraint_row = null;
@@ -3226,6 +3266,13 @@ Goblin.ConstraintLimit = function( limit_lower, limit_upper ) {
 	this.set( limit_lower, limit_upper );
 };
 
+/**
+ * Updates the lower/upper bounds and re-derives `enabled` from whether either bound is set.
+ *
+ * @method set
+ * @param limit_lower {Number} lower bound, or null/undefined to leave that side unconstrained
+ * @param limit_upper {Number} upper bound, or null/undefined to leave that side unconstrained
+ */
 Goblin.ConstraintLimit.prototype.set = function( limit_lower, limit_upper ) {
 	this.limit_lower = limit_lower;
 	this.limit_upper = limit_upper;
@@ -3233,23 +3280,62 @@ Goblin.ConstraintLimit.prototype.set = function( limit_lower, limit_upper ) {
 	this.enabled = this.limit_lower != null || this.limit_upper != null;
 };
 
+/**
+ * Allocates this limit's ConstraintRow from the object pool. Called by the owning constraint the
+ * first time the limit is actually violated in a given step.
+ *
+ * @method createConstraintRow
+ */
 Goblin.ConstraintLimit.prototype.createConstraintRow = function() {
 	this.constraint_row = Goblin.ConstraintRow.createConstraintRow();
 };
+/**
+ * Optional powered drive on a constraint (e.g. a HingeConstraint spinning its axis under a bounded
+ * torque up to a target speed). Owned by the constraint it drives; only allocates its
+ * ConstraintRow lazily, on demand, once enabled.
+ *
+ * @class ConstraintMotor
+ * @constructor
+ * @param torque {Number} maximum torque/force the motor may apply, or null/undefined to disable
+ * @param max_speed {Number} target speed the motor drives toward, or null/undefined to disable
+ */
 Goblin.ConstraintMotor = function( torque, max_speed ) {
 	this.constraint_row = null;
 	this.set( torque, max_speed);
 };
 
+/**
+ * Updates the motor's torque/speed and re-derives `enabled` from whether both are set.
+ *
+ * @method set
+ * @param torque {Number} maximum torque/force the motor may apply, or null/undefined to disable
+ * @param max_speed {Number} target speed the motor drives toward, or null/undefined to disable
+ */
 Goblin.ConstraintMotor.prototype.set = function( torque, max_speed ) {
 	this.enabled = torque != null && max_speed != null;
 	this.torque = torque;
 	this.max_speed = max_speed;
 };
 
+/**
+ * Allocates this motor's ConstraintRow from the object pool. Called by the owning constraint the
+ * first time the motor is enabled.
+ *
+ * @method createConstraintRow
+ */
 Goblin.ConstraintMotor.prototype.createConstraintRow = function() {
 	this.constraint_row = Goblin.ConstraintRow.createConstraintRow();
 };
+/**
+ * One scalar row of a Constraint's velocity-level equation: `jacobian . v = bias`, solved by the
+ * IterativeSolver as a 1D LCP bounded by `lower_limit`/`upper_limit`. `jacobian` packs both
+ * bodies' linear and angular coefficients into 12 slots (object_a: [0..2] linear, [3..5] angular;
+ * object_b: [6..8] linear, [9..11] angular). A Constraint may own several rows (e.g. a
+ * HingeConstraint's 5 positional + rotational rows).
+ *
+ * @class ConstraintRow
+ * @constructor
+ */
 Goblin.ConstraintRow = function() {
 	this.jacobian = new Float64Array( 12 );
 	this.B = new Float64Array( 12 ); // `B` is the jacobian multiplied by the objects' inverted mass & inertia tensors
@@ -3265,6 +3351,15 @@ Goblin.ConstraintRow = function() {
 	this.eta_row = new Float64Array( 12 );
 };
 
+/**
+ * Fetches a ConstraintRow from the object pool and resets it to a fresh, unbounded, zero-jacobian
+ * state, ready for a constraint to populate. Preferred over `new Goblin.ConstraintRow()` in the
+ * per-step solve path to avoid churn.
+ *
+ * @method createConstraintRow
+ * @return {ConstraintRow} a pooled row reset to defaults
+ * @static
+ */
 Goblin.ConstraintRow.createConstraintRow = function() {
 	var row =  Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	row.lower_limit = -Infinity;
@@ -3279,6 +3374,14 @@ Goblin.ConstraintRow.createConstraintRow = function() {
 	return row;
 };
 
+/**
+ * Computes `B`, the jacobian pre-multiplied by each body's inverse mass and inverse inertia tensor
+ * (and clamped by its linear/angular factor). `B` is the row's effective impulse-per-unit-lambda;
+ * it's reused by `computeD` and by the solver's per-iteration impulse application.
+ *
+ * @method computeB
+ * @param constraint {Constraint} the owning constraint, for its object_a/object_b
+ */
 Goblin.ConstraintRow.prototype.computeB = function( constraint ) {
 	var invmass;
 
@@ -3320,6 +3423,12 @@ Goblin.ConstraintRow.prototype.computeB = function( constraint ) {
 	}
 };
 
+/**
+ * Computes `D`, the effective mass of this row (`jacobian . B`) - the denominator used when
+ * solving for the impulse `lambda` that satisfies this row's velocity constraint.
+ *
+ * @method computeD
+ */
 Goblin.ConstraintRow.prototype.computeD = function() {
 	this.D = (
 		this.jacobian[0] * this.B[0] +
@@ -3337,6 +3446,16 @@ Goblin.ConstraintRow.prototype.computeD = function() {
 	);
 };
 
+/**
+ * Computes `eta`, the amount of work needed this step to satisfy the row's constraint: the
+ * velocity implied by each body's current velocity plus its accumulated (unresolved) force/torque,
+ * projected through the jacobian, offset by the row's position-error `bias`. This is the target
+ * the solver drives `jacobian . v` toward.
+ *
+ * @method computeEta
+ * @param constraint {Constraint} the owning constraint, for its object_a/object_b
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.ConstraintRow.prototype.computeEta = function( constraint, time_delta ) {
 	var invmass,
 		inverse_time_delta = 1 / time_delta;
@@ -3388,6 +3507,15 @@ Goblin.ConstraintRow.prototype.computeEta = function( constraint, time_delta ) {
 
 	this.eta = ( this.bias * inverse_time_delta ) - jdotv;
 };
+/**
+ * The non-penetration half of a contact: a single-row, one-sided ([0, Infinity]) constraint along
+ * the contact normal that prevents two bodies from interpenetrating, with restitution folded into
+ * its bias. Always built and solved alongside a FrictionConstraint for the same ContactDetails -
+ * see IterativeSolver.processContactManifolds.
+ *
+ * @class ContactConstraint
+ * @constructor
+ */
 Goblin.ContactConstraint = function() {
 	Goblin.Constraint.call( this );
 
@@ -3395,6 +3523,13 @@ Goblin.ContactConstraint = function() {
 };
 Goblin.ContactConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Initializes this constraint from a ContactDetails: sets object_a/object_b, wires a listener so
+ * the constraint deactivates itself if the contact is destroyed, and builds the initial row.
+ *
+ * @method buildFromContact
+ * @param contact {ContactDetails} the contact this constraint enforces
+ */
 Goblin.ContactConstraint.prototype.buildFromContact = function( contact ) {
 	this.object_a = contact.object_a;
 	this.object_b = contact.object_b;
@@ -3414,6 +3549,15 @@ Goblin.ContactConstraint.prototype.buildFromContact = function( contact ) {
 
 	this.update();
 };
+
+/**
+ * Recomputes the constraint's single row from current body/contact state: the normal-direction
+ * jacobian for both bodies, the restitution bias from relative velocity at the contact point, and
+ * the perpendicular-lever correction (see `_bleedPerpLever`) that removes rounding-scale phantom
+ * torque on a near-centered contact.
+ *
+ * @method update
+ */
 
 Goblin.ContactConstraint.prototype.update = function() {
 	var row = this.rows[0];
@@ -3527,6 +3671,16 @@ Goblin.ContactConstraint._bleedPerpLever = (function(){
 		row.jacobian[ jbase + 2 ] = sign * lever.z;
 	};
 })();
+/**
+ * The tangential half of a contact: two rows constraining relative velocity along a pair of axes
+ * orthogonal to the contact normal, bounded by +/- (friction coefficient * normal mass) so the
+ * friction force can never exceed what Coulomb friction allows for the current normal load. Always
+ * built and solved alongside a ContactConstraint for the same ContactDetails - see
+ * IterativeSolver.processContactManifolds.
+ *
+ * @class FrictionConstraint
+ * @constructor
+ */
 Goblin.FrictionConstraint = function() {
 	Goblin.Constraint.call( this );
 
@@ -3534,6 +3688,14 @@ Goblin.FrictionConstraint = function() {
 };
 Goblin.FrictionConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Initializes this constraint from a ContactDetails: allocates its two rows, sets
+ * object_a/object_b, wires a listener so the constraint deactivates itself if the contact is
+ * destroyed, and builds the initial rows.
+ *
+ * @method buildFromContact
+ * @param contact {ContactDetails} the contact this constraint enforces
+ */
 Goblin.FrictionConstraint.prototype.buildFromContact = function( contact ) {
 	this.rows[0] = this.rows[0] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	this.rows[1] = this.rows[1] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
@@ -3552,6 +3714,13 @@ Goblin.FrictionConstraint.prototype.buildFromContact = function( contact ) {
 	this.update();
 };
 
+/**
+ * Recomputes both rows from current body/contact state: the two tangent-direction jacobians
+ * (found via `contact_normal.findOrthogonal`) and the current friction limit, derived from the
+ * contact's friction coefficient scaled by both bodies' mass.
+ *
+ * @method update
+ */
 Goblin.FrictionConstraint.prototype.update = (function(){
 	var rel_a = new Goblin.Vector3(),
 		rel_b = new Goblin.Vector3(),
@@ -3637,6 +3806,20 @@ Goblin.FrictionConstraint.prototype.update = (function(){
 		this.rows[1] = row_2;
 	};
 })();
+/**
+ * Constrains two bodies (or one body and the world) to rotate about a shared axis and pivot point,
+ * like a door hinge: 3 rows lock relative position at the pivot, 2 more lock rotation to the single
+ * degree of freedom about the hinge axis. Optionally bounded by a ConstraintLimit (swing angle) and
+ * driven by a ConstraintMotor (powered rotation).
+ *
+ * @class HingeConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param hinge_a {Vector3} hinge axis, in object_a's local space
+ * @param point_a {Vector3} pivot point, in object_a's local space
+ * @param object_b {RigidBody} second body, or null/undefined to hinge object_a to the world
+ * @param point_b {Vector3} pivot point in object_b's local space (only used when object_b is set)
+ */
 Goblin.HingeConstraint = function( object_a, hinge_a, point_a, object_b, point_b ) {
 	Goblin.Constraint.call( this );
 
@@ -3691,6 +3874,15 @@ function removeConstraintMotorRow( constraint ) {
 	}
 }
 
+/**
+ * Adds or removes this hinge's limit row depending on whether the current swing angle about
+ * `world_axis` violates `this.limit`. Lazily allocates the row on first violation and drops it once
+ * the limit is no longer active, so an unlimited or currently-satisfied hinge costs nothing extra.
+ *
+ * @method updateLimits
+ * @param world_axis {Vector3} the hinge axis, already transformed into world space
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.HingeConstraint.prototype.updateLimits = function( world_axis, time_delta ) {
 	if ( this.limit.enabled === false ) {
 		// remove existing `constraint_row` if it was previously set
@@ -3759,6 +3951,13 @@ Goblin.HingeConstraint.prototype.updateLimits = function( world_axis, time_delta
 	}
 };
 
+/**
+ * Adds or removes this hinge's motor row depending on whether `this.motor` is enabled, and (when
+ * enabled) updates its target speed and torque limit for this step.
+ *
+ * @method updateMotor
+ * @param world_axis {Vector3} the hinge axis, already transformed into world space
+ */
 Goblin.HingeConstraint.prototype.updateMotor = function( world_axis ) {
 	if ( this.motor.enabled === false ) {
 		removeConstraintMotorRow( this );
@@ -3789,6 +3988,14 @@ Goblin.HingeConstraint.prototype.updateMotor = function( world_axis ) {
 	}
 };
 
+/**
+ * Recomputes the hinge's rows from current body state: the 3 positional rows and 2 rotational rows
+ * described in the constructor, plus their bias terms for positional/angular error correction, and
+ * then delegates to `updateLimits`/`updateMotor` for the optional limit/motor rows.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.HingeConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
 		r2 = new Goblin.Vector3(),
@@ -3895,6 +4102,18 @@ Goblin.HingeConstraint.prototype.update = (function(){
 		this.updateMotor( world_axis );
 	};
 })( );
+/**
+ * Constrains a point on one body (or one body and a fixed world point) to coincide with a point on
+ * another - a ball-and-socket joint. Three rows lock relative linear velocity at the pivot; no
+ * rotational constraint, so both bodies remain free to rotate about the shared point.
+ *
+ * @class PointConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param point_a {Vector3} pivot point, in object_a's local space
+ * @param object_b {RigidBody} second body, or null/undefined to anchor object_a to a fixed world point
+ * @param point_b {Vector3} pivot point in object_b's local space (only used when object_b is set)
+ */
 Goblin.PointConstraint = function( object_a, point_a, object_b, point_b ) {
 	Goblin.Constraint.call( this );
 
@@ -3925,6 +4144,13 @@ Goblin.PointConstraint = function( object_a, point_a, object_b, point_b ) {
 };
 Goblin.PointConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Recomputes the three positional rows from current body state, plus their bias terms driving the
+ * two pivot points back together at rate `erp / time_delta`.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.PointConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
 		r2 = new Goblin.Vector3();
@@ -3990,6 +4216,20 @@ Goblin.PointConstraint.prototype.update = (function(){
 	};
 })( );
 
+/**
+ * Constrains two bodies to slide relative to each other only along a shared axis, like a piston:
+ * two rows lock relative linear velocity orthogonal to the axis (leaving motion along it free),
+ * three more lock relative rotation entirely. Note: the rotational rows' `bias` (position-error
+ * correction for accumulated angular drift) is computed in `_updateAngularConstraints` but
+ * currently commented out before being assigned, so rotation is velocity-constrained but not
+ * drift-corrected; only the two linear rows get bias-driven error correction.
+ *
+ * @class SliderConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param axis {Vector3} slide axis, in object_a's local space
+ * @param object_b {RigidBody} second body
+ */
 Goblin.SliderConstraint = function( object_a, axis, object_b ) {
 	Goblin.Constraint.call( this );
 
@@ -4027,6 +4267,13 @@ Goblin.SliderConstraint = function( object_a, axis, object_b ) {
 };
 Goblin.SliderConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Recomputes all five rows from current body state by delegating to
+ * `_updateLinearConstraints`/`_updateAngularConstraints`.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.SliderConstraint.prototype.update = (function(){
 	var _axis = new Goblin.Vector3(),
 		n1 = new Goblin.Vector3(),
@@ -4044,6 +4291,16 @@ Goblin.SliderConstraint.prototype.update = (function(){
 	};
 })();
 
+/**
+ * Recomputes the two linear rows constraining relative velocity orthogonal to the slide axis
+ * (`n1`/`n2`), plus their bias terms driving accumulated off-axis position error back to zero.
+ *
+ * @method _updateLinearConstraints
+ * @param time_delta {Number} the step's time delta, in seconds
+ * @param n1 {Vector3} first world-space axis orthogonal to the slide axis
+ * @param n2 {Vector3} second world-space axis orthogonal to the slide axis (and to n1)
+ * @private
+ */
 Goblin.SliderConstraint.prototype._updateLinearConstraints = function( time_delta, n1, n2 ) {
 	var c = new Goblin.Vector3();
 	c.subtractVectors( this.object_b.position, this.object_a.position );
@@ -4092,6 +4349,17 @@ Goblin.SliderConstraint.prototype._updateLinearConstraints = function( time_delt
 	this.rows[1].bias = -n2.dot( _tmp_vec3_2 );
 };
 
+/**
+ * Recomputes the three rotational rows locking relative rotation entirely. Also computes the
+ * rotational drift `error` but does not currently assign it to the rows' `bias` (see the class
+ * doc) - this method locks rotational velocity but does not correct accumulated angular drift.
+ *
+ * @method _updateAngularConstraints
+ * @param time_delta {Number} the step's time delta, in seconds
+ * @param n1 {Vector3} first world-space axis orthogonal to the slide axis (unused directly here)
+ * @param n2 {Vector3} second world-space axis orthogonal to the slide axis (unused directly here)
+ * @private
+ */
 Goblin.SliderConstraint.prototype._updateAngularConstraints = function( time_delta, n1, n2, axis ) {
 	this.rows[2].jacobian[3] = this.rows[3].jacobian[4] = this.rows[4].jacobian[5] = -1;
 	this.rows[2].jacobian[9] = this.rows[3].jacobian[10] = this.rows[4].jacobian[11] = 1;
@@ -4113,6 +4381,18 @@ Goblin.SliderConstraint.prototype._updateAngularConstraints = function( time_del
 	//this.rows[3].bias = error[1];
 	//this.rows[4].bias = error[2];
 };
+/**
+ * Rigidly fuses two bodies together at a shared point (or fixes one body in place relative to the
+ * world): three rows lock relative linear velocity at the point, three more lock relative angular
+ * velocity entirely, so the pair moves as if welded.
+ *
+ * @class WeldConstraint
+ * @constructor
+ * @param object_a {RigidBody} first body
+ * @param point_a {Vector3} weld point, in object_a's local space
+ * @param object_b {RigidBody} second body, or null/undefined to weld object_a fixed to the world
+ * @param point_b {Vector3} weld point in object_b's local space (only used when object_b is set)
+ */
 Goblin.WeldConstraint = function( object_a, point_a, object_b, point_b ) {
 	Goblin.Constraint.call( this );
 
@@ -4172,6 +4452,14 @@ Goblin.WeldConstraint = function( object_a, point_a, object_b, point_b ) {
 };
 Goblin.WeldConstraint.prototype = Object.create( Goblin.Constraint.prototype );
 
+/**
+ * Recomputes all six rows from current body state, plus bias terms driving both accumulated
+ * positional and rotational error back to zero at rate `erp / time_delta`. No-op when object_b is
+ * null: a world-welded body's rows are set once in the constructor and never need updating.
+ *
+ * @method update
+ * @param time_delta {Number} the step's time delta, in seconds
+ */
 Goblin.WeldConstraint.prototype.update = (function(){
 	var r1 = new Goblin.Vector3(),
 		r2 = new Goblin.Vector3();
@@ -5363,6 +5651,8 @@ Goblin.ConvexShape = function( vertices ) {
 
 	/**
 	 * faces composing the convex hull
+	 *
+	 * @property faces
 	 * @type {Array}
 	 */
 	this.faces = [];
@@ -6787,10 +7077,12 @@ Goblin.GeometryMethods = {
 
 	/**
 	 * Calculates the distance from point `p` to line `ab`
+	 *
+	 * @method findSquaredDistanceFromSegment
 	 * @param p {vec3} point to calculate distance to
 	 * @param a {vec3} first point in line
-	 * @param b [vec3] second point in line
-	 * @returns {number}
+	 * @param b {vec3} second point in line
+	 * @return {Number}
 	 */
 	findSquaredDistanceFromSegment: (function(){
 		var ab = new Goblin.Vector3(),
@@ -7403,7 +7695,7 @@ Goblin.AABB.prototype.testRayIntersect = (function(){
 	Goblin.BVH.AAC = AAC;
 })();
 /**
- * Physics-based character controller with advanced slope handling, movement projection, and state management.
+ * Spring-based character controller with advanced slope handling, movement projection, and state management.
  *
  * @class CharacterController
  * @constructor
@@ -8053,7 +8345,8 @@ Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
 /**
  * Adds a contact point to the manifold
  *
- * @param {Goblin.ContactDetails} contact
+ * @method addContact
+ * @param contact {ContactDetails} the contact to add
  */
 Goblin.ContactManifold.prototype.addContact = function( contact ) {
 	//@TODO add feature-ids to detect duplicate contacts
@@ -8199,9 +8492,10 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
 /**
  * Returns (and possibly creates) a ContactManifold for the two rigid bodies
  *
- * @param {RigidBody} object_a
- * @param {RigidBoxy} object_b
- * @returns {ContactManifold}
+ * @method getManifoldForObjects
+ * @param object_a {RigidBody} first body
+ * @param object_b {RigidBody} second body
+ * @return {ContactManifold}
  */
 Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a, object_b ) {
 	var manifold = null;
@@ -9268,6 +9562,7 @@ Goblin.NarrowPhase.prototype.addContact = function( object_a, object_b, contact 
  * Loops over the passed array of object pairs which may be in contact
  * valid contacts are put in this object's `contacts` property
  *
+ * @method generateContacts
  * @param possible_contacts {Array}
  */
 Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
@@ -9508,6 +9803,7 @@ Goblin.ObjectPool = {
 	/**
 	 * registers a type of object to be available in pools
 	 *
+	 * @method registerType
 	 * @param key {String} key associated with the object to register
 	 * @param constructing_function {Function} function which will return a new object
 	 */
@@ -9519,6 +9815,7 @@ Goblin.ObjectPool = {
 	/**
 	 * retrieve a free object from the specified pool, or creates a new object if one is not available
 	 *
+	 * @method getObject
 	 * @param key {String} key of the object type to retrieve
 	 * @return {Mixed} object of the type asked for, when done release it with `ObjectPool.freeObject`
 	 */
@@ -9535,6 +9832,7 @@ Goblin.ObjectPool = {
 	/**
 	 * adds on object to the object pool so it can be reused
 	 *
+	 * @method freeObject
 	 * @param key {String} type of the object being freed, matching the key given to `registerType`
 	 * @param object {Mixed} object to release into the pool
 	 */

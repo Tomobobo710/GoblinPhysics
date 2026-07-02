@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>src\classes\Utils\Geometry.js - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1 class="file-heading">File: src\classes\Utils\Geometry.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+/**
+ * Provides methods useful for working with various types of geometries
+ *
+ * @class GeometryMethods
+ * @static
+ */
+Goblin.GeometryMethods = {
+	/**
+	 * determines the location in a triangle closest to a given point
+	 *
+	 * @method findClosestPointInTriangle
+	 * @param {vec3} p point
+	 * @param {vec3} a first triangle vertex
+	 * @param {vec3} b second triangle vertex
+	 * @param {vec3} c third triangle vertex
+	 * @param {vec3} out vector where the result will be stored
+	 */
+	findClosestPointInTriangle: (function() {
+		var ab = new Goblin.Vector3(),
+			ac = new Goblin.Vector3(),
+			_vec = new Goblin.Vector3();
+
+		return function( p, a, b, c, out ) {
+			var v;
+
+			// Check if P in vertex region outside A
+			ab.subtractVectors( b, a );
+			ac.subtractVectors( c, a );
+			_vec.subtractVectors( p, a );
+			var d1 = ab.dot( _vec ),
+				d2 = ac.dot( _vec );
+			if ( d1 &lt;= 0 &amp;&amp; d2 &lt;= 0 ) {
+				out.copy( a );
+				return;
+			}
+
+			// Check if P in vertex region outside B
+			_vec.subtractVectors( p, b );
+			var d3 = ab.dot( _vec ),
+				d4 = ac.dot( _vec );
+			if ( d3 &gt;= 0 &amp;&amp; d4 &lt;= d3 ) {
+				out.copy( b );
+				return;
+			}
+
+			// Check if P in edge region of AB
+			var vc = d1*d4 - d3*d2;
+			if ( vc &lt;= 0 &amp;&amp; d1 &gt;= 0 &amp;&amp; d3 &lt;= 0 ) {
+				v = d1 / ( d1 - d3 );
+				out.scaleVector( ab, v );
+				out.add( a );
+				return;
+			}
+
+			// Check if P in vertex region outside C
+			_vec.subtractVectors( p, c );
+			var d5 = ab.dot( _vec ),
+				d6 = ac.dot( _vec );
+			if ( d6 &gt;= 0 &amp;&amp; d5 &lt;= d6 ) {
+				out.copy( c );
+				return;
+			}
+
+			// Check if P in edge region of AC
+			var vb = d5*d2 - d1*d6,
+				w;
+			if ( vb &lt;= 0 &amp;&amp; d2 &gt;= 0 &amp;&amp; d6 &lt;= 0 ) {
+				w = d2 / ( d2 - d6 );
+				out.scaleVector( ac, w );
+				out.add( a );
+				return;
+			}
+
+			// Check if P in edge region of BC
+			var va = d3*d6 - d5*d4;
+			if ( va &lt;= 0 &amp;&amp; d4-d3 &gt;= 0 &amp;&amp; d5-d6 &gt;= 0 ) {
+				w = (d4 - d3) / ( (d4-d3) + (d5-d6) );
+				out.subtractVectors( c, b );
+				out.scale( w );
+				out.add( b );
+				return;
+			}
+
+			// P inside face region
+			var denom = 1 / ( va + vb + vc );
+			v = vb * denom;
+			w = vc * denom;
+
+
+			// At this point &#x60;ab&#x60; and &#x60;ac&#x60; can be recycled and lose meaning to their nomenclature
+
+			ab.scale( v );
+			ab.add( a );
+
+			ac.scale( w );
+
+			out.addVectors( ab, ac );
+		};
+	})(),
+
+	/**
+	 * Finds the Barycentric coordinates of point &#x60;p&#x60; in the triangle &#x60;a&#x60;, &#x60;b&#x60;, &#x60;c&#x60;
+	 *
+	 * @method findBarycentricCoordinates
+	 * @param p {vec3} point to calculate coordinates of
+	 * @param a {vec3} first point in the triangle
+	 * @param b {vec3} second point in the triangle
+	 * @param c {vec3} third point in the triangle
+	 * @param out {vec3} resulting Barycentric coordinates of point &#x60;p&#x60;
+	 */
+	findBarycentricCoordinates: function( p, a, b, c, out ) {
+
+		var v0 = new Goblin.Vector3(),
+			v1 = new Goblin.Vector3(),
+			v2 = new Goblin.Vector3();
+
+		v0.subtractVectors( b, a );
+		v1.subtractVectors( c, a );
+		v2.subtractVectors( p, a );
+
+		var d00 = v0.dot( v0 ),
+			d01 = v0.dot( v1 ),
+			d11 = v1.dot( v1 ),
+			d20 = v2.dot( v0 ),
+			d21 = v2.dot( v1 ),
+			denom = d00 * d11 - d01 * d01;
+
+		out.y = ( d11 * d20 - d01 * d21 ) / denom;
+		out.z = ( d00 * d21 - d01 * d20 ) / denom;
+		out.x = 1 - out.y - out.z;
+	},
+
+	/**
+	 * Calculates the distance from point &#x60;p&#x60; to line &#x60;ab&#x60;
+	 *
+	 * @method findSquaredDistanceFromSegment
+	 * @param p {vec3} point to calculate distance to
+	 * @param a {vec3} first point in line
+	 * @param b {vec3} second point in line
+	 * @return {Number}
+	 */
+	findSquaredDistanceFromSegment: (function(){
+		var ab = new Goblin.Vector3(),
+			ap = new Goblin.Vector3(),
+			bp = new Goblin.Vector3();
+
+		return function( p, a, b ) {
+			ab.subtractVectors( a, b );
+			ap.subtractVectors( a, p );
+			bp.subtractVectors( b, p );
+
+			var e = ap.dot( ab );
+			if ( e &lt;= 0 ) {
+				return ap.dot( ap );
+			}
+
+			var f = ab.dot( ab );
+			if ( e &gt;= f ) {
+				return bp.dot( bp );
+			}
+
+			return ap.dot( ap ) - e * e / f;
+		};
+	})(),
+
+	findClosestPointsOnSegments: (function(){
+		var d1 = new Goblin.Vector3(),
+			d2 = new Goblin.Vector3(),
+			r = new Goblin.Vector3(),
+			clamp = function( x, min, max ) {
+				return Math.min( Math.max( x, min ), max );
+			};
+
+		return function( aa, ab, ba, bb, p1, p2 ) {
+			d1.subtractVectors( ab, aa );
+			d2.subtractVectors( bb, ba );
+			r.subtractVectors( aa, ba );
+
+			var a = d1.dot( d1 ),
+				e = d2.dot( d2 ),
+				f = d2.dot( r );
+
+			var s, t;
+
+			if ( a &lt;= Goblin.EPSILON &amp;&amp; e &lt;= Goblin.EPSILON ) {
+				// Both segments are degenerate
+				s = t = 0;
+				p1.copy( aa );
+				p2.copy( ba );
+				_tmp_vec3_1.subtractVectors( p1, p2 );
+				return _tmp_vec3_1.dot( _tmp_vec3_1 );
+			}
+
+			if ( a &lt;= Goblin.EPSILON ) {
+				// Only first segment is degenerate
+				s = 0;
+				t = f / e;
+				t = clamp( t, 0, 1 );
+			} else {
+				var c = d1.dot( r );
+				if ( e &lt;= Goblin.EPSILON ) {
+					// Second segment is degenerate
+					t = 0;
+					s = clamp( -c / a, 0, 1 );
+				} else {
+					// Neither segment is degenerate
+					var b = d1.dot( d2 ),
+						denom = a * e - b * b;
+
+					if ( denom !== 0 ) {
+						// Segments aren&#x27;t parallel
+						s = clamp( ( b * f - c * e ) / denom, 0, 1 );
+					} else {
+						s = 0;
+					}
+
+					// find point on segment2 closest to segment1(s)
+					t = ( b * s + f ) / e;
+
+					// validate t, if it needs clamping then clamp and recompute s
+					if ( t &lt; 0 ) {
+						t = 0;
+						s = clamp( -c / a, 0, 1 );
+					} else if ( t &gt; 1 ) {
+						t = 1;
+						s = clamp( ( b - c ) / a, 0, 1 );
+					}
+				}
+			}
+
+			p1.scaleVector( d1, s );
+			p1.add( aa );
+
+			p2.scaleVector( d2, t );
+			p2.add( ba );
+
+			_tmp_vec3_1.subtractVectors( p1, p2 );
+			return _tmp_vec3_1.dot( _tmp_vec3_1 );
+		};
+	})()
+};
+    </pre>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

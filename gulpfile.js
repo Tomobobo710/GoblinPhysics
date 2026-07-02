@@ -2,6 +2,8 @@ const { src, dest, series, parallel } = require('gulp');
 const uglify = require('gulp-uglify');
 const concat = require('gulp-concat');
 const jshint = require('gulp-jshint');
+const yuidoc = require('yuidocjs');
+const pkg = require('./package.json');
 
 function lint() {
     return src('src/classes/**/*.js')
@@ -42,4 +44,21 @@ function buildMinified() {
         .pipe(dest('build'));
 }
 
+// Compiles the @class/@method/@param YUIDoc comment blocks in src/ into a browsable API site
+// under docs/. Ported from this project's original Gruntfile (grunt-contrib-yuidoc, paths:
+// 'src', outdir: 'docs') to the yuidocjs library it wrapped, run directly under gulp.
+function docs(done) {
+    const options = yuidoc.Options(['src', '--outdir', 'docs']);
+    options.project = {
+        name: pkg.name,
+        description: pkg.description,
+        version: pkg.version,
+        url: pkg.homepage
+    };
+
+    const json = new yuidoc.YUIDoc(options).run();
+    new yuidoc.DocBuilder(options, json).compile(done);
+}
+
 exports.default = series(lint, parallel(build, buildMinified));
+exports.docs = docs;

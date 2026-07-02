@@ -29,9 +29,10 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
 /**
  * Returns (and possibly creates) a ContactManifold for the two rigid bodies
  *
- * @param {RigidBody} object_a
- * @param {RigidBoxy} object_b
- * @returns {ContactManifold}
+ * @method getManifoldForObjects
+ * @param object_a {RigidBody} first body
+ * @param object_b {RigidBody} second body
+ * @return {ContactManifold}
  */
 Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a, object_b ) {
 	var manifold = null;
