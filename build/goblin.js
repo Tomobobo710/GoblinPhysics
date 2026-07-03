@@ -10231,8 +10231,15 @@ Goblin.World.prototype.removeConstraint = function( constraint ) {
 			swept_body = new Goblin.RigidBody( swept_shape, 0 );
 		swept_body.updateDerived();
 
-		var possibilities = this.broadphase.intersectsWith( swept_body ),
-			intersections = [];
+		// broadphase tracks only bodies added to the world; swept_body is transient, so scan directly
+		var possibilities = [];
+		for ( var pi = 0; pi < this.rigid_bodies.length; pi++ ) {
+			var candidate = this.rigid_bodies[ pi ];
+			if ( candidate === swept_body ) { continue; }
+			if ( swept_body.aabb.intersects( candidate.aabb ) ) { possibilities.push( candidate ); }
+		}
+
+		var intersections = [];
 
 		for ( var i = 0; i < possibilities.length; i++ ) {
 			var contact = this.narrowphase.getContact( swept_body, possibilities[i] );
@@ -10241,6 +10248,7 @@ Goblin.World.prototype.removeConstraint = function( constraint ) {
 				var intersection = Goblin.ObjectPool.getObject( 'RayIntersection' );
 				intersection.object = contact.object_b;
 				intersection.normal.copy( contact.contact_normal );
+				intersection.penetration = contact.penetration_depth; // expose depth for depenetration
 
 				// compute point
 				intersection.point.scaleVector( contact.contact_normal, -contact.penetration_depth );
