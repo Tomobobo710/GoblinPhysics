@@ -313,8 +313,8 @@ Goblin.World.prototype.removeConstraint = function( constraint ) {
 		var possibilities = [];
 		for ( var pi = 0; pi < this.rigid_bodies.length; pi++ ) {
 			var candidate = this.rigid_bodies[ pi ];
-			if ( candidate === swept_body ) continue;
-			if ( swept_body.aabb.intersects( candidate.aabb ) ) possibilities.push( candidate );
+			if ( candidate === swept_body ) { continue; }
+			if ( swept_body.aabb.intersects( candidate.aabb ) ) { possibilities.push( candidate ); }
 		}
 
 		var intersections = [];
