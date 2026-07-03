@@ -386,23 +386,18 @@ Goblin.NarrowPhase.prototype.collapseSphereContacts = function() {
 			p.contact_point.y = sphereObj.position.y + ny * ( r - half_pen );
 			p.contact_point.z = sphereObj.position.z + nz * ( r - half_pen );
 
-			// Re-anchor each body's local point fresh at its own surface along the normal — the sphere
-			// at its true surface point, the other body at that point pushed through the full overlap —
-			// so ContactManifold.update recomputes the correct penetration from their separation rather
-			// than from a stale surface point that rotates with the rolling sphere.
+			// Re-anchor only the sphere's own local point at its true surface point along the normal, so
+			// a rolling sphere's anchor can't trail the true bottom and pump phantom torque.
 			_tmp_vec3_1.set(
 				sphereObj.position.x + nx * r,
 				sphereObj.position.y + ny * r,
 				sphereObj.position.z + nz * r
 			);
 			sphereObj.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_a : p.contact_point_in_b );
-			var other = sphereIsA ? p.object_b : p.object_a;
-			_tmp_vec3_1.set(
-				sphereObj.position.x + nx * ( r - p.penetration_depth ),
-				sphereObj.position.y + ny * ( r - p.penetration_depth ),
-				sphereObj.position.z + nz * ( r - p.penetration_depth )
-			);
-			other.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_b : p.contact_point_in_a );
+			// Leave the other body's anchor where narrowphase planted it. Re-fabricating it from the
+			// sphere center co-locates both anchors so they translate rigidly with the sphere, blinding
+			// ContactManifold.update's staleness checks — the contact never dies and the sphere stays
+			// glued to the body it has left (entanglement).
 		}
 
 		manifold = manifold.next_manifold;
