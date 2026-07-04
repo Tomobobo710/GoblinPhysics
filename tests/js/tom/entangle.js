@@ -1,5 +1,5 @@
 // Tom's Suite — ENTANGLEMENT.
-// A player-height box with a sphere resting on top. Once settled, a tiny tap-wait-tap lateral jiggle is
+// A tall upright box with a sphere resting on top. Once settled, a tiny tap-wait-tap lateral jiggle is
 // fired on the box (the shape of a 2-frame movement tap). A correct contact solver lets the sphere just
 // settle back down; the regression is the sphere developing its own sideways drift that it never had,
 // eventually dragging the box off balance. Oracle: the sphere reseats onto the box soon after the jiggle
@@ -14,7 +14,7 @@
 	var TOTAL = 340;                // JIGGLE_AT + 250 tail + margin
 
 	Runner.test('entanglement', 'sphere on a jiggled box does not self-drift', function (t) {
-		t.log('Settle a sphere on a player-height box, jiggle the box, watch the sphere for invented drift.');
+		t.log('Settle a sphere on a tall box, jiggle the box, watch the sphere for invented drift.');
 
 		var w = t.makeWorld({ gravity: -9.8 });
 		U.ground(t, w);
@@ -52,7 +52,7 @@
 	}, {
 		visual: true, steps: TOTAL, page: 'entanglement',
 		description:
-			"A sphere rests on a player-height box; the box gets a tiny tap-wait-tap jiggle. A correct solver " +
+			"A sphere rests on a tall box; the box gets a tiny tap-wait-tap jiggle. A correct solver " +
 			"lets the sphere settle back. PASS: the sphere reseats within 60 ticks and shows no self-driven " +
 			"sideways velocity (|vx| < 0.5) in the late tail. The regression is the sphere inventing lateral " +
 			"drift that slowly topples the box."

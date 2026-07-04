@@ -79,7 +79,7 @@
 	<script>
 	(function () {
 		var FILES = [
-			'../build/goblin.js',   // the engine — busted so a rebuild always loads
+			'../build/goblin.js',   // the engine
 			'js/runner.js',
 			// Chandler's Suite (one file per his original .html)
 			'js/chandler/gravity.js', 'js/chandler/damping.js', 'js/chandler/restitution.js',
@@ -88,15 +88,14 @@
 			'js/chandler/support-points.js', 'js/chandler/raytracing.js', 'js/chandler/sweptshapes.js',
 			'js/chandler/convexshape.js', 'js/chandler/vector3.js', 'js/chandler/quaternion.js',
 			'js/chandler/matrix3.js', 'js/chandler/matrix4.js',
-			// Tom's Suite (ported from physicstest.js). _util.js first — the tom tests depend on it.
+			// Tom's Suite. _util.js first — the tom tests depend on it.
 			'js/tom/_util.js',
 			'js/tom/shapes-drop.js', 'js/tom/roll.js', 'js/tom/rest.js', 'js/tom/bounce-energy.js',
 			'js/tom/entangle.js', 'js/tom/smear.js', 'js/tom/balance.js', 'js/tom/special-shapes.js',
 			// renderer LAST (after all tests are registered)
 			'js/render.js'
 		];
-		var bust = '?v=' + Date.now();   // dev cache-buster: always load the latest file contents
-		FILES.forEach(function (src) { document.write('<script src="' + src + bust + '"><\/script>'); });
+		FILES.forEach(function (src) { document.write('<script src="' + src + '"><\/script>'); });
 	})();
 	</script>
 </head>

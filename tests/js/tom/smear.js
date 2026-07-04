@@ -18,7 +18,7 @@
 
 		var w = t.makeWorld({ gravity: -9.8 });
 		U.ground(t, w);
-		// Static player-height support: center y=0.9, top y=1.8.
+		// Static tall support: center y=0.9, top y=1.8.
 		t.box(w, 0.3, 0.9, 0.3, 0, { pos: [0, 0.9, 0], friction: 0.4, restitution: 0, color: '#3355ff' });
 		// Falling box released tilted, offset off the support's top corner (grippy material: friction 3).
 		var box = t.box(w, HALF, HALF, HALF, 2, {
