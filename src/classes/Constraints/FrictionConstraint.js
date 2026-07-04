@@ -114,13 +114,14 @@ Goblin.FrictionConstraint.prototype.update = (function(){
 			row_2.jacobian[11] = _tmp_vec3_1.z;
 		}
 
-		var limit = this.contact.friction;
-		if (this.object_a != null && this.object_a._mass !== Infinity) {
-			limit *= this.object_a._mass;
+		// Scale the friction clamp by the lighter body's mass
+		var ma = ( this.object_a != null && this.object_a._mass !== Infinity ) ? this.object_a._mass : Infinity;
+		var mb = ( this.object_b != null && this.object_b._mass !== Infinity ) ? this.object_b._mass : Infinity;
+		var mscale = Math.min( ma, mb );
+		if ( mscale === Infinity ) {
+			mscale = 1;
 		}
-		if (this.object_b != null && this.object_b._mass !== Infinity) {
-			limit *= this.object_b._mass;
-		}
+		var limit = this.contact.friction * mscale;
 		if ( limit < 0 ) {
 			limit = 0;
 		}
