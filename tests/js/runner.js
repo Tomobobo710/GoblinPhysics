@@ -163,11 +163,24 @@
 					if (!ex.met) { ex.entry.status = 'fail'; ex.entry.detail = (ex.entry.detail ? ex.entry.detail + ' — ' : '') + 'never satisfied'; }
 				}
 			},
+			// Scripted mid-sim events. ctx.onTick(fn) registers fn(world, tick) to run each tick
+			// BEFORE the expectations are evaluated — used for deterministic, tick-driven disturbances
+			// (a shove, a jiggle) that must behave identically headless and in-browser. When any tick
+			// hooks are registered the run does NOT early-out, so a two-phase test (settle -> shove ->
+			// re-settle) always runs its full tick budget instead of stopping the instant phase 1 passes.
+			tickHooks: [],
+			onTick: function (fn) { ctx.tickHooks.push(fn); },
+			runTickHooks: function (world, tick) {
+				for (var i = 0; i < ctx.tickHooks.length; i++) ctx.tickHooks[i](world, tick);
+			},
 			simulate: function (world, totalTicks) {
 				ctx.simTicks = totalTicks;
+				var canEarlyOut = ctx.tickHooks.length === 0;
 				for (var tk = 1; tk <= totalTicks; tk++) {
+					ctx.runTickHooks(world, tk);
 					world.step(1 / 60);
-					if (ctx.evalTick(world, tk)) break; // early-out once everything is satisfied
+					var allMet = ctx.evalTick(world, tk);
+					if (allMet && canEarlyOut) break; // early-out only when nothing is scripted
 				}
 				ctx.failUnmet();
 			},
@@ -187,6 +200,12 @@
 			box: function (w, hx, hy, hz, mass, opts) { return add(w, new Goblin.BoxShape(hx, hy, hz), mass, opts); },
 			cylinder: function (w, radius, halfHeight, mass, opts) { return add(w, new Goblin.CylinderShape(radius, halfHeight), mass, opts); },
 			cone: function (w, radius, halfHeight, mass, opts) { return add(w, new Goblin.ConeShape(radius, halfHeight), mass, opts); },
+			capsule: function (w, radius, totalHeight, mass, opts) { return add(w, new Goblin.CapsuleShape(radius, totalHeight), mass, opts); },
+			// mesh(w, verts, faces, mass, opts) — verts: [[x,y,z],...], faces: flat index triples.
+			mesh: function (w, verts, faces, mass, opts) {
+				var vs = verts.map(function (v) { return new Goblin.Vector3(v[0], v[1], v[2]); });
+				return add(w, new Goblin.MeshShape(vs, faces), mass, opts);
+			},
 			plane: function (w, orientation, halfW, halfL, mass, opts) { return add(w, new Goblin.PlaneShape(orientation, halfW, halfL), mass, opts); },
 			convex: function (w, verts, mass, opts) {
 				var vs = verts.map(function (v) { return new Goblin.Vector3(v[0], v[1], v[2]); });
@@ -217,6 +236,7 @@
 			if (opts.rot) b.rotation = new Goblin.Quaternion(opts.rot[0], opts.rot[1], opts.rot[2], opts.rot[3]); // normalizes, like his pages
 			if (opts.vel) b.linear_velocity.set(opts.vel[0] || 0, opts.vel[1] || 0, opts.vel[2] || 0);
 			if (opts.avel) b.angular_velocity.set(opts.avel[0] || 0, opts.avel[1] || 0, opts.avel[2] || 0);
+			if (opts.friction != null) b.friction = opts.friction;
 			if (opts.restitution != null) b.restitution = opts.restitution;
 			if (opts.linear_damping != null) b.linear_damping = opts.linear_damping;
 			if (opts.angular_damping != null) b.angular_damping = opts.angular_damping;

@@ -15,7 +15,7 @@ var Runner = require('./js/runner.js');
 ['chandler', 'tom'].forEach(function (suiteDir) {
 	var dir = path.join(__dirname, 'js', suiteDir);
 	if (!fs.existsSync(dir)) return;
-	fs.readdirSync(dir).filter(function (f) { return f.endsWith('.js'); }).sort().forEach(function (f) {
+	fs.readdirSync(dir).filter(function (f) { return f.endsWith('.js') && f.charAt(0) !== '_'; }).sort().forEach(function (f) {
 		require(path.join(dir, f));
 	});
 });

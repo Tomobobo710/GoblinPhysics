@@ -98,6 +98,20 @@
 			var verts = s.vertices.map(function (v) { return new THREE.Vector3(v.x, v.y, v.z); });
 			return new THREE.ConvexGeometry(verts);
 		}
+		// MeshShape: build the geometry straight from the collider's own triangles — exactly what the
+		// physics sees (each triangle carries local-space a/b/c corners).
+		if (s instanceof Goblin.MeshShape) {
+			var g = new THREE.Geometry();
+			s.triangles.forEach(function (tri) {
+				var base = g.vertices.length;
+				g.vertices.push(new THREE.Vector3(tri.a.x, tri.a.y, tri.a.z),
+					new THREE.Vector3(tri.b.x, tri.b.y, tri.b.z),
+					new THREE.Vector3(tri.c.x, tri.c.y, tri.c.z));
+				g.faces.push(new THREE.Face3(base, base + 1, base + 2));
+			});
+			g.computeFaceNormals();
+			return g;
+		}
 	}
 	function litMesh(geo, color) {
 		var mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: color, transparent: true, opacity: 0.82 }));
@@ -117,6 +131,21 @@
 				grp.add(cm);
 			});
 			return grp;
+		}
+		// CapsuleShape has no single THREE geometry: draw it as a group — a cylinder barrel plus a
+		// hemisphere cap at each end, at ±cylinder_half_height along the local Y axis (capsule's long axis).
+		if (s instanceof Goblin.CapsuleShape) {
+			var cap = new THREE.Group();
+			cap.add(litMesh(new THREE.CylinderGeometry(s.radius, s.radius, s.cylinder_height, 24), color));
+			// Only the OUTER hemisphere at each end, so it doesn't overlap the barrel: top cap is the upper
+			// half (theta 0..π/2), bottom cap the lower half (theta π/2..π). SphereGeometry(r, wSeg, hSeg,
+			// phiStart, phiLength, thetaStart, thetaLength).
+			var half = Math.PI / 2;
+			var topCap = litMesh(new THREE.SphereGeometry(s.radius, 24, 12, 0, Math.PI * 2, 0, half), color);
+			topCap.position.y = s.cylinder_half_height; cap.add(topCap);
+			var botCap = litMesh(new THREE.SphereGeometry(s.radius, 24, 12, 0, Math.PI * 2, half, half), color);
+			botCap.position.y = -s.cylinder_half_height; cap.add(botCap);
+			return cap;
 		}
 		return litMesh(geoForShape(s), color);
 	}
@@ -325,9 +354,13 @@
 			var speed = anim.fast ? 6 : 1;
 			anim._accum += Math.min(250, (now - anim._last)) * speed;   // clamp huge gaps (tab was hidden)
 			anim._last = now;
+			// Suppress the early-out when the test scripts mid-sim events (a shove/jiggle), so a two-phase
+			// scene always plays its full tick budget — matching headless simulate().
+			var canEarlyOut = !(anim.ctx.tickHooks && anim.ctx.tickHooks.length);
 			var done = false, guard = 0;
-			while (anim._accum >= DT_MS && anim.tick < anim.totalTicks && !done && guard++ < 600) {
+			while (anim._accum >= DT_MS && anim.tick < anim.totalTicks && !(done && canEarlyOut) && guard++ < 600) {
 				anim._accum -= DT_MS;
+				anim.ctx.runTickHooks(anim.world, anim.tick + 1);   // fire scripted events before the step
 				anim.world.step(1 / 60); anim.tick++;
 				// evaluate EVERY live expectation against the world right now — any that just became true
 				// flips to pass this tick; the rest update their live value. This is the real check.
@@ -336,7 +369,7 @@
 			anim.reflect();                                   // paint pending values + any flips
 			anim.meshes.forEach(function (m) { if (m._b) syncMesh(m, m._b); });
 			var tl = document.getElementById('tickline'); if (tl) tl.textContent = 'tick ' + anim.tick + ' / ' + anim.totalTicks;
-			if ((anim.tick >= anim.totalTicks || done) && !anim._finished) { anim._finished = true; anim.onFinish(); }
+			if ((anim.tick >= anim.totalTicks || (done && canEarlyOut)) && !anim._finished) { anim._finished = true; anim.onFinish(); }
 		}
 		if (R) { R.controls.update(); R.renderer.render(R.scene, R.camera); }
 	}
