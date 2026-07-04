@@ -25,6 +25,11 @@ const buildOrder = [
     'src/classes/Constraints/**/*.js',
     'src/classes/ForceGenerators/**/*.js',
     'src/classes/RayTracing/**/*.js',
+    // Nested Shapes subdirs listed explicitly BEFORE the broad Shapes glob: gulp's src() streams
+    // deep-glob files (e.g. Shapes/Swept/*.js) out of order and can emit them AFTER outro.js, which
+    // leaves that shape defined outside the module wrapper (breaks CommonJS require of the build).
+    // Pinning them here (first match wins its position under gulp's de-dup) keeps them inside.
+    'src/classes/Shapes/Swept/**/*.js',
     'src/classes/Shapes/**/*.js',
     'src/classes/Utils/**/*.js',
     'src/classes/*.js',

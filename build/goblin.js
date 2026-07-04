@@ -3787,13 +3787,14 @@ Goblin.FrictionConstraint.prototype.update = (function(){
 			row_2.jacobian[11] = _tmp_vec3_1.z;
 		}
 
-		var limit = this.contact.friction;
-		if (this.object_a != null && this.object_a._mass !== Infinity) {
-			limit *= this.object_a._mass;
+		// Scale the friction clamp by the lighter body's mass
+		var ma = ( this.object_a != null && this.object_a._mass !== Infinity ) ? this.object_a._mass : Infinity;
+		var mb = ( this.object_b != null && this.object_b._mass !== Infinity ) ? this.object_b._mass : Infinity;
+		var mscale = Math.min( ma, mb );
+		if ( mscale === Infinity ) {
+			mscale = 1;
 		}
-		if (this.object_b != null && this.object_b._mass !== Infinity) {
-			limit *= this.object_b._mass;
-		}
+		var limit = this.contact.friction * mscale;
 		if ( limit < 0 ) {
 			limit = 0;
 		}
@@ -4631,6 +4632,122 @@ Goblin.RayIntersection = function() {
 	this.point = new Goblin.Vector3();
 	this.t = null;
     this.normal = new Goblin.Vector3();
+};
+/**
+ * Extends a given shape by sweeping a line around it
+ *
+ * @class LineSweptShape
+ * @param start {Vector3} starting point of the line
+ * @param end {Vector3} line's end point
+ * @param shape any Goblin shape object
+ * @constructor
+ */
+Goblin.LineSweptShape = function( start, end, shape ) {
+	/**
+	 * starting point of the line
+	 *
+	 * @property start
+	 * @type {Vector3}
+	 */
+	this.start = start;
+
+	/**
+	 * line's end point
+	 *
+	 * @property end
+	 * @type {Vector3}
+	 */
+	this.end = end;
+
+	/**
+	 * shape being swept
+	 *
+	 * @property shape
+	 */
+	this.shape = shape;
+
+	/**
+	 * unit direction of the line
+	 *
+	 * @property direction
+	 * @type {Vector3}
+	 */
+	this.direction = new Goblin.Vector3();
+	this.direction.subtractVectors( end, start );
+
+	/**
+	 * length of the line
+	 *
+	 * @property length
+	 * @type {Number}
+	 */
+	this.length = this.direction.length();
+	this.direction.normalize();
+
+	/**
+	 * axis-aligned bounding box of this shape
+	 *
+	 * @property aabb
+	 * @type {AABB}
+	 */
+	this.aabb = new Goblin.AABB();
+	this.calculateLocalAABB( this.aabb );
+};
+
+/**
+ * Calculates this shape's local AABB and stores it in the passed AABB object
+ *
+ * @method calculateLocalAABB
+ * @param aabb {AABB}
+ */
+Goblin.LineSweptShape.prototype.calculateLocalAABB = function( aabb ) {
+	this.shape.calculateLocalAABB( aabb );
+
+	aabb.min.x = Math.min( aabb.min.x + this.start.x, aabb.min.x + this.end.x );
+	aabb.min.y = Math.min( aabb.min.y + this.start.y, aabb.min.y + this.end.y );
+	aabb.min.z = Math.min( aabb.min.z + this.start.z, aabb.min.z + this.end.z );
+
+	aabb.max.x = Math.max( aabb.max.x + this.start.x, aabb.max.x + this.end.x );
+	aabb.max.y = Math.max( aabb.max.y + this.start.y, aabb.max.y + this.end.y );
+	aabb.max.z = Math.max( aabb.max.z + this.start.z, aabb.max.z + this.end.z );
+};
+
+Goblin.LineSweptShape.prototype.getInertiaTensor = function( mass ) {
+	// this is wrong, but currently not used for anything
+	return this.shape.getInertiaTensor( mass );
+};
+
+/**
+ * Given `direction`, find the point in this body which is the most extreme in that direction.
+ * This support point is calculated in world coordinates and stored in the second parameter `support_point`
+ *
+ * @method findSupportPoint
+ * @param direction {vec3} direction to use in finding the support point
+ * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
+ */
+Goblin.LineSweptShape.prototype.findSupportPoint = function( direction, support_point ) {
+	this.shape.findSupportPoint( direction, support_point );
+
+	// Add whichever point of this line lies in `direction`
+	var dot = this.direction.dot( direction );
+
+	if ( dot < 0 ) {
+		support_point.add( this.start );
+	} else {
+		support_point.add( this.end );
+	}
+};
+
+/**
+ * Checks if a ray segment intersects with the shape
+ *
+ * @method rayIntersect
+ * @property start {vec3} start point of the segment
+ * @property end {vec3} end point of the segment
+ * @return {RayIntersection|null} if the segment intersects, a RayIntersection is returned, else `null`
+ */
+Goblin.LineSweptShape.prototype.rayIntersect = function(){
+	return null;
 };
 /**
  * @class BoxShape
@@ -9248,6 +9365,30 @@ Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
 			}
 		}
 	}
+
+	// Kill the resting-contact residual "buzz": a body settled on a contact keeps a small standing linear
+	// velocity that never damps to zero (an equilibrium artifact) and leaks into anything resting on it.
+	// Only a body slow (tiny linear AND angular velocity) for several consecutive frames is zeroed, so the
+	// active settling transient and any rolling/spinning body are never touched.
+	var BUZZ_LIN = 0.05, BUZZ_ANG = 0.05, BUZZ_FRAMES = 8;
+	for ( i = 0; i < this.contact_constraints.length; i++ ) {
+		constraint = this.contact_constraints[i];
+		if ( constraint.active === false ) { continue; }
+		var pair = [ constraint.object_a, constraint.object_b ];
+		for ( var pi = 0; pi < 2; pi++ ) {
+			var bod = pair[pi];
+			if ( bod == null || bod._mass === Infinity ) { continue; }
+			if ( bod.linear_velocity.lengthSquared() < BUZZ_LIN * BUZZ_LIN &&
+				bod.angular_velocity.lengthSquared() < BUZZ_ANG * BUZZ_ANG ) {
+				bod._buzzSlowFrames = ( bod._buzzSlowFrames || 0 ) + 1;
+				if ( bod._buzzSlowFrames >= BUZZ_FRAMES ) {
+					bod.linear_velocity.x = bod.linear_velocity.y = bod.linear_velocity.z = 0;
+				}
+			} else {
+				bod._buzzSlowFrames = 0;
+			}
+		}
+	}
 };
 /**
  * Takes possible contacts found by a broad phase and determines if they are legitimate contacts
@@ -9637,23 +9778,18 @@ Goblin.NarrowPhase.prototype.collapseSphereContacts = function() {
 			p.contact_point.y = sphereObj.position.y + ny * ( r - half_pen );
 			p.contact_point.z = sphereObj.position.z + nz * ( r - half_pen );
 
-			// Re-anchor each body's local point fresh at its own surface along the normal — the sphere
-			// at its true surface point, the other body at that point pushed through the full overlap —
-			// so ContactManifold.update recomputes the correct penetration from their separation rather
-			// than from a stale surface point that rotates with the rolling sphere.
+			// Re-anchor only the sphere's own local point at its true surface point along the normal, so
+			// a rolling sphere's anchor can't trail the true bottom and pump phantom torque.
 			_tmp_vec3_1.set(
 				sphereObj.position.x + nx * r,
 				sphereObj.position.y + ny * r,
 				sphereObj.position.z + nz * r
 			);
 			sphereObj.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_a : p.contact_point_in_b );
-			var other = sphereIsA ? p.object_b : p.object_a;
-			_tmp_vec3_1.set(
-				sphereObj.position.x + nx * ( r - p.penetration_depth ),
-				sphereObj.position.y + ny * ( r - p.penetration_depth ),
-				sphereObj.position.z + nz * ( r - p.penetration_depth )
-			);
-			other.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_b : p.contact_point_in_a );
+			// Leave the other body's anchor where narrowphase planted it. Re-fabricating it from the
+			// sphere center co-locates both anchors so they translate rigidly with the sphere, blinding
+			// ContactManifold.update's staleness checks — the contact never dies and the sphere stays
+			// glued to the body it has left (entanglement).
 		}
 
 		manifold = manifold.next_manifold;
@@ -10269,119 +10405,3 @@ Goblin.World.prototype.removeConstraint = function( constraint ) {
 	if ( typeof self !== 'undefined' ) self.Goblin = Goblin;
 	if ( typeof module !== 'undefined' ) module.exports = Goblin;
 })();
-/**
- * Extends a given shape by sweeping a line around it
- *
- * @class LineSweptShape
- * @param start {Vector3} starting point of the line
- * @param end {Vector3} line's end point
- * @param shape any Goblin shape object
- * @constructor
- */
-Goblin.LineSweptShape = function( start, end, shape ) {
-	/**
-	 * starting point of the line
-	 *
-	 * @property start
-	 * @type {Vector3}
-	 */
-	this.start = start;
-
-	/**
-	 * line's end point
-	 *
-	 * @property end
-	 * @type {Vector3}
-	 */
-	this.end = end;
-
-	/**
-	 * shape being swept
-	 *
-	 * @property shape
-	 */
-	this.shape = shape;
-
-	/**
-	 * unit direction of the line
-	 *
-	 * @property direction
-	 * @type {Vector3}
-	 */
-	this.direction = new Goblin.Vector3();
-	this.direction.subtractVectors( end, start );
-
-	/**
-	 * length of the line
-	 *
-	 * @property length
-	 * @type {Number}
-	 */
-	this.length = this.direction.length();
-	this.direction.normalize();
-
-	/**
-	 * axis-aligned bounding box of this shape
-	 *
-	 * @property aabb
-	 * @type {AABB}
-	 */
-	this.aabb = new Goblin.AABB();
-	this.calculateLocalAABB( this.aabb );
-};
-
-/**
- * Calculates this shape's local AABB and stores it in the passed AABB object
- *
- * @method calculateLocalAABB
- * @param aabb {AABB}
- */
-Goblin.LineSweptShape.prototype.calculateLocalAABB = function( aabb ) {
-	this.shape.calculateLocalAABB( aabb );
-
-	aabb.min.x = Math.min( aabb.min.x + this.start.x, aabb.min.x + this.end.x );
-	aabb.min.y = Math.min( aabb.min.y + this.start.y, aabb.min.y + this.end.y );
-	aabb.min.z = Math.min( aabb.min.z + this.start.z, aabb.min.z + this.end.z );
-
-	aabb.max.x = Math.max( aabb.max.x + this.start.x, aabb.max.x + this.end.x );
-	aabb.max.y = Math.max( aabb.max.y + this.start.y, aabb.max.y + this.end.y );
-	aabb.max.z = Math.max( aabb.max.z + this.start.z, aabb.max.z + this.end.z );
-};
-
-Goblin.LineSweptShape.prototype.getInertiaTensor = function( mass ) {
-	// this is wrong, but currently not used for anything
-	return this.shape.getInertiaTensor( mass );
-};
-
-/**
- * Given `direction`, find the point in this body which is the most extreme in that direction.
- * This support point is calculated in world coordinates and stored in the second parameter `support_point`
- *
- * @method findSupportPoint
- * @param direction {vec3} direction to use in finding the support point
- * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
- */
-Goblin.LineSweptShape.prototype.findSupportPoint = function( direction, support_point ) {
-	this.shape.findSupportPoint( direction, support_point );
-
-	// Add whichever point of this line lies in `direction`
-	var dot = this.direction.dot( direction );
-
-	if ( dot < 0 ) {
-		support_point.add( this.start );
-	} else {
-		support_point.add( this.end );
-	}
-};
-
-/**
- * Checks if a ray segment intersects with the shape
- *
- * @method rayIntersect
- * @property start {vec3} start point of the segment
- * @property end {vec3} end point of the segment
- * @return {RayIntersection|null} if the segment intersects, a RayIntersection is returned, else `null`
- */
-Goblin.LineSweptShape.prototype.rayIntersect = function(){
-	return null;
-};
