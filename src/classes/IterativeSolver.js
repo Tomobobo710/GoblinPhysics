@@ -693,7 +693,7 @@ Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
 	// velocity that never damps to zero (an equilibrium artifact) and leaks into anything resting on it.
 	// Only a body slow (tiny linear AND angular velocity) for several consecutive frames is zeroed, so the
 	// active settling transient and any rolling/spinning body are never touched.
-	var BUZZ_LIN = 0.05, BUZZ_ANG = 0.05, BUZZ_FRAMES = 8;
+	var BUZZ_LIN = 0.08, BUZZ_ANG = 0.08, BUZZ_FRAMES = 8;
 	for ( i = 0; i < this.contact_constraints.length; i++ ) {
 		constraint = this.contact_constraints[i];
 		if ( constraint.active === false ) { continue; }
