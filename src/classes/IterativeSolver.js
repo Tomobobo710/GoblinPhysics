@@ -696,11 +696,11 @@ Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
 	var BUZZ_LIN = 0.05, BUZZ_ANG = 0.05, BUZZ_FRAMES = 8;
 	for ( i = 0; i < this.contact_constraints.length; i++ ) {
 		constraint = this.contact_constraints[i];
-		if ( constraint.active === false ) continue;
+		if ( constraint.active === false ) { continue; }
 		var pair = [ constraint.object_a, constraint.object_b ];
 		for ( var pi = 0; pi < 2; pi++ ) {
 			var bod = pair[pi];
-			if ( bod == null || bod._mass === Infinity ) continue;
+			if ( bod == null || bod._mass === Infinity ) { continue; }
 			if ( bod.linear_velocity.lengthSquared() < BUZZ_LIN * BUZZ_LIN &&
 				bod.angular_velocity.lengthSquared() < BUZZ_ANG * BUZZ_ANG ) {
 				bod._buzzSlowFrames = ( bod._buzzSlowFrames || 0 ) + 1;
