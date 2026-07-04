@@ -688,4 +688,28 @@ Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
 			}
 		}
 	}
+
+	// Kill the resting-contact residual "buzz": a body settled on a contact keeps a small standing linear
+	// velocity that never damps to zero (an equilibrium artifact) and leaks into anything resting on it.
+	// Only a body slow (tiny linear AND angular velocity) for several consecutive frames is zeroed, so the
+	// active settling transient and any rolling/spinning body are never touched.
+	var BUZZ_LIN = 0.05, BUZZ_ANG = 0.05, BUZZ_FRAMES = 8;
+	for ( i = 0; i < this.contact_constraints.length; i++ ) {
+		constraint = this.contact_constraints[i];
+		if ( constraint.active === false ) continue;
+		var pair = [ constraint.object_a, constraint.object_b ];
+		for ( var pi = 0; pi < 2; pi++ ) {
+			var bod = pair[pi];
+			if ( bod == null || bod._mass === Infinity ) continue;
+			if ( bod.linear_velocity.lengthSquared() < BUZZ_LIN * BUZZ_LIN &&
+				bod.angular_velocity.lengthSquared() < BUZZ_ANG * BUZZ_ANG ) {
+				bod._buzzSlowFrames = ( bod._buzzSlowFrames || 0 ) + 1;
+				if ( bod._buzzSlowFrames >= BUZZ_FRAMES ) {
+					bod.linear_velocity.x = bod.linear_velocity.y = bod.linear_velocity.z = 0;
+				}
+			} else {
+				bod._buzzSlowFrames = 0;
+			}
+		}
+	}
 };
