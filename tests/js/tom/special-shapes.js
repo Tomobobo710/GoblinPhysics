@@ -1,4 +1,4 @@
-// Tom's Suite — SPECIAL SHAPES (built triangle-mesh props).
+// Tom's Suite — SPECIAL SHAPES (built triangle-mesh bodies).
 // These are irregular meshes authored as several overlapping boxes plus flat/double-sided sheets merged
 // into one vertex buffer (a trophy: stacked base + tiers + star; a rocket: octagonal body + nose + fins),
 // authored in meters, with the parts built UP from the floor so the center of mass sits well above the
@@ -125,7 +125,7 @@
 		"Built simulable (recentered to COM + point-cloud inertia), PASS: it settles on the floor instead.");
 
 	specialShape('rocket (octagon body + nose + fins)', rocket, 3, '#d9dde6',
-		"A rocket mesh — octagonal body, nose cone, four double-sided fins — a thin, tall, offset-COM prop, the " +
+		"A rocket mesh — octagonal body, nose cone, four double-sided fins — a thin, tall, offset-COM body, the " +
 		"exact marginal case that drives Goblin.MeshShape's inertia negative and makes it explode. Built " +
 		"simulable (recentered to COM + point-cloud inertia), PASS: inertia stays positive and it settles.");
 

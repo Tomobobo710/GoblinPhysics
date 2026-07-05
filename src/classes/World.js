@@ -319,23 +319,55 @@ Goblin.World.prototype.removeConstraint = function( constraint ) {
 
 		var intersections = [];
 
+		// Turn one ContactDetails into a RayIntersection. `candidate` is the non-swept world body this
+		// contact is against; normalize so intersection.object is that candidate and the normal points the
+		// same way the direct-return path does (as if candidate were object_b). MeshShape/CompoundShape
+		// paths emit contacts with the candidate as object_a, so flip the normal in that case.
+		var self = this;
+		function pushIntersection( contact, candidate ) {
+			var flip = ( contact.object_a === candidate );
+			var nx = flip ? -contact.contact_normal.x : contact.contact_normal.x;
+			var ny = flip ? -contact.contact_normal.y : contact.contact_normal.y;
+			var nz = flip ? -contact.contact_normal.z : contact.contact_normal.z;
+
+			var intersection = Goblin.ObjectPool.getObject( 'RayIntersection' );
+			intersection.object = candidate;
+			intersection.normal.set( nx, ny, nz );
+			intersection.penetration = contact.penetration_depth; // expose depth for depenetration
+
+			intersection.point.scaleVector( intersection.normal, -contact.penetration_depth );
+			intersection.point.add( contact.contact_point );
+
+			intersection.t = intersection.point.distanceTo( start );
+			intersections.push( intersection );
+		}
+
 		for ( var i = 0; i < possibilities.length; i++ ) {
-			var contact = this.narrowphase.getContact( swept_body, possibilities[i] );
+			var candidate = possibilities[i];
+
+			// MeshShape/CompoundShape don't RETURN a contact from getContact — they route contacts through
+			// narrowphase.addContact instead (built for the solver's manifolds). A swept query against a mesh
+			// would otherwise see nothing, so a swept body would pass through static meshes undetected. So
+			// intercept addContact for the duration of this getContact call and collect whatever it emits,
+			// alongside the direct return used by primitive-vs-primitive.
+			var captured = [];
+			var origAddContact = this.narrowphase.addContact;
+			this.narrowphase.addContact = function ( object_a, object_b, contact ) {
+				captured.push( contact );
+				// Do NOT forward to the real solver manifold — this is a transient query, not a sim step.
+			};
+			var contact;
+			try {
+				contact = this.narrowphase.getContact( swept_body, candidate );
+			} finally {
+				this.narrowphase.addContact = origAddContact;
+			}
 
 			if ( contact != null ) {
-				var intersection = Goblin.ObjectPool.getObject( 'RayIntersection' );
-				intersection.object = contact.object_b;
-				intersection.normal.copy( contact.contact_normal );
-				intersection.penetration = contact.penetration_depth; // expose depth for depenetration
-
-				// compute point
-				intersection.point.scaleVector( contact.contact_normal, -contact.penetration_depth );
-				intersection.point.add( contact.contact_point );
-
-				// compute time
-				intersection.t = intersection.point.distanceTo( start );
-
-				intersections.push( intersection );
+				pushIntersection( contact, candidate );
+			}
+			for ( var ci = 0; ci < captured.length; ci++ ) {
+				pushIntersection( captured[ci], candidate );
 			}
 		}
 

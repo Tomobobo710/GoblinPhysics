@@ -83,15 +83,15 @@
 	//
 	//   2. NEGATIVE INERTIA -> EXPLOSION. MeshShape.getInertiaTensor derives inertia from a divergence-
 	//      theorem VOLUME integral that assumes ONE closed, consistently-wound, non-self-overlapping
-	//      solid. Authored props are the opposite: several overlapping boxes plus flat/double-sided sheets
+	//      solid. Authored bodies are the opposite: several overlapping boxes plus flat/double-sided sheets
 	//      merged into one vertex buffer. For that input the integral is not a valid rigid body and
 	//      routinely yields a NEGATIVE moment of inertia. A negative moment of inertia is physically
 	//      impossible: contact torque then accelerates spin the WRONG way, and the constraint solver
 	//      "lowers energy" by spinning the body faster at every contact — so it launches and spins without
-	//      bound. (A thin, tall, or offset-COM prop is exactly the marginal case that tips negative.)
+	//      bound. (A thin, tall, or offset-COM body is exactly the marginal case that tips negative.)
 	//      Fix: keep the full concave mesh for COLLISION, but compute INERTIA from the mesh vertices
 	//      treated as equal point masses about their centroid. That respects the true anisotropy (a tall
-	//      prop resists tumbling more than spinning about its long axis), needs no closed/consistent
+	//      body resists tumbling more than spinning about its long axis), needs no closed/consistent
 	//      topology, and is guaranteed positive-definite — so the body is always physically simulable.
 	//
 	//   t        the test context      verts  [[x,y,z],...]   faces  flat index triples

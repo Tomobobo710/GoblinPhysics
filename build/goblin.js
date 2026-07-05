@@ -5066,11 +5066,21 @@ Goblin.CapsuleShape.prototype.findSupportPoint = function(direction, support_poi
     // segment endpoint chosen by the sign of direction.y, plus radius * normalize(direction). This
     // holds for the caps as well as the barrel - a capsule has no flat end disk, so (unlike the
     // cylinder) there is no separate full-radius case.
+    // Segment endpoint contribution: sign(direction.y) * cylinder_half_height. This MUST be a three-way
+    // sign — when direction.y is exactly 0 the support lies on the barrel equator and the segment adds 0.
+    // A two-way branch (y < 0 ? -h : +h) maps y == 0 to +h, snapping every equatorial support to the TOP
+    // cap ring, so all horizontally-sampled support points become coplanar (y = +h). GJK then builds a
+    // flat tetrahedron and EPA gets a degenerate simplex (NaN face normals) — a crash for any horizontal
+    // capsule query.
+    // A zero-length direction has no "most extreme" point — every point is equally valid. Return the
+    // barrel-center point (radius term contributes nothing) instead of dividing by zero and returning NaN,
+    // which would poison the GJK simplex. (SphereShape does the same, returning the origin.)
     var dlen = Math.sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
-    var segY = direction.y < 0 ? -this.cylinder_half_height : this.cylinder_half_height;
-    support_point.x = this.radius * direction.x / dlen;
-    support_point.y = segY + this.radius * direction.y / dlen;
-    support_point.z = this.radius * direction.z / dlen;
+    var inv = dlen > 0 ? this.radius / dlen : 0;
+    var segY = direction.y > 0 ? this.cylinder_half_height : ( direction.y < 0 ? -this.cylinder_half_height : 0 );
+    support_point.x = inv * direction.x;
+    support_point.y = segY + inv * direction.y;
+    support_point.z = inv * direction.z;
 };
 
 /**
@@ -10386,23 +10396,55 @@ Goblin.World.prototype.removeConstraint = function( constraint ) {
 
 		var intersections = [];
 
+		// Turn one ContactDetails into a RayIntersection. `candidate` is the non-swept world body this
+		// contact is against; normalize so intersection.object is that candidate and the normal points the
+		// same way the direct-return path does (as if candidate were object_b). MeshShape/CompoundShape
+		// paths emit contacts with the candidate as object_a, so flip the normal in that case.
+		var self = this;
+		function pushIntersection( contact, candidate ) {
+			var flip = ( contact.object_a === candidate );
+			var nx = flip ? -contact.contact_normal.x : contact.contact_normal.x;
+			var ny = flip ? -contact.contact_normal.y : contact.contact_normal.y;
+			var nz = flip ? -contact.contact_normal.z : contact.contact_normal.z;
+
+			var intersection = Goblin.ObjectPool.getObject( 'RayIntersection' );
+			intersection.object = candidate;
+			intersection.normal.set( nx, ny, nz );
+			intersection.penetration = contact.penetration_depth; // expose depth for depenetration
+
+			intersection.point.scaleVector( intersection.normal, -contact.penetration_depth );
+			intersection.point.add( contact.contact_point );
+
+			intersection.t = intersection.point.distanceTo( start );
+			intersections.push( intersection );
+		}
+
 		for ( var i = 0; i < possibilities.length; i++ ) {
-			var contact = this.narrowphase.getContact( swept_body, possibilities[i] );
+			var candidate = possibilities[i];
+
+			// MeshShape/CompoundShape don't RETURN a contact from getContact — they route contacts through
+			// narrowphase.addContact instead (built for the solver's manifolds). A swept query against a mesh
+			// would otherwise see nothing, so a swept body would pass through static meshes undetected. So
+			// intercept addContact for the duration of this getContact call and collect whatever it emits,
+			// alongside the direct return used by primitive-vs-primitive.
+			var captured = [];
+			var origAddContact = this.narrowphase.addContact;
+			this.narrowphase.addContact = function ( object_a, object_b, contact ) {
+				captured.push( contact );
+				// Do NOT forward to the real solver manifold — this is a transient query, not a sim step.
+			};
+			var contact;
+			try {
+				contact = this.narrowphase.getContact( swept_body, candidate );
+			} finally {
+				this.narrowphase.addContact = origAddContact;
+			}
 
 			if ( contact != null ) {
-				var intersection = Goblin.ObjectPool.getObject( 'RayIntersection' );
-				intersection.object = contact.object_b;
-				intersection.normal.copy( contact.contact_normal );
-				intersection.penetration = contact.penetration_depth; // expose depth for depenetration
-
-				// compute point
-				intersection.point.scaleVector( contact.contact_normal, -contact.penetration_depth );
-				intersection.point.add( contact.contact_point );
-
-				// compute time
-				intersection.t = intersection.point.distanceTo( start );
-
-				intersections.push( intersection );
+				pushIntersection( contact, candidate );
+			}
+			for ( var ci = 0; ci < captured.length; ci++ ) {
+				pushIntersection( captured[ci], candidate );
 			}
 		}
 
