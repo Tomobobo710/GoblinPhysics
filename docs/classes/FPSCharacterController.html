@@ -1,0 +1,2553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>FPSCharacterController - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FPS_CONTROLLER_DEFAULTS.html">FPS_CONTROLLER_DEFAULTS</a></li>
+                                <li><a href="../classes/FPSCharacterController.html">FPSCharacterController</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1>FPSCharacterController Class</h1>
+<div class="box meta">
+
+
+        <div class="foundat">
+            Defined in: <a href="../files/src_classes_FPSCharacterController.js.html#l1"><code>src\classes\FPSCharacterController.js:1</code></a>
+        </div>
+
+            Module: <a href="../modules/Goblin.html">Goblin</a>
+
+</div>
+
+
+<div class="box intro">
+    <p>Engine-agnostic, reusable first-person character controller built directly on Goblin
+(NOT <code>Goblin.CharacterController</code> — that's a separate, spring-based capsule controller; this
+one is a kinematic box mover with its own ground/wall/slope/ghost handling). Uses a BOX
+collider that is angular-locked so it can never tip. Grounding, slopes, walls and resting are
+handled by hand-written raycast/sweep probes each tick, not by the physics solver — the
+controller does NOT hard-teleport the body to the ground every frame (that fights the solver
+and jitters). It only:</p>
+<ul>
+<li>sets HORIZONTAL velocity from input each step (snappy, no momentum fighting),</li>
+<li>projects that velocity along the ground plane (no sliding on slopes) and off walls
+(smooth move-and-slide, so we never ram the solver), and</li>
+<li>applies targeted raycast assists for STEP-UP and STEP-DOWN, which the solver can't
+do with a box collider.
+Vertical motion (gravity, landing) is left to the solver; only jump / jetpack thrust write
+the vertical velocity directly.</li>
+</ul>
+<p>DESIGN SEAMS:
+The controller never reads input directly. Gameplay samples an input command (pure data, so
+a host can run remote players' commands through the exact same path) and feeds it in,
+bracketing a single Goblin world step:
+const cmd = mySampleInput(input);       // input mapping is policy, lives outside this class
+controller.beginStep(cmd, dt);           // pre-physics: velocity + assists
+world.step(dt);                          // ONE world step (all bodies)
+controller.endStep(dt);                  // post-physics: grounded + step-down</p>
+<p>EXTENSIBILITY:
+This base IS the default &quot;kit&quot; (instantiate it directly). A game adds an alternate kit by
+subclassing and overriding <code>_updateVertical</code> (jump/gravity) and/or <code>_getMoveSpeed</code> without
+touching ground/step/wall logic.</p>
+<p>Units: METERS (gravity -9.81 by default); defaults are in meters (a ~1.8m human ≈ 1.8 units
+tall). Use <code>scale</code> to resize the whole character.</p>
+
+</div>
+
+    <div class="constructor">
+        <h2>Constructor</h2>
+<div id="method_FPSCharacterController" class="method item">
+    <h3 class="name"><code>FPSCharacterController</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>world</code>
+                </li>
+                <li class="arg">
+                        <code class="optional">[options]</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1"><code>src\classes\FPSCharacterController.js:1</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">world</code>
+                        <span class="type">Goblin.World</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>The physics world this controller's body/ghost live in.</li>
+</ul>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name optional">[options]</code>
+                        <span class="type">Object</span>
+                        <span class="flag optional" title="This parameter is optional.">optional</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>See FPS_CONTROLLER_DEFAULTS (FPSControllerConstants.js) for every
+tunable default and its meaning; each <code>options.X</code> below overrides that default per-instance.</li>
+</ul>
+
+                    </div>
+
+                        <ul class="params-list">
+                            <li class="param">
+                                    <code class="param-name optional">[position]</code>
+                                    <span class="type">Goblin.Vector3</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Spawn position (body center). Default (0,20,0).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[scale=1]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Uniform size multiplier for the whole character.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[width]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Collider width (x) before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[depth]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Collider depth (z) before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[height]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Collider height (y) before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[mass]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Body mass before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[eyeHeight]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Eye offset above body CENTER before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[walkSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Held-walk gait speed before scale (slower than run).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[moveSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>RUN speed (the default no-modifier gait) before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[sprintSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Sprint move speed before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[crouchSpeedMult]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Multiplier on the active gait while crouched.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[sprintDecay]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Rate (units/sec) the sprint boost fades after release.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[groundStopDecel]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Deceleration (units/sec) on releasing all move keys.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[airControl]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>0..1 horizontal steering authority per step while airborne.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[jumpSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Jump velocity before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[friction]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Body friction (0 keeps wall-slides clean; kinematic
+grounding holds slopes without relying on solver friction).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[stepHeight]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Max step-UP height before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[stepDownDist]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Max step-DOWN snap before scale.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[coyoteTime]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Seconds after leaving a ledge you can still jump (0=off).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[jumpBuffer]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Seconds before landing a jump press is remembered (0=off).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideEnabled=true]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Enable crouch-at-speed sliding.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideRequiresMoveInput=false]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Require a movement key held to slide.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideMinSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Min along-ground speed (pre-scale) to start a slide.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideEndSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Flat slide ends below this speed (pre-scale).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideFriction]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Speed bled per second on flat ground (pre-scale).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideBoost]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Launch speed multiplier at slide entry.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideControl]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>0..1 carve authority while sliding (speed-preserving).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideSlopeAccel]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Gravity-along-slope multiplier while sliding.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideSlopeMin]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Min slope (sin of angle) that sustains a slide via gravity.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideSlopeFriction]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Cross-slope bleed per second on a sustaining slope.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[slideCoyoteFrames]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Frames after dropping below slide speed a crouch still slides.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[receivePush=true]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Enable object-to-player knockback via the ghost body.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[receiveMaxSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Cap on how fast a single object hit can knock the player.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[receiveKnockbackFraction]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Fraction of the ghost's contact velocity transferred.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[ghostMaxSpeed]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Cap on the ghost's follow/shove speed (units/sec).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[ghostDamping]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Fraction of the ghost's current velocity damped each tick (0..1).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[maxSlopeAngle]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Max standable slope in degrees (90+ disables the limit).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[visible=false]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Whether a consumer should treat the collider as drawable
+(this controller does no rendering itself — see <code>object.isVisible</code>).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[color]</code>
+                                    <span class="type">String</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Cosmetic color tag, opaque to this class.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[skin]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>Contact/sweep tolerance override (see FPSC.SKIN).</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                        </ul>
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+    </div>
+
+<div id="classdocs" class="tabview">
+    <ul class="api-class-tabs">
+        <li class="api-class-tab index"><a href="#index">Index</a></li>
+
+            <li class="api-class-tab methods"><a href="#methods">Methods</a></li>
+            <li class="api-class-tab properties"><a href="#properties">Properties</a></li>
+    </ul>
+
+    <div>
+        <div id="index" class="api-class-tabpanel index">
+            <h2 class="off-left">Item Index</h2>
+
+                <div class="index-section methods">
+                    <h3>Methods</h3>
+
+                    <ul class="index-list methods">
+                            <li class="index-item method private">
+                                <a href="#method__buildGhost">_buildGhost</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__canStand">_canStand</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__ceilingClearanceAt">_ceilingClearanceAt</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__ceilingSlide">_ceilingSlide</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__climbableSlopeAhead">_climbableSlopeAhead</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__collideAndSlide">_collideAndSlide</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__debugDump">_debugDump</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__debugMark">_debugMark</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__debugStart">_debugStart</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__headroomGate">_headroomGate</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__probeCeiling">_probeCeiling</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__probeGround">_probeGround</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__probeGroundCandidates">_probeGroundCandidates</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__readGhostKnockback">_readGhostKnockback</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__sweptCollideAndSlide">_sweptCollideAndSlide</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__syncGhost">_syncGhost</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__updateSlide">_updateSlide</a>
+
+                            </li>
+                            <li class="index-item method protected">
+                                <a href="#method__updateVertical">_updateVertical</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_aim">aim</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_applyKnockback">applyKnockback</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_beginResim">beginResim</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_beginStep">beginStep</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_captureRenderState">captureRenderState</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_consumeViewDisplacementY">consumeViewDisplacementY</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_destroy">destroy</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_endResim">endResim</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_endStep">endStep</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getEyePosition">getEyePosition</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getForwardHorizontal">getForwardHorizontal</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getLiveAimDirection">getLiveAimDirection</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getLookDirection">getLookDirection</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getRightHorizontal">getRightHorizontal</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getState">getState</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_peekViewDisplacementY">peekViewDisplacementY</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method_raycast">raycast</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_renderEye">renderEye</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_setPosition">setPosition</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_setScale">setScale</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_setState">setState</a>
+
+                            </li>
+                    </ul>
+                </div>
+
+                <div class="index-section properties">
+                    <h3>Properties</h3>
+
+                    <ul class="index-list properties">
+                            <li class="index-item property">
+                                <a href="#property_bodyId">bodyId</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_raycastIgnore">raycastIgnore</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_sliding">sliding</a>
+
+                            </li>
+                    </ul>
+                </div>
+
+
+        </div>
+
+            <div id="methods" class="api-class-tabpanel">
+                <h2 class="off-left">Methods</h2>
+
+<div id="method__buildGhost" class="method item private">
+    <h3 class="name"><code>_buildGhost</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l418"><code>src\classes\FPSCharacterController.js:418</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>GHOST: a solver-participating dynamic body that trails the kinematic player. The player's own
+body is excluded from solver contacts (collision_mask 1); the ghost is its stand-in for object
+contact. Control is one-way: player position -&gt; ghost target. The ghost's position never writes
+back to the player; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__canStand" class="method item private">
+    <h3 class="name"><code>_canStand</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l671"><code>src\classes\FPSCharacterController.js:671</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Is there room to stand up? (No ceiling within standHeight of the feet.)</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__ceilingClearanceAt" class="method item private">
+    <h3 class="name"><code>_ceilingClearanceAt</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1603"><code>src\classes\FPSCharacterController.js:1603</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Lowest ceiling clearance over the footprint centered at (cx,cz). Infinity if nothing overhead.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__ceilingSlide" class="method item private">
+    <h3 class="name"><code>_ceilingSlide</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l642"><code>src\classes\FPSCharacterController.js:642</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Deflect velocity along an overhead surface we're about to contact, instead of capping the
+rise to zero — a hard cap leaves no velocity to escape and glues us to ceilings, flat AND
+sloped. Projects out the into-surface component using the ceiling's own normal: v -= (v.n) n.
+A flat underside (n straight down) zeroes only the vertical, so horizontal motion survives; a
+sloped underside redirects the upward motion down-and-along the slope, sliding us out. Only
+acts when actually rising toward a ceiling within this tick's reach.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__climbableSlopeAhead" class="method item private">
+    <h3 class="name"><code>_climbableSlopeAhead</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1324"><code>src\classes\FPSCharacterController.js:1324</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Is there a too-steep-but-climbable slope surface rising just ahead of the move? Used only when
+climbSteepSlopes is on. Casts down-rays a short distance ahead and looks for an upward-tilted,
+too-steep-to-stand hit that is still a real slope (not flat floor, not a vertical wall).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__collideAndSlide" class="method item private">
+    <h3 class="name"><code>_collideAndSlide</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1407"><code>src\classes\FPSCharacterController.js:1407</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Kinematic collide-and-slide. The player is excluded from the solver, so we stop
+ourselves at walls and slide along them here. For the current horizontal velocity
+we cast a fan of rays (across the footprint width, at a few heights) in the move
+direction; if a vertical wall is within the box's reach this step we remove the
+into-wall velocity component and re-test, so corners stop on both walls. Floors and
+ramps (normal.y &gt;= 0.5) are ignored — those are handled by the ground clamp.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__debugDump" class="method item private">
+    <h3 class="name"><code>_debugDump</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1181"><code>src\classes\FPSCharacterController.js:1181</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>TEMP DEBUG: stop + return the captured ticks as a compact table string (markers inline).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__debugMark" class="method item private">
+    <h3 class="name"><code>_debugMark</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1175"><code>src\classes\FPSCharacterController.js:1175</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>TEMP DEBUG: label the NEXT captured tick (e.g. the start of one of your sub-tests).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__debugStart" class="method item private">
+    <h3 class="name"><code>_debugStart</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1168"><code>src\classes\FPSCharacterController.js:1168</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>TEMP DEBUG: begin capturing per-tick movement state (see endStep). <code>seconds</code> sizes the ring
+buffer (default 20s at 60Hz). Console-driven: _debugStart(20), reproduce, _debugDump().</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__headroomGate" class="method item private">
+    <h3 class="name"><code>_headroomGate</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1645"><code>src\classes\FPSCharacterController.js:1645</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Treat insufficient headroom as a virtual wall: gate on ceiling clearance ahead (rather than
+surface normal, which a near-horizontal ramp underside can't provide) and slide along the
+horizontal gradient of increasing clearance.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__probeCeiling" class="method item private">
+    <h3 class="name"><code>_probeCeiling</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l612"><code>src\classes\FPSCharacterController.js:612</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Multi-ray UP probe across the footprint. Returns the LOWEST ceiling (down-facing
+surface) within <code>reachAboveFeet</code> of the feet, or null. Mirror of _probeGround; covers
+sloped overhead geometry (e.g. a ramp underside) that forward rays can't see.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__probeGround" class="method item private">
+    <h3 class="name"><code>_probeGround</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1397"><code>src\classes\FPSCharacterController.js:1397</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Back-compat single-hit wrapper: highest floor-like candidate, or null.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__probeGroundCandidates" class="method item private">
+    <h3 class="name"><code>_probeGroundCandidates</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1349"><code>src\classes\FPSCharacterController.js:1349</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Multi-point ground probe (center + four edge midpoints). Returns ALL floor-like hits, highest
+first — NOT collapsed to a single &quot;best&quot; here, because the caller needs to fall back to a
+lower (but valid) hit when the highest one is rejected as too tall to step onto (e.g. one edge
+ray grazing a box pushed against the footprint, while the other four rays are still squarely
+over real floor). Collapsing to one hit here would throw the floor away before the caller ever
+gets a chance to prefer it.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__readGhostKnockback" class="method item private">
+    <h3 class="name"><code>_readGhostKnockback</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l519"><code>src\classes\FPSCharacterController.js:519</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Knockback speed = mass ratio (objectMass/(objectMass+playerMass)) x the object's closing speed
+onto the player, gated to only apply when the object is moving into the player above a small
+momentum floor. Horizontal only; never moves position, only velocity.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__sweptCollideAndSlide" class="method item private">
+    <h3 class="name"><code>_sweptCollideAndSlide</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1436"><code>src\classes\FPSCharacterController.js:1436</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Core swept-move collide-and-slide, parameterized so any caller (player body, ghost body) can
+apply the same wall/mass-yield rule.</p>
+<p><code>opts</code>: { position, width, depth, height, skin, mass, stepHeight, selfBody, otherSelfBody,
+climbSteepSlopes, vx, vz, dt }. <code>otherSelfBody</code> is excluded from hits. Step-up/climb
+are opt-in via stepHeight/climbSteepSlopes; pass stepHeight=0 and climbSteepSlopes=false to skip
+that logic. Returns { x, z, depenX, depenZ }.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__syncGhost" class="method item private">
+    <h3 class="name"><code>_syncGhost</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l459"><code>src\classes\FPSCharacterController.js:459</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Drive the ghost toward the player each tick and read back contact-driven knockback. Called once
+per endStep, after the player's position is settled.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__updateSlide" class="method item private">
+    <h3 class="name"><code>_updateSlide</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Object | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1208"><code>src\classes\FPSCharacterController.js:1208</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Slide model (opt-in via slideEnabled). Stateless: sliding iff crouching + grounded + moving at
+slide speed, recomputed every tick from inputs and the body's own velocity — no stored slide
+flag or entry edge. Momentum is preserved while sliding (low effective friction on flat, gravity
+accel on slopes) and steered weakly (slideControl).</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object | Null</span>:
+                    <p>{mx,mz} slide velocity this tick, or null when not sliding.</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method__updateVertical" class="method item protected">
+    <h3 class="name"><code>_updateVertical</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag protected">protected</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1303"><code>src\classes\FPSCharacterController.js:1303</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Vertical hook. Base = grounded jump only (gravity/landing handled by the solver).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_aim" class="method item">
+    <h3 class="name"><code>aim</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l705"><code>src\classes\FPSCharacterController.js:705</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Set the LIVE, client-owned aim — call once per render frame from your mouse-look. Render-only:
+this NEVER enters the simulation (it doesn't touch yaw/pitch, the command, movement, or netcode),
+it just keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing
+the between-tick &quot;dangle&quot; in every mode.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_applyKnockback" class="method item">
+    <h3 class="name"><code>applyKnockback</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1783"><code>src\classes\FPSCharacterController.js:1783</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Add a velocity impulse and force the character airborne (explosions / knockback / rocket-jumping).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_beginResim" class="method item">
+    <h3 class="name"><code>beginResim</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l841"><code>src\classes\FPSCharacterController.js:841</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Netcode reconciliation hooks (opt-in, called by a netcode layer around the un-acked-command
+RESIMULATION — rollback-and-resim, distinct from a game &quot;replay&quot;). During resim the controller
+re-derives already-perceived state, so its step/crouch snaps must NOT feed a render smoother
+(that double-counts every step until the command acks). Live ticks are unaffected.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_beginStep" class="method item">
+    <h3 class="name"><code>beginStep</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>command</code>
+                </li>
+                <li class="arg">
+                        <code>dt</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l856"><code>src\classes\FPSCharacterController.js:856</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>PRE-physics: set this tick's horizontal velocity (slope/wall projected) + assists.</p>
+<p>Aim/sim separation (netcode cornerstone): the movement basis comes from the COMMAND's yaw
+(<code>cmd.yaw</code>) — a per-tick input — not from any persistent &quot;live aim&quot;. The live aim is owned by
+the client (camera reads it, never the sim), so replaying commands during reconciliation can't
+drag the view backward. We record the commanded yaw/pitch as this entity's facing (for
+getState/avatars) only when the command carries them; single-player passes no yaw and keeps
+driving facing via look().</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">command</code>
+                        <span class="type">Object</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>pure-data input command struct; any field may be absent</li>
+</ul>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">dt</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_captureRenderState" class="method item">
+    <h3 class="name"><code>captureRenderState</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l780"><code>src\classes\FPSCharacterController.js:780</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Stash this fixed tick's eye for sub-tick render interpolation. Call ONCE per REAL fixed step,
+right after the step settles. A teleport-sized jump (respawn / kill-plane / hard resync) or an
+artificial step/crouch eye snap snaps the interpolation — prev := curr — so the eye doesn't
+smear across the discontinuity.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_consumeViewDisplacementY" class="method item">
+    <h3 class="name"><code>consumeViewDisplacementY</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l757"><code>src\classes\FPSCharacterController.js:757</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Return the artificial vertical eye displacement accumulated since the last call (step/landing
+snaps + crouch/scale swaps) and reset it. A camera folds this into a decaying offset so it
+eases over those discontinuities. Call once per render frame. Render-only — does not affect sim.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_destroy" class="method item">
+    <h3 class="name"><code>destroy</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1815"><code>src\classes\FPSCharacterController.js:1815</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+
+
+
+</div>
+<div id="method_endResim" class="method item">
+    <h3 class="name"><code>endResim</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l849"><code>src\classes\FPSCharacterController.js:849</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+
+
+
+</div>
+<div id="method_endStep" class="method item">
+    <h3 class="name"><code>endStep</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>dt</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1053"><code>src\classes\FPSCharacterController.js:1053</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>POST-physics: decide grounded and clamp the feet to the ground surface.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">dt</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_getEyePosition" class="method item">
+    <h3 class="name"><code>getEyePosition</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l748"><code>src\classes\FPSCharacterController.js:748</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>World-space eye position (camera goes here).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_getForwardHorizontal" class="method item">
+    <h3 class="name"><code>getForwardHorizontal</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l729"><code>src\classes\FPSCharacterController.js:729</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Horizontal forward for a given yaw (defaults to current facing).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_getLiveAimDirection" class="method item">
+    <h3 class="name"><code>getLiveAimDirection</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l719"><code>src\classes\FPSCharacterController.js:719</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>The live aim's full 3D direction (render-only; from aim()). Falls back to the sim look.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_getLookDirection" class="method item">
+    <h3 class="name"><code>getLookDirection</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l696"><code>src\classes\FPSCharacterController.js:696</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Full 3D look direction (includes pitch).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_getRightHorizontal" class="method item">
+    <h3 class="name"><code>getRightHorizontal</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l738"><code>src\classes\FPSCharacterController.js:738</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Horizontal right for a given yaw (defaults to current facing). Negated to match a
+left-handed view convention so DirRight strafes to the player's visual right.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_getState" class="method item">
+    <h3 class="name"><code>getState</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1701"><code>src\classes\FPSCharacterController.js:1701</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Snapshot this controller's authoritative state for the network.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_peekViewDisplacementY" class="method item">
+    <h3 class="name"><code>peekViewDisplacementY</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l769"><code>src\classes\FPSCharacterController.js:769</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Peek at the pending vertical eye displacement WITHOUT consuming it. A render-side smoother
+consumes (consumeViewDisplacementY); a caller that only wants to DETECT a discontinuity this
+frame (e.g. to snap interpolation instead of sliding the eye) reads this and leaves the value
+for the smoother. Read-only — never mutates sim or render state.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_raycast" class="method item private">
+    <h3 class="name"><code>raycast</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>world</code>
+                </li>
+                <li class="arg">
+                        <code>start</code>
+                </li>
+                <li class="arg">
+                        <code>end</code>
+                </li>
+                <li class="arg">
+                        <code class="optional">[ignoreObjects]</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Object | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l140"><code>src\classes\FPSCharacterController.js:140</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Cast a ray from start to end in the physics world, kept private since nothing outside this file
+needs it. Returns the first valid hit (nearest first, skipping anything named in
+<code>ignoreObjects</code>), or null.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">world</code>
+                        <span class="type">Goblin.World</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">start</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">end</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name optional">[ignoreObjects]</code>
+                        <span class="type">String</span>
+                        <span class="flag optional" title="This parameter is optional.">optional</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>body <code>.name</code> values to skip</li>
+</ul>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object | Null</span>:
+                    <p>{ object, point:Vector3, normal:Vector3, t:Number } or null</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method_renderEye" class="method item">
+    <h3 class="name"><code>renderEye</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l800"><code>src\classes\FPSCharacterController.js:800</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>The render-only eye position: the last two captured fixed-tick eyes lerped by the sub-tick factor
+<code>alpha</code> (0..1, the fraction into the current fixed step the renderer hands the draw call). Falls
+back to the live physics eye until two ticks have been captured.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_setPosition" class="method item">
+    <h3 class="name"><code>setPosition</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>pos</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1799"><code>src\classes\FPSCharacterController.js:1799</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">pos</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_setScale" class="method item">
+    <h3 class="name"><code>setScale</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>scale</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l586"><code>src\classes\FPSCharacterController.js:586</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Resize the whole character at runtime (rebuilds the collider, feet planted).</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">scale</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_setState" class="method item">
+    <h3 class="name"><code>setState</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1732"><code>src\classes\FPSCharacterController.js:1732</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Apply an authoritative state (from a host snapshot). Sets position, velocity and grounded;
+does not touch yaw/pitch. Used for client-side reconciliation before replaying un-acked inputs.</p>
+
+    </div>
+
+
+
+
+</div>
+            </div>
+
+            <div id="properties" class="api-class-tabpanel">
+                <h2 class="off-left">Properties</h2>
+
+<div id="property_bodyId" class="property item">
+    <h3 class="name"><code>bodyId</code></h3>
+    <span class="type">String</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l824"><code>src\classes\FPSCharacterController.js:824</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>This controller's physics-body name (the value raycasts exclude to avoid self-hits).</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_raycastIgnore" class="property item">
+    <h3 class="name"><code>raycastIgnore</code></h3>
+    <span class="type">String</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l832"><code>src\classes\FPSCharacterController.js:832</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>The body-name list this controller's own probes ignore — pass to a game's own raycasts
+(weapons, line-of-sight) so a shooter's cast doesn't hit itself.</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_sliding" class="property item">
+    <h3 class="name"><code>sliding</code></h3>
+    <span class="type">Boolean</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l816"><code>src\classes\FPSCharacterController.js:816</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>True while a slide is active this tick (stateless predicate; see _updateSlide).</p>
+
+    </div>
+
+
+
+</div>
+            </div>
+
+
+    </div>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>

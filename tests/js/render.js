@@ -150,8 +150,8 @@
 		return litMesh(geoForShape(s), color);
 	}
 	function syncMesh(m, b) { m.position.set(b.position.x, b.position.y, b.position.z); m.quaternion.set(b.rotation.x, b.rotation.y, b.rotation.z, b.rotation.w); }
-	function clearScene() { if (!R) return; R.meshes.forEach(function (m) { R.scene.remove(m); }); R.meshes = []; R.extras.forEach(function (m) { R.scene.remove(m); }); R.extras = []; }
-	function drawBodies(bodies) { bodies.forEach(function (b) { var m = meshForBody(b); m._b = b; R.meshes.push(m); R.scene.add(m); syncMesh(m, b); }); }
+	function clearScene() { if (!R) return; R.meshes.forEach(function (m) { R.scene.remove(m); if (m._b) m._b._drawable = null; }); R.meshes = []; R.extras.forEach(function (m) { R.scene.remove(m); }); R.extras = []; }
+	function drawBodies(bodies) { bodies.forEach(function (b) { var m = meshForBody(b); m._b = b; b._drawable = m; R.meshes.push(m); R.scene.add(m); syncMesh(m, b); }); }
 	function drawRay(ray) {
 		var g = new THREE.Geometry();
 		g.vertices.push(new THREE.Vector3(ray.start[0], ray.start[1], ray.start[2]), new THREE.Vector3(ray.stop[0], ray.stop[1], ray.stop[2]));
@@ -367,6 +367,32 @@
 				done = anim.ctx.evalTick(anim.world, anim.tick);
 			}
 			anim.reflect();                                   // paint pending values + any flips
+			// Reconcile the drawn mesh set with the world's ACTUAL live rigid bodies. anim.meshes started
+			// as a fixed snapshot from t=0 (drawBodies(cap.bodies) in run()), but a test can spawn bodies
+			// mid-run from inside its own tick callback (a thrown crate, a box dropped on the head at
+			// tick 20/30) — those don't exist yet when the snapshot was taken, so without this diff they
+			// silently never appear. Add a mesh for any world body we haven't drawn yet; drop the mesh for
+			// any body no longer in the world (removeRigidBody, e.g. a controller rebuilding its collider
+			// on crouch/scale). Cheap: rigid_bodies lists are small in these tests, and this only runs once
+			// per animation frame, not per physics substep.
+			var live = anim.world.rigid_bodies;
+			for (var li = 0; li < live.length; li++) {
+				var lb = live[li];
+				if (!lb._drawable) {
+					var lm = meshForBody(lb); lm._b = lb; lb._drawable = lm;
+					R.meshes.push(lm); R.scene.add(lm); syncMesh(lm, lb);
+					anim.meshes.push(lm);
+				}
+			}
+			for (var mi = anim.meshes.length - 1; mi >= 0; mi--) {
+				var mb = anim.meshes[mi]._b;
+				if (mb && live.indexOf(mb) === -1) {
+					R.scene.remove(anim.meshes[mi]);
+					var ri = R.meshes.indexOf(anim.meshes[mi]); if (ri !== -1) R.meshes.splice(ri, 1);
+					mb._drawable = null;
+					anim.meshes.splice(mi, 1);
+				}
+			}
 			anim.meshes.forEach(function (m) { if (m._b) syncMesh(m, m._b); });
 			var tl = document.getElementById('tickline'); if (tl) tl.textContent = 'tick ' + anim.tick + ' / ' + anim.totalTicks;
 			if ((anim.tick >= anim.totalTicks || (done && canEarlyOut)) && !anim._finished) { anim._finished = true; anim.onFinish(); }

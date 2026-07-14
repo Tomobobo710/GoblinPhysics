@@ -23,6 +23,8 @@ YUI.add("yuidoc-meta", function(Y) {
         "ConvexShape",
         "CylinderShape",
         "DragForce",
+        "FPSCharacterController",
+        "FPS_CONTROLLER_DEFAULTS",
         "ForceGenerator",
         "FrictionConstraint",
         "GeometryMethods",

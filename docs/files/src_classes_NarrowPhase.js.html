@@ -61,6 +61,8 @@
                                 <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
                                 <li><a href="../classes/DragForce.html">DragForce</a></li>
                                 <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FPS_CONTROLLER_DEFAULTS.html">FPS_CONTROLLER_DEFAULTS</a></li>
+                                <li><a href="../classes/FPSCharacterController.html">FPSCharacterController</a></li>
                                 <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
                                 <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
                                 <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
@@ -359,8 +361,17 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 							while ( _mesh.parent != null ) {
 								_mesh = _mesh.parent;
 							}
+							// Resolve convex up to its real body too (it is a proxy when the partner is a compound child)
+							var _convex = convex;
+							while ( _convex.parent != null ) {
+								if ( _convex instanceof Goblin.RigidBodyProxy ) {
+									_convex.shape_data.transform.transformVector3( contact.contact_point_in_b );
+								}
+								_convex = _convex.parent;
+							}
 							contact.object_a = _mesh;
-							addContact( _mesh, convex, contact );
+							contact.object_b = _convex;
+							addContact( _mesh, _convex, contact );
 						}
 					} else {
 						pending_nodes.push( node.left, node.right );
@@ -511,23 +522,18 @@ Goblin.NarrowPhase.prototype.collapseSphereContacts = function() {
 			p.contact_point.y = sphereObj.position.y + ny * ( r - half_pen );
 			p.contact_point.z = sphereObj.position.z + nz * ( r - half_pen );
 
-			// Re-anchor each body&#x27;s local point fresh at its own surface along the normal — the sphere
-			// at its true surface point, the other body at that point pushed through the full overlap —
-			// so ContactManifold.update recomputes the correct penetration from their separation rather
-			// than from a stale surface point that rotates with the rolling sphere.
+			// Re-anchor only the sphere&#x27;s own local point at its true surface point along the normal, so
+			// a rolling sphere&#x27;s anchor can&#x27;t trail the true bottom and pump phantom torque.
 			_tmp_vec3_1.set(
 				sphereObj.position.x + nx * r,
 				sphereObj.position.y + ny * r,
 				sphereObj.position.z + nz * r
 			);
 			sphereObj.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_a : p.contact_point_in_b );
-			var other = sphereIsA ? p.object_b : p.object_a;
-			_tmp_vec3_1.set(
-				sphereObj.position.x + nx * ( r - p.penetration_depth ),
-				sphereObj.position.y + ny * ( r - p.penetration_depth ),
-				sphereObj.position.z + nz * ( r - p.penetration_depth )
-			);
-			other.transform_inverse.transformVector3Into( _tmp_vec3_1, sphereIsA ? p.contact_point_in_b : p.contact_point_in_a );
+			// Leave the other body&#x27;s anchor where narrowphase planted it. Re-fabricating it from the
+			// sphere center co-locates both anchors so they translate rigidly with the sphere, blinding
+			// ContactManifold.update&#x27;s staleness checks — the contact never dies and the sphere stays
+			// glued to the body it has left (entanglement).
 		}
 
 		manifold = manifold.next_manifold;

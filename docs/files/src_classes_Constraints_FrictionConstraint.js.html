@@ -61,6 +61,8 @@
                                 <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
                                 <li><a href="../classes/DragForce.html">DragForce</a></li>
                                 <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FPS_CONTROLLER_DEFAULTS.html">FPS_CONTROLLER_DEFAULTS</a></li>
+                                <li><a href="../classes/FPSCharacterController.html">FPSCharacterController</a></li>
                                 <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
                                 <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
                                 <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
@@ -239,13 +241,14 @@ Goblin.FrictionConstraint.prototype.update = (function(){
 			row_2.jacobian[11] = _tmp_vec3_1.z;
 		}
 
-		var limit = this.contact.friction;
-		if (this.object_a != null &amp;&amp; this.object_a._mass !== Infinity) {
-			limit *= this.object_a._mass;
+		// Scale the friction clamp by the lighter body&#x27;s mass
+		var ma = ( this.object_a != null &amp;&amp; this.object_a._mass !== Infinity ) ? this.object_a._mass : Infinity;
+		var mb = ( this.object_b != null &amp;&amp; this.object_b._mass !== Infinity ) ? this.object_b._mass : Infinity;
+		var mscale = Math.min( ma, mb );
+		if ( mscale === Infinity ) {
+			mscale = 1;
 		}
-		if (this.object_b != null &amp;&amp; this.object_b._mass !== Infinity) {
-			limit *= this.object_b._mass;
-		}
+		var limit = this.contact.friction * mscale;
 		if ( limit &lt; 0 ) {
 			limit = 0;
 		}
