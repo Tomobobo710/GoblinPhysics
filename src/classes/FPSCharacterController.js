@@ -1056,9 +1056,9 @@ proto.beginStep = function(command, dt) {
     if (this._jumpBufferTimer > 0) { this._jumpBufferTimer = Math.max(0, this._jumpBufferTimer - dt); }
 
     if (cmd.scale !== undefined && Math.abs(cmd.scale - this.scale) > FPSC.EPS_LEN) { this.setScale(cmd.scale); }
-    // Steep-slope walk intent from the command. Single-player: this IS the authority (no host). MP client:
-    // applies the intent so PREDICTION climbs immediately; if the host refuses, setState corrects the flag
-    // from the authoritative snapshot. MP host: harmless. Read live per-tick, so a plain assignment is enough.
+    // Steep-slope walk intent from the command. Applying it immediately lets local prediction climb
+    // right away; if an authority later overrules it, setState corrects the flag from the snapshot.
+    // Read live per-tick, so a plain assignment is enough.
     if (cmd.climb !== undefined) { this.climbSteepSlopes = !!cmd.climb; }
     var wantCrouch = !!cmd.crouch || (this.crouching && !this._canStand());
     if (wantCrouch !== this.crouching) { this._setCrouch(wantCrouch); }
@@ -1956,9 +1956,9 @@ proto.getState = function() {
         ct: this._coyoteTimer,
         jb: this._jumpBufferTimer,
         gnx: this.groundNormal.x, gny: this.groundNormal.y, gnz: this.groundNormal.z,
-        // Steep-slope walk allowance is per-player config the SERVER owns (a client toggle rides the
-        // command; the host applies/refuses it). Serialized so the client's prediction + resim read
-        // the authoritative value, not a locally-flipped one that rubber-bands.
+        // Steep-slope walk allowance can be granted/refused by an authority outside this controller.
+        // Serialized so prediction + resim read the authoritative value, not a locally-flipped one
+        // that rubber-bands.
         climb: this.climbSteepSlopes,
         // Ladder state: which branch beginStep takes next tick depends on this, so resim of a ladder
         // sequence must start from the authoritative on/off flag and face normal, not a locally
@@ -1966,8 +1966,8 @@ proto.getState = function() {
         onLadder: this._onLadder,
         lnx: this._ladderNormal.x, lnz: this._ladderNormal.z,
         // NB: the ghost (the body that pushes objects) is deliberately NOT serialized. It's a local
-        // follow-the-player construct; on reconcile setState re-derives it locally by snapping it to
-        // the authoritative player (see setState). Networking it added bandwidth for identical results.
+        // follow-the-player construct; setState re-derives it locally by snapping it to the
+        // authoritative player. Serializing it added bandwidth for identical results.
         userData: this.userData
     };
 };
@@ -1994,6 +1994,10 @@ proto.setState = function(s) {
     v.y = s.vy;
     v.z = s.vz;
     this.velocityY = s.vy;
+    // _ownVelocityX/Z aren't snapshot fields — re-derive them from gb so they don't go stale (see
+    // constructor comment).
+    this._ownVelocityX = v.x - this._baseVelocity.x;
+    this._ownVelocityZ = v.z - this._baseVelocity.z;
     if (s.grounded !== undefined) {
         this.grounded = s.grounded;
         // Seed the landing edge to the authoritative grounded so the resim doesn't see a phantom

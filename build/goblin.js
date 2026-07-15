@@ -10646,6 +10646,9 @@ proto.setState = function(s) {
     v.y = s.vy;
     v.z = s.vz;
     this.velocityY = s.vy;
+    // Not part of the snapshot — re-derive from gb so it doesn't go stale (see constructor comment).
+    this._ownVelocityX = v.x - this._baseVelocity.x;
+    this._ownVelocityZ = v.z - this._baseVelocity.z;
     if (s.grounded !== undefined) {
         this.grounded = s.grounded;
         // Seed the landing edge to the authoritative grounded so the resim doesn't see a phantom
