@@ -822,6 +822,10 @@ grounding holds slopes without relying on solver friction).</li>
 
                             </li>
                             <li class="index-item method private">
+                                <a href="#method__findLadderAhead">_findLadderAhead</a>
+
+                            </li>
+                            <li class="index-item method private">
                                 <a href="#method__headroomGate">_headroomGate</a>
 
                             </li>
@@ -847,6 +851,10 @@ grounding holds slopes without relying on solver friction).</li>
                             </li>
                             <li class="index-item method private">
                                 <a href="#method__syncGhost">_syncGhost</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__updateLadder">_updateLadder</a>
 
                             </li>
                             <li class="index-item method private">
@@ -985,7 +993,7 @@ grounding holds slopes without relying on solver friction).</li>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l418"><code>src\classes\FPSCharacterController.js:418</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l431"><code>src\classes\FPSCharacterController.js:431</code></a>
         </p>
 
 
@@ -1020,7 +1028,7 @@ back to the player; only contact-derived knockback flows back (_syncGhost), as a
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l671"><code>src\classes\FPSCharacterController.js:671</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l684"><code>src\classes\FPSCharacterController.js:684</code></a>
         </p>
 
 
@@ -1052,7 +1060,7 @@ back to the player; only contact-derived knockback flows back (_syncGhost), as a
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1603"><code>src\classes\FPSCharacterController.js:1603</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1775"><code>src\classes\FPSCharacterController.js:1775</code></a>
         </p>
 
 
@@ -1084,7 +1092,7 @@ back to the player; only contact-derived knockback flows back (_syncGhost), as a
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l642"><code>src\classes\FPSCharacterController.js:642</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l655"><code>src\classes\FPSCharacterController.js:655</code></a>
         </p>
 
 
@@ -1121,7 +1129,7 @@ acts when actually rising toward a ceiling within this tick's reach.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1324"><code>src\classes\FPSCharacterController.js:1324</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1496"><code>src\classes\FPSCharacterController.js:1496</code></a>
         </p>
 
 
@@ -1155,7 +1163,7 @@ too-steep-to-stand hit that is still a real slope (not flat floor, not a vertica
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1407"><code>src\classes\FPSCharacterController.js:1407</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1579"><code>src\classes\FPSCharacterController.js:1579</code></a>
         </p>
 
 
@@ -1192,7 +1200,7 @@ ramps (normal.y &gt;= 0.5) are ignored — those are handled by the ground clamp
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1181"><code>src\classes\FPSCharacterController.js:1181</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1353"><code>src\classes\FPSCharacterController.js:1353</code></a>
         </p>
 
 
@@ -1224,7 +1232,7 @@ ramps (normal.y &gt;= 0.5) are ignored — those are handled by the ground clamp
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1175"><code>src\classes\FPSCharacterController.js:1175</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1347"><code>src\classes\FPSCharacterController.js:1347</code></a>
         </p>
 
 
@@ -1256,7 +1264,7 @@ ramps (normal.y &gt;= 0.5) are ignored — those are handled by the ground clamp
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1168"><code>src\classes\FPSCharacterController.js:1168</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1340"><code>src\classes\FPSCharacterController.js:1340</code></a>
         </p>
 
 
@@ -1270,6 +1278,73 @@ buffer (default 20s at 60Hz). Console-driven: _debugStart(20), reproduce, _debug
     </div>
 
 
+
+
+</div>
+<div id="method__findLadderAhead" class="method item private">
+    <h3 class="name"><code>_findLadderAhead</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>dir</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Object | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l695"><code>src\classes\FPSCharacterController.js:695</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Single ray probe for a ladder ahead, along <code>dir</code> (horizontal, need not be unit length). Placed
+halfway between the feet and stepHeight above them rather than the body center. Returns the raw
+hit <code>{object, point, normal, t}</code> with the normal flipped to point OUT of the face (toward the
+caller), or null.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">dir</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object | Null</span>:
+            </div>
+        </div>
 
 
 </div>
@@ -1289,7 +1364,7 @@ buffer (default 20s at 60Hz). Console-driven: _debugStart(20), reproduce, _debug
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1645"><code>src\classes\FPSCharacterController.js:1645</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1817"><code>src\classes\FPSCharacterController.js:1817</code></a>
         </p>
 
 
@@ -1323,7 +1398,7 @@ horizontal gradient of increasing clearance.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l612"><code>src\classes\FPSCharacterController.js:612</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l625"><code>src\classes\FPSCharacterController.js:625</code></a>
         </p>
 
 
@@ -1357,7 +1432,7 @@ sloped overhead geometry (e.g. a ramp underside) that forward rays can't see.</p
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1397"><code>src\classes\FPSCharacterController.js:1397</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1569"><code>src\classes\FPSCharacterController.js:1569</code></a>
         </p>
 
 
@@ -1389,7 +1464,7 @@ sloped overhead geometry (e.g. a ramp underside) that forward rays can't see.</p
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1349"><code>src\classes\FPSCharacterController.js:1349</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1521"><code>src\classes\FPSCharacterController.js:1521</code></a>
         </p>
 
 
@@ -1426,7 +1501,7 @@ gets a chance to prefer it.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l519"><code>src\classes\FPSCharacterController.js:519</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l532"><code>src\classes\FPSCharacterController.js:532</code></a>
         </p>
 
 
@@ -1460,7 +1535,7 @@ momentum floor. Horizontal only; never moves position, only velocity.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1436"><code>src\classes\FPSCharacterController.js:1436</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1608"><code>src\classes\FPSCharacterController.js:1608</code></a>
         </p>
 
 
@@ -1497,7 +1572,7 @@ that logic. Returns { x, z, depenX, depenZ }.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l459"><code>src\classes\FPSCharacterController.js:459</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l472"><code>src\classes\FPSCharacterController.js:472</code></a>
         </p>
 
 
@@ -1511,6 +1586,123 @@ per endStep, after the player's position is settled.</p>
     </div>
 
 
+
+
+</div>
+<div id="method__updateLadder" class="method item private">
+    <h3 class="name"><code>_updateLadder</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>cmd</code>
+                </li>
+                <li class="arg">
+                        <code>moveYaw</code>
+                </li>
+                <li class="arg">
+                        <code>movePitch</code>
+                </li>
+                <li class="arg">
+                        <code>dt</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Boolean</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_FPSCharacterController.js.html#l722"><code>src\classes\FPSCharacterController.js:722</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Ladder state transitions + climb velocity. A fourth movement state alongside grounded /
+noTraction / airborne, resolved once per beginStep before that branch runs. The ladder body is
+never excluded from collision — _collideAndSlide still runs afterward on whatever velocity this
+writes, so ordinary contact resolution is what holds the player against the face tick over tick.</p>
+<p>Mount requires movement intent toward the ladder (wishdir), not mere proximity — probing along
+the current input direction rather than scanning all directions means jumping away from a ladder
+and holding the opposite key back toward it, or passing a ladder mid-air, can't remount it a
+frame later while disconnected from it.</p>
+<p>Forward/back and strafe contributions to climb velocity are summed independently, without
+normalizing the combined wish vector — holding both diagonally into the face climbs strictly
+faster than either alone. Look pitch steers climb direction: the forward axis is the full
+pitched look direction, not flattened, so holding forward while looking down descends.</p>
+<p>Jump dismounts with a purely horizontal shove away from the face — no vertical component.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">cmd</code>
+                        <span class="type">Object</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">moveYaw</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">movePitch</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">dt</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Boolean</span>:
+                    <p>true if this tick's velocity is fully owned by the ladder branch</p>
+
+            </div>
+        </div>
 
 
 </div>
@@ -1533,7 +1725,7 @@ per endStep, after the player's position is settled.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1208"><code>src\classes\FPSCharacterController.js:1208</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1380"><code>src\classes\FPSCharacterController.js:1380</code></a>
         </p>
 
 
@@ -1577,7 +1769,7 @@ accel on slopes) and steered weakly (slideControl).</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1303"><code>src\classes\FPSCharacterController.js:1303</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1475"><code>src\classes\FPSCharacterController.js:1475</code></a>
         </p>
 
 
@@ -1608,7 +1800,7 @@ accel on slopes) and steered weakly (slideControl).</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l705"><code>src\classes\FPSCharacterController.js:705</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l856"><code>src\classes\FPSCharacterController.js:856</code></a>
         </p>
 
 
@@ -1642,7 +1834,7 @@ the between-tick &quot;dangle&quot; in every mode.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1783"><code>src\classes\FPSCharacterController.js:1783</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1962"><code>src\classes\FPSCharacterController.js:1962</code></a>
         </p>
 
 
@@ -1673,7 +1865,7 @@ the between-tick &quot;dangle&quot; in every mode.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l841"><code>src\classes\FPSCharacterController.js:841</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l992"><code>src\classes\FPSCharacterController.js:992</code></a>
         </p>
 
 
@@ -1716,7 +1908,7 @@ re-derives already-perceived state, so its step/crouch snaps must NOT feed a ren
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l856"><code>src\classes\FPSCharacterController.js:856</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1007"><code>src\classes\FPSCharacterController.js:1007</code></a>
         </p>
 
 
@@ -1782,7 +1974,7 @@ driving facing via look().</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l780"><code>src\classes\FPSCharacterController.js:780</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l931"><code>src\classes\FPSCharacterController.js:931</code></a>
         </p>
 
 
@@ -1816,7 +2008,7 @@ smear across the discontinuity.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l757"><code>src\classes\FPSCharacterController.js:757</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l908"><code>src\classes\FPSCharacterController.js:908</code></a>
         </p>
 
 
@@ -1849,7 +2041,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1815"><code>src\classes\FPSCharacterController.js:1815</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1994"><code>src\classes\FPSCharacterController.js:1994</code></a>
         </p>
 
 
@@ -1879,7 +2071,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l849"><code>src\classes\FPSCharacterController.js:849</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1000"><code>src\classes\FPSCharacterController.js:1000</code></a>
         </p>
 
 
@@ -1915,7 +2107,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1053"><code>src\classes\FPSCharacterController.js:1053</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1214"><code>src\classes\FPSCharacterController.js:1214</code></a>
         </p>
 
 
@@ -1962,7 +2154,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l748"><code>src\classes\FPSCharacterController.js:748</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l899"><code>src\classes\FPSCharacterController.js:899</code></a>
         </p>
 
 
@@ -1993,7 +2185,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l729"><code>src\classes\FPSCharacterController.js:729</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l880"><code>src\classes\FPSCharacterController.js:880</code></a>
         </p>
 
 
@@ -2024,7 +2216,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l719"><code>src\classes\FPSCharacterController.js:719</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l870"><code>src\classes\FPSCharacterController.js:870</code></a>
         </p>
 
 
@@ -2055,7 +2247,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l696"><code>src\classes\FPSCharacterController.js:696</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l847"><code>src\classes\FPSCharacterController.js:847</code></a>
         </p>
 
 
@@ -2086,7 +2278,7 @@ eases over those discontinuities. Call once per render frame. Render-only — do
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l738"><code>src\classes\FPSCharacterController.js:738</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l889"><code>src\classes\FPSCharacterController.js:889</code></a>
         </p>
 
 
@@ -2118,7 +2310,7 @@ left-handed view convention so DirRight strafes to the player's visual right.</p
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1701"><code>src\classes\FPSCharacterController.js:1701</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1873"><code>src\classes\FPSCharacterController.js:1873</code></a>
         </p>
 
 
@@ -2149,7 +2341,7 @@ left-handed view convention so DirRight strafes to the player's visual right.</p
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l769"><code>src\classes\FPSCharacterController.js:769</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l920"><code>src\classes\FPSCharacterController.js:920</code></a>
         </p>
 
 
@@ -2294,7 +2486,7 @@ needs it. Returns the first valid hit (nearest first, skipping anything named in
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l800"><code>src\classes\FPSCharacterController.js:800</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l951"><code>src\classes\FPSCharacterController.js:951</code></a>
         </p>
 
 
@@ -2333,7 +2525,7 @@ back to the live physics eye until two ticks have been captured.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1799"><code>src\classes\FPSCharacterController.js:1799</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1978"><code>src\classes\FPSCharacterController.js:1978</code></a>
         </p>
 
 
@@ -2385,7 +2577,7 @@ back to the live physics eye until two ticks have been captured.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l586"><code>src\classes\FPSCharacterController.js:586</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l599"><code>src\classes\FPSCharacterController.js:599</code></a>
         </p>
 
 
@@ -2432,7 +2624,7 @@ back to the live physics eye until two ticks have been captured.</p>
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l1732"><code>src\classes\FPSCharacterController.js:1732</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l1909"><code>src\classes\FPSCharacterController.js:1909</code></a>
         </p>
 
 
@@ -2465,7 +2657,7 @@ does not touch yaw/pitch. Used for client-side reconciliation before replaying u
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l824"><code>src\classes\FPSCharacterController.js:824</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l975"><code>src\classes\FPSCharacterController.js:975</code></a>
         </p>
 
 
@@ -2490,7 +2682,7 @@ does not touch yaw/pitch. Used for client-side reconciliation before replaying u
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l832"><code>src\classes\FPSCharacterController.js:832</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l983"><code>src\classes\FPSCharacterController.js:983</code></a>
         </p>
 
 
@@ -2516,7 +2708,7 @@ does not touch yaw/pitch. Used for client-side reconciliation before replaying u
     <div class="meta">
                 <p>
                 Defined in
-        <a href="../files/src_classes_FPSCharacterController.js.html#l816"><code>src\classes\FPSCharacterController.js:816</code></a>
+        <a href="../files/src_classes_FPSCharacterController.js.html#l967"><code>src\classes\FPSCharacterController.js:967</code></a>
         </p>
 
 

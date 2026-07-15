@@ -65,6 +65,17 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
     },
 
+    // ---- Ladders (see _updateLadder) ----
+    ladder: {
+        climbSpeed: 2.5,        // vertical speed while climbing (pre-scale)
+        strafeSpeed: 2.5,       // lateral speed along the ladder's face while climbing (pre-scale)
+        // Forward/back and strafe contributions are summed WITHOUT normalizing the combined wish
+        // vector, unlike ground movement — holding both diagonally into a ladder climbs strictly
+        // faster than either alone. Intentional.
+        mountReach: 0.2,        // reach (pre-scale) past the collider's own half-width for the mount probe
+        dismountPushSpeed: 7.0, // horizontal shove speed away from the face on a jump-off dismount (pre-scale)
+    },
+
     // ---- Ghost: the solver body that trails the player and pushes objects (see _syncGhost) ----
     // maxSpeed / maxDampSpeed default to sprintSpeed * this multiplier (kept as a ratio so they scale with
     // the character's speed tuning); override with an absolute units/sec value via options if desired.

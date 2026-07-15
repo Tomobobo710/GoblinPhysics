@@ -82,6 +82,19 @@
 		return b;
 	}
 
+	// A static ladder volume — a solid box tagged isLadder so FPSCharacterController's mount probe
+	// recognizes it. half-extents hx/hy/hz; pos {x,y,z}.
+	function ladder(w, hx, hy, hz, pos, color) {
+		var b = new Goblin.RigidBody(new Goblin.BoxShape(hx, hy, hz), Infinity);
+		b.position.set(pos.x, pos.y, pos.z);
+		b.updateDerived();
+		applyMat(b, { friction: 0, restitution: 0 });
+		b._color = color || '#8a5a2b';
+		b.isLadder = true;
+		w.addRigidBody(b);
+		return b;
+	}
+
 	// Spawn a controller. extra merges over the base options (e.g. {scale:0.5, climbSteepSlopes:true}).
 	function spawn(w, pos, extra) {
 		var opts = Object.assign({ position: pos, color: CONTROLLER_COLOR }, extra || {});
@@ -201,6 +214,12 @@
 				var s = baseSide * SC, m = baseMass * SC * SC * SC;
 				return object(w, s, m, { x: 0, y: s / 2, z: z * SC }, color, mat);
 			},
+			// A square pillar ladder (1.2x6x1.2 pre-scale, climbable on every face) centered at the
+			// world origin, base on the floor.
+			pillarLadder: function (w, color) {
+				var wd = 0.6 * SC, h = 6 * SC;
+				return ladder(w, wd, h / 2, wd, { x: 0, y: h / 2, z: 0 }, color);
+			},
 			// drop a box onto the character's ACTUAL head from `above` units over it (head-relative, so
 			// impact speed is the same at every scale). side/mass default to 0.8/2.
 			dropOnHead: function (w, p, above, side, mass, mat) {
@@ -249,7 +268,7 @@
 
 	return {
 		DT: DT, SCALES: SCALES,
-		flatWorld: flatWorld, makeWorld: makeWorld, object: object, staticBox: staticBox, spawn: spawn,
+		flatWorld: flatWorld, makeWorld: makeWorld, object: object, staticBox: staticBox, ladder: ladder, spawn: spawn,
 		renderables: renderables, drive: drive, sequentialBlocks: sequentialBlocks,
 		scaleHelpers: scaleHelpers, scaleTest: scaleTest,
 		axisAngleQuat: axisAngleQuat,

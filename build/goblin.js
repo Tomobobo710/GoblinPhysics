@@ -8820,7 +8820,8 @@ function FPSCharacterController(world, options) {
 
     var D = Goblin.FPS_CONTROLLER_DEFAULTS;
     var dim = D.dimensions, mv = D.movement, jmp = D.jump, slp = D.slopes, sld = D.slide,
-        gh = D.ghost, kb = D.knockback, net = D.netcode, vw = D.view, rnd = D.render, msc = D.misc;
+        gh = D.ghost, kb = D.knockback, net = D.netcode, vw = D.view, rnd = D.render, msc = D.misc,
+        lad = D.ladder;
 
     // Base (pre-scale) values.
     this._baseWidth = o.width !== undefined ? o.width : dim.width;
@@ -8902,6 +8903,14 @@ function FPSCharacterController(world, options) {
     this._prevCrouch = false;
     this._groundedPrev = false;
     this._justLanded = false;
+
+    // Ladders (see _updateLadder). base* values scale with the character like every other speed.
+    this._baseLadderClimbSpeed = o.ladderClimbSpeed !== undefined ? o.ladderClimbSpeed : lad.climbSpeed;
+    this._baseLadderStrafeSpeed = o.ladderStrafeSpeed !== undefined ? o.ladderStrafeSpeed : lad.strafeSpeed;
+    this._baseLadderMountReach = o.ladderMountReach !== undefined ? o.ladderMountReach : lad.mountReach;
+    this._baseLadderDismountPushSpeed = o.ladderDismountPushSpeed !== undefined ? o.ladderDismountPushSpeed : lad.dismountPushSpeed;
+    this._onLadder = false;
+    this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the player
 
     var g = world.gravity || { y: -9.81 };
     this._gravityVec = new Goblin.Vector3(0, g.y, 0);
@@ -8988,6 +8997,10 @@ proto._applyScale = function(scale) {
     this.jumpSpeed = this._baseJumpSpeed * Math.sqrt(scale); // jump height scales ~linearly
     this.stepHeight = this._baseStepHeight * scale;
     this.stepDownDist = this._baseStepDownDist * scale;
+    this.ladderClimbSpeed = this._baseLadderClimbSpeed * scale;
+    this.ladderStrafeSpeed = this._baseLadderStrafeSpeed * scale;
+    this.ladderMountReach = this._baseLadderMountReach * scale;
+    this.ladderDismountPushSpeed = this._baseLadderDismountPushSpeed * scale;
     this._skin = this._baseSkin * scale; // contact tolerance
     this._groundTol = FPSC.GROUND_TOL * scale; // how close feet must be to count as grounded
     // Terminal fall speed. Also keeps per-step fall distance < ground-probe reach so
@@ -9331,6 +9344,144 @@ proto._canStand = function() {
     return !ceil || ceil.point.y - feetY >= this.standHeight - this._skin;
 };
 
+/**
+ * Single ray probe for a ladder ahead, along `dir` (horizontal, need not be unit length). Placed
+ * halfway between the feet and stepHeight above them rather than the body center. Returns the raw
+ * hit `{object, point, normal, t}` with the normal flipped to point OUT of the face (toward the
+ * caller), or null.
+ *
+ * @method _findLadderAhead
+ * @private
+ * @param {Goblin.Vector3} dir
+ * @return {Object|null}
+ */
+proto._findLadderAhead = function(dir) {
+    var p = this.body.position;
+    var dlen = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+    if (dlen < FPSC.EPS_LEN) return null;
+    var dx = dir.x / dlen, dz = dir.z / dlen;
+    var reach = this.width / 2 + this.ladderMountReach;
+    var feetY = p.y - this.height / 2;
+    var probeY = feetY + this.stepHeight / 2;
+    var hit = raycast(this.world,
+        new Goblin.Vector3(p.x, probeY, p.z),
+        new Goblin.Vector3(p.x + dx * reach, probeY, p.z + dz * reach),
+        this._ignoreSelf);
+    if (!hit || !hit.object || !hit.object.isLadder) return null;
+    return hit;
+};
+
+/**
+ * Ladder state transitions + climb velocity. A fourth movement state alongside grounded /
+ * noTraction / airborne, resolved once per beginStep before that branch runs. The ladder body is
+ * never excluded from collision — _collideAndSlide still runs afterward on whatever velocity this
+ * writes, so ordinary contact resolution is what holds the player against the face tick over tick.
+ *
+ * Mount requires movement intent toward the ladder (wishdir), not mere proximity — probing along
+ * the current input direction rather than scanning all directions means jumping away from a ladder
+ * and holding the opposite key back toward it, or passing a ladder mid-air, can't remount it a
+ * frame later while disconnected from it.
+ *
+ * Forward/back and strafe contributions to climb velocity are summed independently, without
+ * normalizing the combined wish vector — holding both diagonally into the face climbs strictly
+ * faster than either alone. Look pitch steers climb direction: the forward axis is the full
+ * pitched look direction, not flattened, so holding forward while looking down descends.
+ *
+ * Jump dismounts with a purely horizontal shove away from the face — no vertical component.
+ *
+ * @method _updateLadder
+ * @private
+ * @param {Object} cmd
+ * @param {Number} moveYaw
+ * @param {Number} movePitch
+ * @param {Number} dt
+ * @return {Boolean} true if this tick's velocity is fully owned by the ladder branch
+ */
+proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
+    var gb = this.body.linear_velocity;
+
+    var hit;
+    if (this._onLadder) {
+        var probeDir = new Goblin.Vector3(-this._ladderNormal.x, 0, -this._ladderNormal.z);
+        hit = this._findLadderAhead(probeDir);
+    } else {
+        var fwdH = this.getForwardHorizontal(moveYaw);
+        var rgtH = this.getRightHorizontal(moveYaw);
+        var cmdF0 = cmd.forward || 0;
+        var cmdR0 = cmd.right || 0;
+        var wishdir = new Goblin.Vector3(
+            fwdH.x * cmdF0 + rgtH.x * cmdR0, 0, fwdH.z * cmdF0 + rgtH.z * cmdR0
+        );
+        hit = this._findLadderAhead(wishdir);
+    }
+
+    if (cmd.jumpPressed && this._onLadder) {
+        var n0 = this._ladderNormal;
+        gb.x = n0.x * this.ladderDismountPushSpeed;
+        gb.z = n0.z * this.ladderDismountPushSpeed;
+        gb.y = 0;
+        this._onLadder = false;
+        this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
+        return true;
+    }
+
+    if (!hit) {
+        this._onLadder = false;
+        this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
+        return false;
+    }
+
+    var hasMoveInput = (cmd.forward || 0) !== 0 || (cmd.right || 0) !== 0;
+    if (!this._onLadder && !hasMoveInput) return false;
+
+    this._onLadder = true;
+    this.grounded = false;
+    this._ladderNormal.set(hit.normal.x, 0, hit.normal.z);
+    var nl = Math.sqrt(this._ladderNormal.x * this._ladderNormal.x + this._ladderNormal.z * this._ladderNormal.z);
+    if (nl > FPSC.EPS_LEN) { this._ladderNormal.x /= nl; this._ladderNormal.z /= nl; }
+
+    this.body.setGravity(0, 0, 0);
+    if (!hasMoveInput) { gb.x = 0; gb.y = 0; gb.z = 0; return true; }
+
+    var cp = Math.cos(movePitch);
+    var fwd = new Goblin.Vector3(Math.sin(moveYaw) * cp, Math.sin(movePitch), Math.cos(moveYaw) * cp);
+    var rgt = this.getRightHorizontal(moveYaw);
+    var cmdF = cmd.forward || 0;
+    var cmdR = cmd.right || 0;
+
+    var velX = fwd.x * cmdF * this.ladderClimbSpeed + rgt.x * cmdR * this.ladderStrafeSpeed;
+    var velY = fwd.y * cmdF * this.ladderClimbSpeed;
+    var velZ = fwd.z * cmdF * this.ladderClimbSpeed + rgt.z * cmdR * this.ladderStrafeSpeed;
+
+    var n = this._ladderNormal;
+    var out = velX * n.x + velZ * n.z;
+    gb.x = velX - out * n.x;
+    gb.z = velZ - out * n.z;
+    gb.y = velY - out;
+
+    // Descent is blocked against solid ground here (rather than in endStep's ground clamp, which is
+    // skipped while mounted so it doesn't re-snap the player onto the floor near the ladder's base
+    // even while climbing up). Uses the same _probeGroundCandidates primitive endStep itself uses.
+    if (gb.y < 0) {
+        var half = this.height / 2;
+        var reach2 = -gb.y * dt + this._skin;
+        var ground = this._probeGroundCandidates(reach2)[0];
+        if (ground) {
+            var feetGap = this.body.position.y - half - ground.point.y;
+            if (feetGap <= reach2) {
+                var clampedY = ground.point.y + half;
+                if (!this._resimulating) this._viewDisplacementY += clampedY - this.body.position.y;
+                this.body.position.set(this.body.position.x, clampedY, this.body.position.z);
+                this.body.updateDerived();
+                gb.y = 0;
+                this.grounded = true;
+                this.groundNormal.set(ground.normal.x, ground.normal.y, ground.normal.z);
+            }
+        }
+    }
+    return true;
+};
+
 // ---- Look --------------------------------------------------------------
 
 proto.look = function(deltaYaw, deltaPitch) {
@@ -9542,6 +9693,7 @@ proto.beginStep = function(command, dt) {
     this._prevY = this.body.position.y;
 
     var moveYaw = cmd.yaw !== undefined ? cmd.yaw : this.yaw;
+    var movePitch = cmd.pitch !== undefined ? cmd.pitch : this.pitch;
     if (cmd.yaw !== undefined) this.yaw = cmd.yaw;
     if (cmd.pitch !== undefined) this.pitch = cmd.pitch;
 
@@ -9562,6 +9714,14 @@ proto.beginStep = function(command, dt) {
         wishZ = (dirZ / dirLen) * speed;
     }
 
+    var onLadderThisTick = this._updateLadder(cmd, moveYaw, movePitch, dt);
+
+    var vx, vz;
+    if (onLadderThisTick) {
+        vx = gb.x;
+        vz = gb.z;
+    } else {
+
     this._updateVertical(cmd, dt);
 
     // A surface steeper than the standable limit gives no footing: gravity pulls the player down
@@ -9569,7 +9729,6 @@ proto.beginStep = function(command, dt) {
     var noTraction = this.grounded && !this.climbSteepSlopes &&
         this.groundNormal.y < this._minStandableNormalY;
 
-    var vx, vz;
     if (noTraction) {
         this.body.setGravity(0, 0, 0);
         var n = this.groundNormal;
@@ -9679,7 +9838,9 @@ proto.beginStep = function(command, dt) {
         }
     }
 
-    {
+    } // end onLadderThisTick else-branch
+
+    if (!onLadderThisTick) {
         var cs = this._ceilingSlide(vx, gb.y, vz, dt);
         vx = cs.vx;
         vz = cs.vz;
@@ -9709,6 +9870,17 @@ proto.beginStep = function(command, dt) {
  */
 proto.endStep = function(dt) {
     var gb = this.body.linear_velocity;
+
+    // While mounted, _updateLadder owns vertical motion (including its own descent-blocks-on-ground
+    // check) — the clamp below would otherwise re-snap the player onto the floor near the ladder's
+    // base every tick even while actively climbing up, since this.grounded still reads whatever it
+    // was at mount time.
+    if (this._onLadder) {
+        this.velocityY = gb.y;
+        if (!this._resimulating || this._driveGhostDuringResim) this._syncGhost(dt);
+        return;
+    }
+
     if (this._groundSuppress > 0) this._groundSuppress--;
     // Only suppress grounding while rising (just jumped/thrust); while falling the ground
     // catch must stay live or the body tunnels through the floor.
@@ -10374,6 +10546,11 @@ proto.getState = function() {
         // command; the host applies/refuses it). Serialized so the client's prediction + resim read
         // the authoritative value, not a locally-flipped one that rubber-bands.
         climb: this.climbSteepSlopes,
+        // Ladder state: which branch beginStep takes next tick depends on this, so resim of a ladder
+        // sequence must start from the authoritative on/off flag and face normal, not a locally
+        // re-detected one.
+        onLadder: this._onLadder,
+        lnx: this._ladderNormal.x, lnz: this._ladderNormal.z,
         // NB: the ghost (the body that pushes objects) is deliberately NOT serialized. It's a local
         // follow-the-player construct; on reconcile setState re-derives it locally by snapping it to
         // the authoritative player (see setState). Networking it added bandwidth for identical results.
@@ -10418,6 +10595,8 @@ proto.setState = function(s) {
     // MP — the client key sets command INTENT, the host grants/refuses it, and the truth comes back
     // here. Read live each tick by the mover/grounding, so no rebuild is needed.
     if (s.climb !== undefined) this.climbSteepSlopes = s.climb;
+    if (s.onLadder !== undefined) this._onLadder = s.onLadder;
+    if (s.lnx !== undefined) this._ladderNormal.set(s.lnx, 0, s.lnz);
     // Re-baseline the ghost LOCALLY (not from the snapshot — the ghost isn't networked). Snap it onto
     // the just-adopted authoritative player, moving at the player's velocity, so every resim starts
     // from the same consistent ghost state and re-pushes objects identically each time.
@@ -10541,6 +10720,17 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         slopeMin: 0.2,         // sin(angle) at/above which the slide is gravity-governed (Infinity disables)
         slopeFriction: 1.5,    // cross-slope friction while gravity-sliding
         coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
+    },
+
+    // ---- Ladders (see _updateLadder) ----
+    ladder: {
+        climbSpeed: 2.5,        // vertical speed while climbing (pre-scale)
+        strafeSpeed: 2.5,       // lateral speed along the ladder's face while climbing (pre-scale)
+        // Forward/back and strafe contributions are summed WITHOUT normalizing the combined wish
+        // vector, unlike ground movement — holding both diagonally into a ladder climbs strictly
+        // faster than either alone. Intentional.
+        mountReach: 0.2,        // reach (pre-scale) past the collider's own half-width for the mount probe
+        dismountPushSpeed: 7.0, // horizontal shove speed away from the face on a jump-off dismount (pre-scale)
     },
 
     // ---- Ghost: the solver body that trails the player and pushes objects (see _syncGhost) ----
