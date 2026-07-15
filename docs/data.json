@@ -3940,7 +3940,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 431,
+            "line": 448,
             "description": "GHOST: a solver-participating dynamic body that trails the kinematic player. The player's own\nbody is excluded from solver contacts (collision_mask 1); the ghost is its stand-in for object\ncontact. Control is one-way: player position -> ghost target. The ghost's position never writes\nback to the player; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.",
             "itemtype": "method",
             "name": "_buildGhost",
@@ -3950,7 +3950,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 472,
+            "line": 492,
             "description": "Drive the ghost toward the player each tick and read back contact-driven knockback. Called once\nper endStep, after the player's position is settled.",
             "itemtype": "method",
             "name": "_syncGhost",
@@ -3960,7 +3960,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 532,
+            "line": 552,
             "description": "Knockback speed = mass ratio (objectMass/(objectMass+playerMass)) x the object's closing speed\nonto the player, gated to only apply when the object is moving into the player above a small\nmomentum floor. Horizontal only; never moves position, only velocity.",
             "itemtype": "method",
             "name": "_readGhostKnockback",
@@ -3970,7 +3970,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 599,
+            "line": 619,
             "description": "Resize the whole character at runtime (rebuilds the collider, feet planted).",
             "itemtype": "method",
             "name": "setScale",
@@ -3985,7 +3985,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 625,
+            "line": 645,
             "description": "Multi-ray UP probe across the footprint. Returns the LOWEST ceiling (down-facing\nsurface) within `reachAboveFeet` of the feet, or null. Mirror of _probeGround; covers\nsloped overhead geometry (e.g. a ramp underside) that forward rays can't see.",
             "itemtype": "method",
             "name": "_probeCeiling",
@@ -3995,7 +3995,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 655,
+            "line": 675,
             "description": "Deflect velocity along an overhead surface we're about to contact, instead of capping the\nrise to zero — a hard cap leaves no velocity to escape and glues us to ceilings, flat AND\nsloped. Projects out the into-surface component using the ceiling's own normal: v -= (v.n) n.\nA flat underside (n straight down) zeroes only the vertical, so horizontal motion survives; a\nsloped underside redirects the upward motion down-and-along the slope, sliding us out. Only\nacts when actually rising toward a ceiling within this tick's reach.",
             "itemtype": "method",
             "name": "_ceilingSlide",
@@ -4005,7 +4005,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 684,
+            "line": 704,
             "description": "Is there room to stand up? (No ceiling within standHeight of the feet.)",
             "itemtype": "method",
             "name": "_canStand",
@@ -4015,7 +4015,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 695,
+            "line": 715,
             "description": "Single ray probe for a ladder ahead, along `dir` (horizontal, need not be unit length). Placed\nhalfway between the feet and stepHeight above them rather than the body center. Returns the raw\nhit `{object, point, normal, t}` with the normal flipped to point OUT of the face (toward the\ncaller), or null.",
             "itemtype": "method",
             "name": "_findLadderAhead",
@@ -4036,7 +4036,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 722,
+            "line": 742,
             "description": "Ladder state transitions + climb velocity. A fourth movement state alongside grounded /\nnoTraction / airborne, resolved once per beginStep before that branch runs. The ladder body is\nnever excluded from collision — _collideAndSlide still runs afterward on whatever velocity this\nwrites, so ordinary contact resolution is what holds the player against the face tick over tick.\n\nMount requires movement intent toward the ladder (wishdir), not mere proximity — probing along\nthe current input direction rather than scanning all directions means jumping away from a ladder\nand holding the opposite key back toward it, or passing a ladder mid-air, can't remount it a\nframe later while disconnected from it.\n\nForward/back and strafe contributions to climb velocity are summed independently, without\nnormalizing the combined wish vector — holding both diagonally into the face climbs strictly\nfaster than either alone. Look pitch steers climb direction: the forward axis is the full\npitched look direction, not flattened, so holding forward while looking down descends.\n\nJump dismounts with a purely horizontal shove away from the face — no vertical component.",
             "itemtype": "method",
             "name": "_updateLadder",
@@ -4072,7 +4072,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 847,
+            "line": 867,
             "description": "Full 3D look direction (includes pitch).",
             "itemtype": "method",
             "name": "getLookDirection",
@@ -4080,7 +4080,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 856,
+            "line": 876,
             "description": "Set the LIVE, client-owned aim — call once per render frame from your mouse-look. Render-only:\nthis NEVER enters the simulation (it doesn't touch yaw/pitch, the command, movement, or netcode),\nit just keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing\nthe between-tick \"dangle\" in every mode.",
             "itemtype": "method",
             "name": "aim",
@@ -4088,7 +4088,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 870,
+            "line": 890,
             "description": "The live aim's full 3D direction (render-only; from aim()). Falls back to the sim look.",
             "itemtype": "method",
             "name": "getLiveAimDirection",
@@ -4096,7 +4096,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 880,
+            "line": 900,
             "description": "Horizontal forward for a given yaw (defaults to current facing).",
             "itemtype": "method",
             "name": "getForwardHorizontal",
@@ -4104,7 +4104,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 889,
+            "line": 909,
             "description": "Horizontal right for a given yaw (defaults to current facing). Negated to match a\nleft-handed view convention so DirRight strafes to the player's visual right.",
             "itemtype": "method",
             "name": "getRightHorizontal",
@@ -4112,7 +4112,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 899,
+            "line": 919,
             "description": "World-space eye position (camera goes here).",
             "itemtype": "method",
             "name": "getEyePosition",
@@ -4120,7 +4120,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 908,
+            "line": 928,
             "description": "Return the artificial vertical eye displacement accumulated since the last call (step/landing\nsnaps + crouch/scale swaps) and reset it. A camera folds this into a decaying offset so it\neases over those discontinuities. Call once per render frame. Render-only — does not affect sim.",
             "itemtype": "method",
             "name": "consumeViewDisplacementY",
@@ -4128,7 +4128,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 920,
+            "line": 940,
             "description": "Peek at the pending vertical eye displacement WITHOUT consuming it. A render-side smoother\nconsumes (consumeViewDisplacementY); a caller that only wants to DETECT a discontinuity this\nframe (e.g. to snap interpolation instead of sliding the eye) reads this and leaves the value\nfor the smoother. Read-only — never mutates sim or render state.",
             "itemtype": "method",
             "name": "peekViewDisplacementY",
@@ -4136,7 +4136,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 931,
+            "line": 951,
             "description": "Stash this fixed tick's eye for sub-tick render interpolation. Call ONCE per REAL fixed step,\nright after the step settles. A teleport-sized jump (respawn / kill-plane / hard resync) or an\nartificial step/crouch eye snap snaps the interpolation — prev := curr — so the eye doesn't\nsmear across the discontinuity.",
             "itemtype": "method",
             "name": "captureRenderState",
@@ -4144,7 +4144,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 951,
+            "line": 971,
             "description": "The render-only eye position: the last two captured fixed-tick eyes lerped by the sub-tick factor\n`alpha` (0..1, the fraction into the current fixed step the renderer hands the draw call). Falls\nback to the live physics eye until two ticks have been captured.",
             "itemtype": "method",
             "name": "renderEye",
@@ -4152,7 +4152,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 967,
+            "line": 987,
             "description": "True while a slide is active this tick (stateless predicate; see _updateSlide).",
             "itemtype": "property",
             "name": "sliding",
@@ -4162,7 +4162,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 975,
+            "line": 995,
             "description": "This controller's physics-body name (the value raycasts exclude to avoid self-hits).",
             "itemtype": "property",
             "name": "bodyId",
@@ -4172,7 +4172,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 983,
+            "line": 1003,
             "description": "The body-name list this controller's own probes ignore — pass to a game's own raycasts\n(weapons, line-of-sight) so a shooter's cast doesn't hit itself.",
             "itemtype": "property",
             "name": "raycastIgnore",
@@ -4182,7 +4182,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 992,
+            "line": 1012,
             "description": "Netcode reconciliation hooks (opt-in, called by a netcode layer around the un-acked-command\nRESIMULATION — rollback-and-resim, distinct from a game \"replay\"). During resim the controller\nre-derives already-perceived state, so its step/crouch snaps must NOT feed a render smoother\n(that double-counts every step until the command acks). Live ticks are unaffected.",
             "itemtype": "method",
             "name": "beginResim",
@@ -4190,14 +4190,14 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1000,
+            "line": 1020,
             "itemtype": "method",
             "name": "endResim",
             "class": "FPSCharacterController"
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1007,
+            "line": 1027,
             "description": "PRE-physics: set this tick's horizontal velocity (slope/wall projected) + assists.\n\nAim/sim separation (netcode cornerstone): the movement basis comes from the COMMAND's yaw\n(`cmd.yaw`) — a per-tick input — not from any persistent \"live aim\". The live aim is owned by\nthe client (camera reads it, never the sim), so replaying commands during reconciliation can't\ndrag the view backward. We record the commanded yaw/pitch as this entity's facing (for\ngetState/avatars) only when the command carries them; single-player passes no yaw and keeps\ndriving facing via look().",
             "itemtype": "method",
             "name": "beginStep",
@@ -4217,7 +4217,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1214,
+            "line": 1246,
             "description": "POST-physics: decide grounded and clamp the feet to the ground surface.",
             "itemtype": "method",
             "name": "endStep",
@@ -4232,7 +4232,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1340,
+            "line": 1391,
             "description": "TEMP DEBUG: begin capturing per-tick movement state (see endStep). `seconds` sizes the ring\nbuffer (default 20s at 60Hz). Console-driven: _debugStart(20), reproduce, _debugDump().",
             "itemtype": "method",
             "name": "_debugStart",
@@ -4242,7 +4242,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1347,
+            "line": 1398,
             "description": "TEMP DEBUG: label the NEXT captured tick (e.g. the start of one of your sub-tests).",
             "itemtype": "method",
             "name": "_debugMark",
@@ -4252,7 +4252,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1353,
+            "line": 1404,
             "description": "TEMP DEBUG: stop + return the captured ticks as a compact table string (markers inline).",
             "itemtype": "method",
             "name": "_debugDump",
@@ -4262,7 +4262,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1380,
+            "line": 1431,
             "description": "Slide model (opt-in via slideEnabled). Stateless: sliding iff crouching + grounded + moving at\nslide speed, recomputed every tick from inputs and the body's own velocity — no stored slide\nflag or entry edge. Momentum is preserved while sliding (low effective friction on flat, gravity\naccel on slopes) and steered weakly (slideControl).",
             "itemtype": "method",
             "name": "_updateSlide",
@@ -4276,7 +4276,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1475,
+            "line": 1526,
             "description": "Vertical hook. Base = grounded jump only (gravity/landing handled by the solver).",
             "itemtype": "method",
             "name": "_updateVertical",
@@ -4286,7 +4286,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1496,
+            "line": 1547,
             "description": "Is there a too-steep-but-climbable slope surface rising just ahead of the move? Used only when\nclimbSteepSlopes is on. Casts down-rays a short distance ahead and looks for an upward-tilted,\ntoo-steep-to-stand hit that is still a real slope (not flat floor, not a vertical wall).",
             "itemtype": "method",
             "name": "_climbableSlopeAhead",
@@ -4296,7 +4296,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1521,
+            "line": 1572,
             "description": "Multi-point ground probe (center + four edge midpoints). Returns ALL floor-like hits, highest\nfirst — NOT collapsed to a single \"best\" here, because the caller needs to fall back to a\nlower (but valid) hit when the highest one is rejected as too tall to step onto (e.g. one edge\nray grazing a box pushed against the footprint, while the other four rays are still squarely\nover real floor). Collapsing to one hit here would throw the floor away before the caller ever\ngets a chance to prefer it.",
             "itemtype": "method",
             "name": "_probeGroundCandidates",
@@ -4306,7 +4306,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1569,
+            "line": 1620,
             "description": "Back-compat single-hit wrapper: highest floor-like candidate, or null.",
             "itemtype": "method",
             "name": "_probeGround",
@@ -4316,7 +4316,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1579,
+            "line": 1630,
             "description": "Kinematic collide-and-slide. The player is excluded from the solver, so we stop\nourselves at walls and slide along them here. For the current horizontal velocity\nwe cast a fan of rays (across the footprint width, at a few heights) in the move\ndirection; if a vertical wall is within the box's reach this step we remove the\ninto-wall velocity component and re-test, so corners stop on both walls. Floors and\nramps (normal.y >= 0.5) are ignored — those are handled by the ground clamp.",
             "itemtype": "method",
             "name": "_collideAndSlide",
@@ -4326,7 +4326,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1608,
+            "line": 1659,
             "description": "Core swept-move collide-and-slide, parameterized so any caller (player body, ghost body) can\napply the same wall/mass-yield rule.\n\n`opts`: { position, width, depth, height, skin, mass, stepHeight, selfBody, otherSelfBody,\n          climbSteepSlopes, vx, vz, dt }. `otherSelfBody` is excluded from hits. Step-up/climb\nare opt-in via stepHeight/climbSteepSlopes; pass stepHeight=0 and climbSteepSlopes=false to skip\nthat logic. Returns { x, z, depenX, depenZ }.",
             "itemtype": "method",
             "name": "_sweptCollideAndSlide",
@@ -4336,7 +4336,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1775,
+            "line": 1826,
             "description": "Lowest ceiling clearance over the footprint centered at (cx,cz). Infinity if nothing overhead.",
             "itemtype": "method",
             "name": "_ceilingClearanceAt",
@@ -4346,7 +4346,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1817,
+            "line": 1868,
             "description": "Treat insufficient headroom as a virtual wall: gate on ceiling clearance ahead (rather than\nsurface normal, which a near-horizontal ramp underside can't provide) and slide along the\nhorizontal gradient of increasing clearance.",
             "itemtype": "method",
             "name": "_headroomGate",
@@ -4356,7 +4356,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1873,
+            "line": 1924,
             "description": "Snapshot this controller's authoritative state for the network.",
             "itemtype": "method",
             "name": "getState",
@@ -4364,7 +4364,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1909,
+            "line": 1960,
             "description": "Apply an authoritative state (from a host snapshot). Sets position, velocity and grounded;\ndoes not touch yaw/pitch. Used for client-side reconciliation before replaying un-acked inputs.",
             "itemtype": "method",
             "name": "setState",
@@ -4372,7 +4372,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1962,
+            "line": 2013,
             "description": "Add a velocity impulse and force the character airborne (explosions / knockback / rocket-jumping).",
             "itemtype": "method",
             "name": "applyKnockback",
@@ -4380,7 +4380,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1978,
+            "line": 2029,
             "itemtype": "method",
             "name": "setPosition",
             "params": [
@@ -4394,7 +4394,7 @@
         },
         {
             "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1994,
+            "line": 2045,
             "itemtype": "method",
             "name": "destroy",
             "class": "FPSCharacterController"

@@ -264,6 +264,19 @@ function FPSCharacterController(world, options) {
     this._onLadder = false;
     this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the player
 
+    // Moving platforms (see endStep's acquire + beginStep's apply). A body tagged isPlatform=true,
+    // when it's what the ground probe is currently resting on, has its linear_velocity read into
+    // this vector once per endStep. beginStep adds it into the horizontal move so collide-and-slide
+    // carries the rider through real swept collision; it stays baked into gb.x/z afterward (position
+    // integrates from gb on a LATER, separate world step, so subtracting it back out first would
+    // discard the ride). _ownVelocityX/Z tracks the player's OWN horizontal velocity separately, so
+    // endStep's groundStopDecel (and the sprint-decay branch) decay the player's momentum without
+    // also decaying the platform's contribution. The vertical component is folded into a jump's
+    // velocity ASSIGNMENT additively (not overwritten) in _updateVertical.
+    this._baseVelocity = new Goblin.Vector3(0, 0, 0);
+    this._ownVelocityX = 0;
+    this._ownVelocityZ = 0;
+
     var g = world.gravity || { y: -9.81 };
     this._gravityVec = new Goblin.Vector3(0, g.y, 0);
     this._groundSuppress = 0;
@@ -1144,9 +1157,12 @@ proto.beginStep = function(command, dt) {
                 mz = slide.mz;
             } else if (hasInput) {
                 // When slowing while still moving, bleed excess speed at sprintDecay instead of
-                // snapping to the lower target speed.
-                var cvx = gb.x;
-                var cvz = gb.z;
+                // snapping to the lower target speed. _ownVelocityX/Z, not gb.x/z — gb may already
+                // carry a platform's base velocity baked in (see the constructor comment); reading it
+                // here would re-seed "current speed" with the platform's own speed already added,
+                // which then gets base velocity added AGAIN below every tick instead of decaying.
+                var cvx = this._ownVelocityX;
+                var cvz = this._ownVelocityZ;
                 var curSp = Math.sqrt(cvx * cvx + cvz * cvz);
                 var wishSp = Math.sqrt(wishX * wishX + wishZ * wishZ);
                 if (curSp > wishSp + FPSC.EPS_LEN) {
@@ -1160,8 +1176,9 @@ proto.beginStep = function(command, dt) {
                 }
             } else {
                 // Carry current ground velocity; endStep's groundStopDecel is the sole stop authority.
-                mx = gb.x;
-                mz = gb.z;
+                // _ownVelocityX/Z, NOT gb.x/z — same reasoning as the hasInput branch above.
+                mx = this._ownVelocityX;
+                mz = this._ownVelocityZ;
             }
             var dot = mx * n2.x + mz * n2.z;
             vx = mx - dot * n2.x;
@@ -1209,11 +1226,19 @@ proto.beginStep = function(command, dt) {
     // already-gated velocity.
     var gated = this._headroomGate(vx, vz, dt);
 
+    // Platform base velocity: added in immediately before the swept move so a rider is carried
+    // through the SAME collide-and-slide every other velocity goes through (real swept motion, not
+    // a position teleport). Stays in gb.x/z afterward — see the constructor's comment for why.
+    var bvx = onLadderThisTick ? 0 : this._baseVelocity.x;
+    var bvz = onLadderThisTick ? 0 : this._baseVelocity.z;
+
     // Step-up/step-down are emergent: collide-and-slide ignores anything shorter than
     // stepHeight, and the ground clamp in endStep raises/lowers us onto it.
-    var slid = this._collideAndSlide(gated.x, gated.z, dt);
+    var slid = this._collideAndSlide(gated.x + bvx, gated.z + bvz, dt);
     gb.x = slid.x;
     gb.z = slid.z;
+    this._ownVelocityX = slid.x - bvx;
+    this._ownVelocityZ = slid.z - bvz;
 
     this._prevCrouch = !!cmd.crouch;
 };
@@ -1279,8 +1304,12 @@ proto.endStep = function(dt) {
         gb.y = 0;
         if (this._cmdIdle && !this._sliding && !noTraction) {
             // Sole ground-stop authority: bleed horizontal speed toward zero at groundStopDecel.
-            var cvx = gb.x;
-            var cvz = gb.z;
+            // Reads/writes _ownVelocityX/Z (the player's OWN component), NOT gb.x/z directly — gb
+            // may already carry a platform's base velocity baked in, and decaying THAT would fight
+            // the ride. The decayed own-component is added back onto base velocity so gb ends up
+            // carrying: decayed own motion + full undecayed platform motion.
+            var cvx = this._ownVelocityX || 0;
+            var cvz = this._ownVelocityZ || 0;
             var sp = Math.sqrt(cvx * cvx + cvz * cvz);
             // Don't bleed momentum a slide is about to claim on its landing frame.
             var slideImminent =
@@ -1291,12 +1320,23 @@ proto.endStep = function(dt) {
             if (!slideImminent) {
                 var target = Math.max(0, sp - this.groundStopDecel * dt);
                 var kf = sp > FPSC.EPS_SPD ? target / sp : 0;
-                gb.x = cvx * kf;
-                gb.z = cvz * kf;
+                this._ownVelocityX = cvx * kf;
+                this._ownVelocityZ = cvz * kf;
+                gb.x = this._ownVelocityX + this._baseVelocity.x;
+                gb.z = this._ownVelocityZ + this._baseVelocity.z;
             }
         }
         this.grounded = true;
         this.groundNormal.set(probe.normal.x, probe.normal.y, probe.normal.z);
+        // Acquire base velocity from whatever we're now resting on. Read fresh every tick so
+        // stepping off a platform onto solid ground (or vice versa) updates immediately.
+        var standingOn = probe.object;
+        if (standingOn && standingOn.isPlatform) {
+            var pv = standingOn.linear_velocity;
+            this._baseVelocity.set(pv.x, pv.y, pv.z);
+        } else {
+            this._baseVelocity.set(0, 0, 0);
+        }
     } else if (tooHighToStep) {
         // Correctly refusing to climb something too tall (e.g. a box shoved into the footprint)
         // must NOT be treated as leaving the ground: the feet haven't moved, there's no gap, no
@@ -1309,6 +1349,10 @@ proto.endStep = function(dt) {
         gb.y = 0;
     } else {
         this.grounded = false;
+        // Genuinely airborne — no ground entity to inherit velocity from. A jump already captured
+        // baseVelocity.y additively the tick it fired (_updateVertical); clearing here only stops
+        // FUTURE ticks from reading a stale platform velocity while falling free.
+        this._baseVelocity.set(0, 0, 0);
     }
 
     // Coyote window: refill while grounded, bleed down once airborne. No-op when coyoteTime=0.
@@ -1488,7 +1532,10 @@ proto._updateVertical = function(cmd, dt) {
     var canJump = this.grounded || this._coyoteTimer > 0;
     var wantJump = cmd.jumpPressed || this._jumpBufferTimer > 0;
     if (canJump && wantJump) {
-        this.body.linear_velocity.y = this.jumpSpeed;
+        // Additive, not a bare overwrite: jumping off a platform that's currently rising carries
+        // its vertical base velocity into the jump (a "fling"), on top of whatever base velocity
+        // the player already had that tick.
+        this.body.linear_velocity.y = this.jumpSpeed + this._baseVelocity.y;
         this.grounded = false;
         this._groundSuppress = FPSC.GROUND_SUPPRESS_JUMP;
         this._coyoteTimer = 0;
@@ -1698,7 +1745,8 @@ proto._sweptCollideAndSlide = function(opts) {
             if (into <= 0) continue;
             var keep = 0;
             var b = h.object;
-            if (b && b._mass !== Infinity && b._mass > 0 && isFinite(b._mass) &&
+            // Platforms never yield like a pushable object — they're scripted geometry.
+            if (b && !b.isPlatform && b._mass !== Infinity && b._mass > 0 && isFinite(b._mass) &&
                 b._mass <= self_._pushMassLimit && !b.isKinematicCharacter) {
                 keep = mass / (mass + b._mass);
             }

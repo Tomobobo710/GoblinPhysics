@@ -102,6 +102,50 @@
 		return p;
 	}
 
+	// A scripted moving platform: a plain dynamic box, tagged isPlatform (same convention as
+	// ladder()'s isLadder), ping-ponging between two points. Driven by VELOCITY only, never a direct
+	// position write — a dynamic (finite-mass) body always applies its own linear_velocity to its own
+	// position every world.step() regardless of collision mask (the mask only excludes CONTACT
+	// resolution, not integration), so writing position directly on top of that fights the solver's
+	// own integration of the same tick's velocity and visibly jitters the body. Setting ONLY velocity
+	// means the solver's own integration is the sole thing moving it.
+	//
+	// pointA/pointB are {x,y,z}; speed in units/sec. Returns the body; call .tick(dt) once per frame
+	// BEFORE world.step() (see drive()'s movers param below).
+	// options.startFrac (0..1, default 0) places the mover along the A->B path at t=0 — 0 = at A heading
+	// toward B, 1 = at B heading toward A. Lets a caller choose which direction the mover is heading at
+	// spawn, independent of where along the path it starts (matters when a rider approaches from
+	// somewhere the mover's default A->B direction would move AWAY from rather than toward).
+	function platform(w, hx, hy, hz, pointA, pointB, speed, color, options) {
+		var opts = options || {};
+		var b = new Goblin.RigidBody(new Goblin.BoxShape(hx, hy, hz), 10);
+		applyMat(b, { friction: 0, restitution: 0 });
+		b._color = color || '#4a7ab0';
+		b.isPlatform = true;
+		b.setGravity(0, 0, 0);
+		b.angular_factor.set(0, 0, 0);
+		b.collision_mask = 1; // out of the solver's contact resolution — see comment above
+		w.addRigidBody(b);
+
+		var seg = { x: pointB.x - pointA.x, y: pointB.y - pointA.y, z: pointB.z - pointA.z };
+		var segLen = Math.sqrt(seg.x * seg.x + seg.y * seg.y + seg.z * seg.z);
+		var dir = segLen > 0 ? { x: seg.x / segLen, y: seg.y / segLen, z: seg.z / segLen } : { x: 0, y: 0, z: 0 };
+		var startFrac = Math.max(0, Math.min(1, opts.startFrac !== undefined ? opts.startFrac : 0));
+		var dist = segLen * startFrac;
+		var sign = startFrac >= 1 ? -1 : 1;
+		b.position.set(pointA.x + seg.x * startFrac, pointA.y + seg.y * startFrac, pointA.z + seg.z * startFrac);
+		b.updateDerived();
+
+		b.tick = function (dt) {
+			if (segLen <= 0 || dt <= 0) return;
+			dist += sign * speed * dt;
+			if (dist >= segLen) { dist = segLen; sign = -1; }
+			else if (dist <= 0) { dist = 0; sign = 1; }
+			b.linear_velocity.set(dir.x * sign * speed, dir.y * sign * speed, dir.z * sign * speed);
+		};
+		return b;
+	}
+
 	// Register the renderable bodies for the viewer. render.js's captureSetup snapshots ctx.bodies ONCE
 	// at t=0 (see runner.js: it's a plain array, not re-scanned per frame) — so the only correct source
 	// of "everything visible" is the WORLD's actual contents at setup time: the floor, every wall/ramp/
@@ -131,12 +175,15 @@
 	// runner exposes a "post-step, pre-eval" hook, endStep is called from an evalTick-time wrapper:
 	// PBF.drive wraps t.expect to call endStep exactly once per tick, the first time any expectation
 	// is evaluated that tick.
-	function drive(t, controller, cmdFor) {
+	// `movers` (optional): array of platform()-built bodies, ticked each frame BEFORE beginStep — same
+	// bracket ordering a real game loop would use (mover.tick(dt) before world.step()).
+	function drive(t, controller, cmdFor, movers) {
 		var lastEndTick = 0;
 		function ensureEnded(tick) {
 			if (tick > lastEndTick) { controller.endStep(DT); lastEndTick = tick; }
 		}
 		t.onTick(function (world, tick) {
+			if (movers) movers.forEach(function (m) { m.tick(DT); });
 			var cmd = (cmdFor ? cmdFor(tick) : null) || {};
 			controller.beginStep(cmd, DT);
 		});
@@ -220,6 +267,15 @@
 				var wd = 0.6 * SC, h = 6 * SC;
 				return ladder(w, wd, h / 2, wd, { x: 0, y: h / 2, z: 0 }, color);
 			},
+			// scale-proportional platform mover: a square-footprint box (side baseSide, thickness
+			// baseThick, both scale-1, FULL size not half-extent) travelling between two SCALED points
+			// at a scaled speed. pointA/pointB are given in BASE (scale-1) world units.
+			splatform: function (w, baseSide, baseThick, pointA, pointB, baseSpeed, color, options) {
+				var side = baseSide * SC, thick = baseThick * SC;
+				var a = { x: pointA.x * SC, y: pointA.y * SC, z: pointA.z * SC };
+				var b = { x: pointB.x * SC, y: pointB.y * SC, z: pointB.z * SC };
+				return platform(w, side / 2, thick / 2, side / 2, a, b, baseSpeed * SC, color, options);
+			},
 			// drop a box onto the character's ACTUAL head from `above` units over it (head-relative, so
 			// impact speed is the same at every scale). side/mass default to 0.8/2.
 			dropOnHead: function (w, p, above, side, mass, mat) {
@@ -268,7 +324,7 @@
 
 	return {
 		DT: DT, SCALES: SCALES,
-		flatWorld: flatWorld, makeWorld: makeWorld, object: object, staticBox: staticBox, ladder: ladder, spawn: spawn,
+		flatWorld: flatWorld, makeWorld: makeWorld, object: object, staticBox: staticBox, ladder: ladder, platform: platform, spawn: spawn,
 		renderables: renderables, drive: drive, sequentialBlocks: sequentialBlocks,
 		scaleHelpers: scaleHelpers, scaleTest: scaleTest,
 		axisAngleQuat: axisAngleQuat,
