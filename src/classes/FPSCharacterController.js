@@ -14,6 +14,11 @@
  * Vertical motion (gravity, landing) is left to the solver; only jump / jetpack thrust write
  * the vertical velocity directly.
  *
+ * Also handles two further movement states parallel to ground/air: climbing a body tagged
+ * isLadder (see _updateLadder), and riding a body tagged isPlatform via base-velocity inheritance
+ * (see _baseVelocity in the constructor, and beginStep/endStep/_updateVertical) — jumping off a
+ * rising platform adds its velocity into the jump.
+ *
  * DESIGN SEAMS:
  *   The controller never reads input directly. Gameplay samples an input command (pure data, so
  *   a host can run remote players' commands through the exact same path) and feeds it in,
@@ -152,11 +157,11 @@ var FPSC = {
  */
 function raycast(world, start, end, ignoreObjects) {
     var hits = world.rayIntersect(start, end);
-    if (!hits || hits.length === 0) return null;
+    if (!hits || hits.length === 0) { return null; }
     for (var i = 0; i < hits.length; i++) {
         var hit = hits[i];
         if (hit.object && hit.object.name && ignoreObjects &&
-            ignoreObjects.indexOf(hit.object.name) !== -1) continue;
+            ignoreObjects.indexOf(hit.object.name) !== -1) { continue; }
         return hit;
     }
     return null;
@@ -379,12 +384,12 @@ proto._applyScale = function(scale) {
     // Ghost chase speed and the push-mass eligibility limit must scale with the character, same as
     // sprintSpeed/mass do just above — see the comment where these overrides are read in the
     // constructor. Speed-like (linear); mass-like (volume, scale^3) — matching sprintSpeed/mass.
-    this._ghostMaxSpeed = this._ghostMaxSpeedOverride !== undefined
-        ? this._ghostMaxSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxSpeedMult;
-    this._ghostMaxDampSpeed = this._ghostMaxDampSpeedOverride !== undefined
-        ? this._ghostMaxDampSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxDampSpeedMult;
-    this._pushMassLimit = this._pushMassLimitOverride !== undefined
-        ? this._pushMassLimitOverride : this._baseMass * scale * scale * scale * this._pushMassBaseMult;
+    this._ghostMaxSpeed = this._ghostMaxSpeedOverride !== undefined ?
+        this._ghostMaxSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxSpeedMult;
+    this._ghostMaxDampSpeed = this._ghostMaxDampSpeedOverride !== undefined ?
+        this._ghostMaxDampSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxDampSpeedMult;
+    this._pushMassLimit = this._pushMassLimitOverride !== undefined ?
+        this._pushMassLimitOverride : this._baseMass * scale * scale * scale * this._pushMassBaseMult;
     this._receiveMaxSpeed = this._baseReceiveMaxSpeed * scale;
 };
 
@@ -395,7 +400,7 @@ function applyMaterial(body, opts) {
     body.restitution = opts.restitution !== undefined ? opts.restitution : 0.33;
     body.linear_damping = opts.linearDamping !== undefined ? opts.linearDamping : 0.1;
     body.angular_damping = opts.angularDamping !== undefined ? opts.angularDamping : 0.9;
-    if (opts.gravity) body.setGravity(opts.gravity.x, opts.gravity.y, opts.gravity.z);
+    if (opts.gravity) { body.setGravity(opts.gravity.x, opts.gravity.y, opts.gravity.z); }
 }
 
 // (Re)create the box body at a position, preserving look + velocity where possible.
@@ -439,7 +444,7 @@ proto._buildBody = function(position) {
     // so the solver can never fight the control loop.
     this.body.collision_mask = 1;
 
-    if (carriedVel) this.body.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z);
+    if (carriedVel) { this.body.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z); }
 
     this.world.addRigidBody(this.body);
     this._buildGhost(position, carriedVel);
@@ -477,7 +482,7 @@ proto._buildGhost = function(position, carriedVel) {
     this._ghost.angular_factor.set(0, 0, 0);
     this._ghost.isKinematicCharacter = true;
     this._ghostGroundInset = groundInset;
-    if (carriedVel) this._ghost.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z);
+    if (carriedVel) { this._ghost.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z); }
     this.world.addRigidBody(this._ghost);
 };
 
@@ -497,7 +502,7 @@ proto._destroyGhost = function() {
  * @private
  */
 proto._syncGhost = function(dt) {
-    if (!this._ghost) return;
+    if (!this._ghost) { return; }
     var p = this.body.position;
     var gp = this._ghost.position;
     var targetY = p.y + (this._ghostGroundInset || 0) / 2;
@@ -558,9 +563,9 @@ proto._syncGhost = function(dt) {
  * @private
  */
 proto._readGhostKnockback = function() {
-    if (!this._receivePush) return;
+    if (!this._receivePush) { return; }
     var world = this.world;
-    if (!world || !world.narrowphase) return;
+    if (!world || !world.narrowphase) { return; }
     var ghostBody = this._ghost;
     var pb = this.body.linear_velocity;
     var mP = this.mass;
@@ -585,13 +590,13 @@ proto._readGhostKnockback = function() {
             // box's own inbound speed means a box only knocks you when IT carries momentum at you
             // (someone else shoved it, an explosion) — your own push no longer bounces back. Opt-out via
             // receiveSelfPush to restore the old relative-speed behavior.
-            var closing = this._receiveSelfPush
-                ? (ov.x - pb.x) * nx + (ov.z - pb.z) * nz   // legacy: relative closing (self-push included)
-                : ov.x * nx + ov.z * nz;                    // box's own inbound speed only
+            var closing = this._receiveSelfPush ?
+                (ov.x - pb.x) * nx + (ov.z - pb.z) * nz :   // legacy: relative closing (self-push included)
+                ov.x * nx + ov.z * nz;                      // box's own inbound speed only
             if (closing > FPSC.KB_CLOSING_MIN) {
                 var massRatio = mB / (mB + mP);
                 var kbv = massRatio * closing;
-                if (kbv > this._receiveMaxSpeed) kbv = this._receiveMaxSpeed;
+                if (kbv > this._receiveMaxSpeed) { kbv = this._receiveMaxSpeed; }
                 kbv *= this._receiveKnockbackFraction;
                 // Cap the RESULTING along-n speed, not just this tick's increment: clamping only kb
                 // bounds each tick's contribution but not the running total, so sustained contact (a
@@ -602,12 +607,12 @@ proto._readGhostKnockback = function() {
                 // the cap from prior contact, further ticks add nothing more.
                 var alongN = pb.x * nx + pb.z * nz;
                 var room = this._receiveMaxSpeed - alongN;
-                if (room > 0) kbv = Math.min(kbv, room); else kbv = 0;
+                if (room > 0) { kbv = Math.min(kbv, room); } else { kbv = 0; }
                 if (kbv > FPSC.KB_MIN) {
                     pb.x += nx * kbv;
                     pb.z += nz * kbv;
                     this.grounded = false;
-                    if (this._groundSuppress < FPSC.GROUND_SUPPRESS_KB) this._groundSuppress = FPSC.GROUND_SUPPRESS_KB;
+                    if (this._groundSuppress < FPSC.GROUND_SUPPRESS_KB) { this._groundSuppress = FPSC.GROUND_SUPPRESS_KB; }
                 }
             }
             break;
@@ -627,19 +632,19 @@ proto.setScale = function(scale) {
     var feetY = p.y - this.height / 2;
     this._applyScale(scale);
     this._buildBody(new Goblin.Vector3(p.x, feetY + this.height / 2, p.z));
-    if (!this._resimulating) this._viewDisplacementY += this.body.position.y + this.eyeHeight - eyeBefore; // eye jump from the resize
+    if (!this._resimulating) { this._viewDisplacementY += this.body.position.y + this.eyeHeight - eyeBefore; } // eye jump from the resize
 };
 
 // Instantly enter/leave crouch by rebuilding the collider at the new height, feet planted.
 proto._setCrouch = function(want) {
-    if (want === this.crouching) return;
+    if (want === this.crouching) { return; }
     var p = this.body.position;
     var eyeBefore = p.y + this.eyeHeight;
     var feetY = p.y - this.height / 2;
     this.crouching = want;
     this._applyScale(this.scale); // recompute height/eye for the new crouch state
     this._buildBody(new Goblin.Vector3(p.x, feetY + this.height / 2, p.z));
-    if (!this._resimulating) this._viewDisplacementY += this.body.position.y + this.eyeHeight - eyeBefore; // eye jump from the crouch swap
+    if (!this._resimulating) { this._viewDisplacementY += this.body.position.y + this.eyeHeight - eyeBefore; } // eye jump from the crouch swap
 };
 
 /**
@@ -666,8 +671,8 @@ proto._probeCeiling = function(reachAboveFeet) {
             new Goblin.Vector3(p.x + ox, startY, p.z + oz),
             new Goblin.Vector3(p.x + ox, endY, p.z + oz),
             this._ignoreSelf);
-        if (!hit || hit.normal.y > FPSC.NY_CEILING) continue; // not a ceiling (must face downward)
-        if (!best || hit.point.y < best.point.y) best = hit;
+        if (!hit || hit.normal.y > FPSC.NY_CEILING) { continue; } // not a ceiling (must face downward)
+        if (!best || hit.point.y < best.point.y) { best = hit; }
     }
     return best;
 };
@@ -684,12 +689,12 @@ proto._probeCeiling = function(reachAboveFeet) {
  * @private
  */
 proto._ceilingSlide = function(vx, vy, vz, dt) {
-    if (vy <= 0) return { vx: vx, vy: vy, vz: vz }; // not rising -> nothing overhead to resolve
+    if (vy <= 0) { return { vx: vx, vy: vy, vz: vz }; } // not rising -> nothing overhead to resolve
     var reach = this.height + vy * dt + this._skin;
     var ceil = this._probeCeiling(reach);
-    if (!ceil) return { vx: vx, vy: vy, vz: vz };
+    if (!ceil) { return { vx: vx, vy: vy, vz: vz }; }
     var gap = ceil.point.y - (this.body.position.y + this.height / 2);
-    if (gap > vy * dt + this._skin) return { vx: vx, vy: vy, vz: vz }; // won't reach it this tick
+    if (gap > vy * dt + this._skin) { return { vx: vx, vy: vy, vz: vz }; } // won't reach it this tick
     var n = ceil.normal; // down-facing (n.y < 0)
     var dot = vx * n.x + vy * n.y + vz * n.z;
     if (dot < 0) {
@@ -726,7 +731,7 @@ proto._canStand = function() {
 proto._findLadderAhead = function(dir) {
     var p = this.body.position;
     var dlen = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
-    if (dlen < FPSC.EPS_LEN) return null;
+    if (dlen < FPSC.EPS_LEN) { return null; }
     var dx = dir.x / dlen, dz = dir.z / dlen;
     var reach = this.width / 2 + this.ladderMountReach;
     var feetY = p.y - this.height / 2;
@@ -735,7 +740,7 @@ proto._findLadderAhead = function(dir) {
         new Goblin.Vector3(p.x, probeY, p.z),
         new Goblin.Vector3(p.x + dx * reach, probeY, p.z + dz * reach),
         this._ignoreSelf);
-    if (!hit || !hit.object || !hit.object.isLadder) return null;
+    if (!hit || !hit.object || !hit.object.isLadder) { return null; }
     return hit;
 };
 
@@ -800,7 +805,7 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
     }
 
     var hasMoveInput = (cmd.forward || 0) !== 0 || (cmd.right || 0) !== 0;
-    if (!this._onLadder && !hasMoveInput) return false;
+    if (!this._onLadder && !hasMoveInput) { return false; }
 
     this._onLadder = true;
     this.grounded = false;
@@ -838,7 +843,7 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
             var feetGap = this.body.position.y - half - ground.point.y;
             if (feetGap <= reach2) {
                 var clampedY = ground.point.y + half;
-                if (!this._resimulating) this._viewDisplacementY += clampedY - this.body.position.y;
+                if (!this._resimulating) { this._viewDisplacementY += clampedY - this.body.position.y; }
                 this.body.position.set(this.body.position.x, clampedY, this.body.position.z);
                 this.body.updateDerived();
                 gb.y = 0;
@@ -855,8 +860,8 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
 proto.look = function(deltaYaw, deltaPitch) {
     this.yaw += deltaYaw;
     this.pitch += deltaPitch;
-    if (this.pitch > this.maxPitch) this.pitch = this.maxPitch;
-    if (this.pitch < -this.maxPitch) this.pitch = -this.maxPitch;
+    if (this.pitch > this.maxPitch) { this.pitch = this.maxPitch; }
+    if (this.pitch < -this.maxPitch) { this.pitch = -this.maxPitch; }
 };
 
 proto.setLook = function(yaw, pitch) {
@@ -892,7 +897,7 @@ proto.aim = function(yaw, pitch) {
  * @method getLiveAimDirection
  */
 proto.getLiveAimDirection = function() {
-    if (!this._liveAimSet) return this.getLookDirection();
+    if (!this._liveAimSet) { return this.getLookDirection(); }
     var cp = Math.cos(this._livePitch);
     return new Goblin.Vector3(Math.sin(this._liveYaw) * cp, Math.sin(this._livePitch), Math.cos(this._liveYaw) * cp);
 };
@@ -902,7 +907,7 @@ proto.getLiveAimDirection = function() {
  * @method getForwardHorizontal
  */
 proto.getForwardHorizontal = function(yaw) {
-    if (yaw === undefined) yaw = this.yaw;
+    if (yaw === undefined) { yaw = this.yaw; }
     return new Goblin.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
 };
 
@@ -912,7 +917,7 @@ proto.getForwardHorizontal = function(yaw) {
  * @method getRightHorizontal
  */
 proto.getRightHorizontal = function(yaw) {
-    if (yaw === undefined) yaw = this.yaw;
+    if (yaw === undefined) { yaw = this.yaw; }
     return new Goblin.Vector3(-Math.cos(yaw), 0, Math.sin(yaw));
 };
 
@@ -961,9 +966,9 @@ proto.captureRenderState = function() {
     var snap = !this._currEye;
     if (this._currEye) {
         var dx = e.x - this._currEye.x, dy = e.y - this._currEye.y, dz = e.z - this._currEye.z;
-        if (dx * dx + dy * dy + dz * dz > this._renderSnapDist2) snap = true; // teleport-sized
+        if (dx * dx + dy * dy + dz * dz > this._renderSnapDist2) { snap = true; } // teleport-sized
     }
-    if (Math.abs(this.peekViewDisplacementY()) > FPSC.VIEW_DISP_SNAP) snap = true;
+    if (Math.abs(this.peekViewDisplacementY()) > FPSC.VIEW_DISP_SNAP) { snap = true; }
     this._prevEye = snap ? e : this._currEye;
     this._currEye = e;
 };
@@ -976,7 +981,7 @@ proto.captureRenderState = function() {
  * @method renderEye
  */
 proto.renderEye = function(alpha) {
-    if (!this._prevEye || !this._currEye) return this.getEyePosition();
+    if (!this._prevEye || !this._currEye) { return this.getEyePosition(); }
     var a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
     var ex = this._prevEye.x + (this._currEye.x - this._prevEye.x) * a;
     var ey = this._prevEye.y + (this._currEye.y - this._prevEye.y) * a;
@@ -1034,6 +1039,10 @@ proto.endResim = function() { this._resimulating = false; };
  * getState/avatars) only when the command carries them; single-player passes no yaw and keeps
  * driving facing via look().
  *
+ * Also applies platform base velocity into the horizontal move (see the constructor's
+ * _baseVelocity comment) immediately before collide-and-slide, so a rider is carried through real
+ * swept motion rather than a position teleport.
+ *
  * @method beginStep
  * @param {Object} command - pure-data input command struct; any field may be absent
  * @param {Number} dt
@@ -1044,17 +1053,17 @@ proto.beginStep = function(command, dt) {
     this._justLanded = this.grounded && !this._groundedPrev;
     this._groundedPrev = this.grounded;
 
-    if (this._jumpBufferTimer > 0) this._jumpBufferTimer = Math.max(0, this._jumpBufferTimer - dt);
+    if (this._jumpBufferTimer > 0) { this._jumpBufferTimer = Math.max(0, this._jumpBufferTimer - dt); }
 
-    if (cmd.scale !== undefined && Math.abs(cmd.scale - this.scale) > FPSC.EPS_LEN) this.setScale(cmd.scale);
+    if (cmd.scale !== undefined && Math.abs(cmd.scale - this.scale) > FPSC.EPS_LEN) { this.setScale(cmd.scale); }
     // Steep-slope walk intent from the command. Single-player: this IS the authority (no host). MP client:
     // applies the intent so PREDICTION climbs immediately; if the host refuses, setState corrects the flag
     // from the authoritative snapshot. MP host: harmless. Read live per-tick, so a plain assignment is enough.
-    if (cmd.climb !== undefined) this.climbSteepSlopes = !!cmd.climb;
+    if (cmd.climb !== undefined) { this.climbSteepSlopes = !!cmd.climb; }
     var wantCrouch = !!cmd.crouch || (this.crouching && !this._canStand());
-    if (wantCrouch !== this.crouching) this._setCrouch(wantCrouch);
+    if (wantCrouch !== this.crouching) { this._setCrouch(wantCrouch); }
 
-    if (cmd.userData !== undefined) this.userData = cmd.userData;
+    if (cmd.userData !== undefined) { this.userData = cmd.userData; }
 
     var gb = this.body.linear_velocity;
 
@@ -1062,8 +1071,8 @@ proto.beginStep = function(command, dt) {
 
     var moveYaw = cmd.yaw !== undefined ? cmd.yaw : this.yaw;
     var movePitch = cmd.pitch !== undefined ? cmd.pitch : this.pitch;
-    if (cmd.yaw !== undefined) this.yaw = cmd.yaw;
-    if (cmd.pitch !== undefined) this.pitch = cmd.pitch;
+    if (cmd.yaw !== undefined) { this.yaw = cmd.yaw; }
+    if (cmd.pitch !== undefined) { this.pitch = cmd.pitch; }
 
     var fwd = this.getForwardHorizontal(moveYaw);
     var rgt = this.getRightHorizontal(moveYaw);
@@ -1189,7 +1198,7 @@ proto.beginStep = function(command, dt) {
         this._sliding = false;
         this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
         var cur = gb;
-        if (cur.y < -this._maxFall) gb.y = -this._maxFall;
+        if (cur.y < -this._maxFall) { gb.y = -this._maxFall; }
         if (hasInput) {
             var curSp2 = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
             var wishSp2 = Math.sqrt(wishX * wishX + wishZ * wishZ);
@@ -1244,7 +1253,9 @@ proto.beginStep = function(command, dt) {
 };
 
 /**
- * POST-physics: decide grounded and clamp the feet to the ground surface.
+ * POST-physics: decide grounded and clamp the feet to the ground surface. Also acquires this
+ * tick's platform base velocity (see the constructor's _baseVelocity comment) from whatever
+ * isPlatform-tagged body the ground probe lands on, read fresh every tick.
  * @method endStep
  * @param {Number} dt
  */
@@ -1257,11 +1268,11 @@ proto.endStep = function(dt) {
     // was at mount time.
     if (this._onLadder) {
         this.velocityY = gb.y;
-        if (!this._resimulating || this._driveGhostDuringResim) this._syncGhost(dt);
+        if (!this._resimulating || this._driveGhostDuringResim) { this._syncGhost(dt); }
         return;
     }
 
-    if (this._groundSuppress > 0) this._groundSuppress--;
+    if (this._groundSuppress > 0) { this._groundSuppress--; }
     // Only suppress grounding while rising (just jumped/thrust); while falling the ground
     // catch must stay live or the body tunnels through the floor.
     var suppressed = this._groundSuppress > 0 && gb.y > 1;
@@ -1298,7 +1309,7 @@ proto.endStep = function(dt) {
     if (!suppressed && probe && feetGap <= maxStick && !tooHighToStep) {
         var p = this.body.position;
         var clampedY = probe.point.y + half;
-        if (!this._resimulating) this._viewDisplacementY += clampedY - p.y;
+        if (!this._resimulating) { this._viewDisplacementY += clampedY - p.y; }
         this.body.position.set(p.x, clampedY, p.z);
         this.body.updateDerived();
         gb.y = 0;
@@ -1356,8 +1367,8 @@ proto.endStep = function(dt) {
     }
 
     // Coyote window: refill while grounded, bleed down once airborne. No-op when coyoteTime=0.
-    if (this.grounded) this._coyoteTimer = this.coyoteTime;
-    else if (this._coyoteTimer > 0) this._coyoteTimer = Math.max(0, this._coyoteTimer - dt);
+    if (this.grounded) { this._coyoteTimer = this.coyoteTime; }
+    else if (this._coyoteTimer > 0) { this._coyoteTimer = Math.max(0, this._coyoteTimer - dt); }
 
     this.velocityY = gb.y;
 
@@ -1369,7 +1380,7 @@ proto.endStep = function(dt) {
     // a solver body's contact velocity back into the player mid-rollback is what injects non-determinism
     // into the reconciled player path. That readback is gated inside _syncGhost.
     // Opt-out (driveGhostDuringResim=false): freeze the ghost during resim (older behavior).
-    if (!this._resimulating || this._driveGhostDuringResim) this._syncGhost(dt);
+    if (!this._resimulating || this._driveGhostDuringResim) { this._syncGhost(dt); }
 
     // Debug ring-buffer, off unless _debugCapture is set. Console: _debugStart(); reproduce; _debugDump().
     if (this._debugCapture && !this._resimulating) {
@@ -1384,7 +1395,7 @@ proto.endStep = function(dt) {
             mark: this._debugMark || null // label dropped by _debugMark(), attached to this tick then cleared
         });
         this._debugMark = null;
-        if (buf.length > this._debugCap) buf.shift();
+        if (buf.length > this._debugCap) { buf.shift(); }
     }
 };
 
@@ -1415,9 +1426,7 @@ proto._debugDump = function() {
             ' | vz=' + r.vz + ' vy=' + r.vy + ' vx=' + r.vx +
             ' | g=' + (r.g ? 1 : 0) + ' ny=' + r.ny + ' steep=' + (r.steep ? 1 : 0) + ' vdisp=' + r.vdisp;
     });
-    var out = buf.length + ' ticks:\n' + rows.join('\n');
-    try { console.log(out); } catch (e) {}
-    return out;
+    return buf.length + ' ticks:\n' + rows.join('\n');
 };
 
 // ---- Overridable kit hooks --------------------------------------------
@@ -1476,7 +1485,7 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
         this.grounded &&
         inputOk &&
         (groundSp > this.moveSpeed + FPSC.EPS_SPEED_MARGIN || sustained);
-    if (!this._sliding) return null;
+    if (!this._sliding) { return null; }
 
     if (onSlope) {
         // Gravity accelerates the fall-line (downhill) component; the cross-slope (sideways)
@@ -1524,7 +1533,9 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
 };
 
 /**
- * Vertical hook. Base = grounded jump only (gravity/landing handled by the solver).
+ * Vertical hook. Base = grounded jump only (gravity/landing handled by the solver). A jump adds
+ * platform base velocity's Y component additively, not an overwrite — jumping off a rising
+ * platform flings the player higher than jumpSpeed alone would.
  * @method _updateVertical
  * @protected
  */
@@ -1555,7 +1566,7 @@ proto._updateVertical = function(cmd, dt) {
  * @private
  */
 proto._climbableSlopeAhead = function(start, dx, dz) {
-    if (dx === 0 && dz === 0) return false;
+    if (dx === 0 && dz === 0) { return false; }
     var feetY = this.body.position.y - this.height / 2;
     var base = this.depth / 2 + this._skin; // footprint edge (both scale with the character)
     for (var mi = 0; mi < FPSC.CLIMB_PROBE_DEPTH_MULTS.length; mi++) {
@@ -1567,7 +1578,7 @@ proto._climbableSlopeAhead = function(start, dx, dz) {
             new Goblin.Vector3(ax, feetY + this.stepHeight + this._skin, az),
             new Goblin.Vector3(ax, feetY - this.stepHeight, az),
             this._ignoreSelf);
-        if (hit && hit.normal.y > FPSC.NY_STEEP_MIN && hit.normal.y < this._minStandableNormalY) return true;
+        if (hit && hit.normal.y > FPSC.NY_STEEP_MIN && hit.normal.y < this._minStandableNormalY) { return true; }
     }
     return false;
 };
@@ -1600,7 +1611,7 @@ proto._probeGroundCandidates = function(maxSnap) {
         var start = new Goblin.Vector3(p.x + ox, topY, p.z + oz);
         var end = new Goblin.Vector3(p.x + ox, bottomY, p.z + oz);
         var hit = raycast(this.world, start, end, this._ignoreSelf);
-        if (!hit || hit.normal.y < FPSC.NY_FLOORLIKE) continue;
+        if (!hit || hit.normal.y < FPSC.NY_FLOORLIKE) { continue; }
         // Exclude a pushable object as ground only when walking INTO its side (pushing it), not
         // when it's roughly under our own center (standing on it).
         var gm = hit.object && hit.object._mass;
@@ -1612,7 +1623,7 @@ proto._probeGroundCandidates = function(maxSnap) {
             var movingIntoIt = towardLen > FPSC.EPS_LEN &&
                 (gv.x * toHitX + gv.z * toHitZ) / towardLen > FPSC.PUSH_INTO_MIN;
             var nearCenter = towardLen < this.width * FPSC.NEAR_CENTER_FRAC;
-            if (movingIntoIt && !nearCenter) continue;
+            if (movingIntoIt && !nearCenter) { continue; }
         }
         candidates.push(hit);
     }
@@ -1678,7 +1689,7 @@ proto._sweptCollideAndSlide = function(opts) {
     var stepHeight = opts.stepHeight || 0;
     var climbSteepSlopes = !!opts.climbSteepSlopes;
     var world = this.world;
-    if (!world || typeof world.shapeIntersect !== "function") return { x: vx, z: vz, depenX: 0, depenZ: 0 };
+    if (!world || typeof world.shapeIntersect !== "function") { return { x: vx, z: vz, depenX: 0, depenZ: 0 }; }
 
     // Original move heading, before any clipping this tick — used by the climb-slope-ahead probe
     // so a mid-loop velocity clip doesn't collapse the probe direction.
@@ -1723,12 +1734,12 @@ proto._sweptCollideAndSlide = function(opts) {
         for (var hi = 0; hi < hits.length; hi++) {
             var h = hits[hi];
             var b0 = h.object;
-            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) continue;
+            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) { continue; }
             var n = h.normal;
-            if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) continue;
+            if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) { continue; }
             var nlen = Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
-            if (nlen < FPSC.N_DEGENERATE) continue;
-            if (Math.abs(n.y) >= minStandableNy) continue;
+            if (nlen < FPSC.N_DEGENERATE) { continue; }
+            if (Math.abs(n.y) >= minStandableNy) { continue; }
             // Vertical wall: normal horizontal, points player->object; heading in is v.n > 0.
             // Too-steep floor-like face (0.1 < n.y < cutoff): normal tilts up-and-back, so heading
             // in is v.(n.x,n.z) < 0 — sign flipped below.
@@ -1739,10 +1750,10 @@ proto._sweptCollideAndSlide = function(opts) {
             // progress on — treating it as a wall-slide clip can zero velocity in every direction,
             // including retreat, trapping the character. Overhead clearance is the headroom gate's
             // job; skip it here so a sideways/backward escape isn't blocked by the same contact.
-            if (floorLike && h.point && (h.point.y - (p.y - height / 2)) > height * FPSC.TOE_BAND_FRAC) continue;
-            if (climbSteepSlopes && self_._climbableSlopeAhead(start, mdx0, mdz0)) continue;
+            if (floorLike && h.point && (h.point.y - (p.y - height / 2)) > height * FPSC.TOE_BAND_FRAC) { continue; }
+            if (climbSteepSlopes && self_._climbableSlopeAhead(start, mdx0, mdz0)) { continue; }
             var into = floorLike ? -(vx * n.x + vz * n.z) : (vx * n.x + vz * n.z);
-            if (into <= 0) continue;
+            if (into <= 0) { continue; }
             var keep = 0;
             var b = h.object;
             // Platforms never yield like a pushable object — they're scripted geometry.
@@ -1762,11 +1773,11 @@ proto._sweptCollideAndSlide = function(opts) {
         for (var hi = 0; hi < hits.length; hi++) {
             var h = hits[hi];
             var b0 = h.object;
-            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) continue;
+            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) { continue; }
             var n = h.normal;
-            if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) continue;
-            if (Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z) < FPSC.N_DEGENERATE) continue;
-            if (Math.abs(n.y) >= minStandableNy) continue; // walkable ground/ramp — not a wall
+            if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) { continue; }
+            if (Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z) < FPSC.N_DEGENERATE) { continue; }
+            if (Math.abs(n.y) >= minStandableNy) { continue; } // walkable ground/ramp — not a wall
             return true;
         }
         return false;
@@ -1783,17 +1794,17 @@ proto._sweptCollideAndSlide = function(opts) {
     for (var s = 0; s < nSub; s++) {
         for (var iter = 0; iter < 4; iter++) {
             var speed = Math.sqrt(vx * vx + vz * vz);
-            if (speed < FPSC.EPS_DIR) break;
+            if (speed < FPSC.EPS_DIR) { break; }
             var start = new Goblin.Vector3(cx, sy, cz);
             var end = new Goblin.Vector3(cx + vx * sdt, sy, cz + vz * sdt);
             var blk = findBlock(start, end);
-            if (!blk) break;
+            if (!blk) { break; }
             // Step-up: before walling a near-vertical, non-yielding face, test if it's clear when
             // swept raised by stepHeight — if so it's steppable, let the move through.
             if (blk.keep < FPSC.KEEP_BLOCKED && Math.abs(blk.n.y) < FPSC.NY_NEAR_VERTICAL && stepHeight > 0) {
                 var upStart = new Goblin.Vector3(cx, sy + stepHeight, cz);
                 var upEnd = new Goblin.Vector3(cx + vx * sdt, sy + stepHeight, cz + vz * sdt);
-                if (!findBlock(upStart, upEnd)) break;
+                if (!findBlock(upStart, upEnd)) { break; }
             }
             var n = blk.n, keep = blk.keep;
             // Clip the into-face velocity using the horizontal blocking direction (never inject
@@ -1819,7 +1830,7 @@ proto._sweptCollideAndSlide = function(opts) {
                     cx -= n.x * step; cz -= n.z * step;
                 }
             }
-            if (keep > FPSC.KEEP_BLOCKED) break;
+            if (keep > FPSC.KEEP_BLOCKED) { break; }
         }
         cx += vx * sdt;
         cz += vz * sdt;
@@ -1848,14 +1859,14 @@ proto._ceilingClearanceAt = function(cx, cz, feetY) {
             new Goblin.Vector3(cx + ox, startY, cz + oz),
             new Goblin.Vector3(cx + ox, endY, cz + oz),
             this._ignoreSelf);
-        if (!hit || hit.normal.y > FPSC.NY_CEILING) continue; // not a ceiling (must face downward)
+        if (!hit || hit.normal.y > FPSC.NY_CEILING) { continue; } // not a ceiling (must face downward)
         // A dynamic/pushable object is never a "ceiling" — it's something the swept mover + push handle,
         // not the headroom gate. Without this, an object being actively shoved forward can wobble a few
         // degrees off-axis from contact torque, and its top face intermittently pokes above the
         // stepHeight cutoff below on some ticks but not others — a real, observed source of push
         // oscillation (the gate flickering the character's forward velocity to zero and back as the
         // box jitters). Only STATIC geometry (mass===Infinity) counts as an overhang.
-        if (hit.object && hit.object._mass !== Infinity) continue;
+        if (hit.object && hit.object._mass !== Infinity) { continue; }
         var clr = hit.point.y - feetY;
         // A "ceiling" clearance at or below step height is NOT an overhang — it's a low obstacle at
         // shin/waist level that the swept mover + push handle, not the headroom gate. Without this, a
@@ -1863,8 +1874,8 @@ proto._ceilingClearanceAt = function(cx, cz, feetY) {
         // ray reports a bogus ~stepHeight-clearance "ceiling", so the gate walls the character in open
         // space in front of a pushable box (worse the lower stepHeight is). Only count genuine overhangs
         // — clearance meaningfully above the step line — as ceilings.
-        if (clr <= this.stepHeight + this._skin) continue;
-        if (clr < lowest) lowest = clr;
+        if (clr <= this.stepHeight + this._skin) { continue; }
+        if (clr < lowest) { lowest = clr; }
     }
     return lowest;
 };
@@ -1878,7 +1889,7 @@ proto._ceilingClearanceAt = function(cx, cz, feetY) {
  */
 proto._headroomGate = function(vx, vz, dt) {
     var speed = Math.sqrt(vx * vx + vz * vz);
-    if (speed < FPSC.EPS_DIR) return { x: vx, z: vz };
+    if (speed < FPSC.EPS_DIR) { return { x: vx, z: vz }; }
 
     if (this.climbSteepSlopes && this._climbableSlopeAhead(this.body.position, vx / speed, vz / speed)) {
         return { x: vx, z: vz };
@@ -1893,7 +1904,7 @@ proto._headroomGate = function(vx, vz, dt) {
     // already samples +-(width/2-skin) / +-(depth/2-skin) around its center argument, which is the box's own
     // full footprint including its leading edge. Projecting a "reach" forward on top of that double-counts.
     // The footprint offsets ARE the reach.
-    if (this._ceilingClearanceAt(p.x, p.z, feetY) >= need) return { x: vx, z: vz };
+    if (this._ceilingClearanceAt(p.x, p.z, feetY) >= need) { return { x: vx, z: vz }; }
 
     var eps = halfDiag + this._skin;
     var cR = this._ceilingClearanceAt(p.x + eps, p.z, feetY);
@@ -1990,16 +2001,16 @@ proto.setState = function(s) {
         // could mis-fire). The real touchdown is re-detected by the replayed physics.
         this._groundedPrev = s.grounded;
     }
-    if (s.gs !== undefined) this._groundSuppress = s.gs;
-    if (s.ct !== undefined) this._coyoteTimer = s.ct;
-    if (s.jb !== undefined) this._jumpBufferTimer = s.jb;
-    if (s.gnx !== undefined) this.groundNormal.set(s.gnx, s.gny, s.gnz);
+    if (s.gs !== undefined) { this._groundSuppress = s.gs; }
+    if (s.ct !== undefined) { this._coyoteTimer = s.ct; }
+    if (s.jb !== undefined) { this._jumpBufferTimer = s.jb; }
+    if (s.gnx !== undefined) { this.groundNormal.set(s.gnx, s.gny, s.gnz); }
     // Adopt the authoritative steep-slope allowance. This is the ONLY place the live flag is written in
     // MP — the client key sets command INTENT, the host grants/refuses it, and the truth comes back
     // here. Read live each tick by the mover/grounding, so no rebuild is needed.
-    if (s.climb !== undefined) this.climbSteepSlopes = s.climb;
-    if (s.onLadder !== undefined) this._onLadder = s.onLadder;
-    if (s.lnx !== undefined) this._ladderNormal.set(s.lnx, 0, s.lnz);
+    if (s.climb !== undefined) { this.climbSteepSlopes = s.climb; }
+    if (s.onLadder !== undefined) { this._onLadder = s.onLadder; }
+    if (s.lnx !== undefined) { this._ladderNormal.set(s.lnx, 0, s.lnz); }
     // Re-baseline the ghost LOCALLY (not from the snapshot — the ghost isn't networked). Snap it onto
     // the just-adopted authoritative player, moving at the player's velocity, so every resim starts
     // from the same consistent ghost state and re-pushes objects identically each time.
@@ -2011,7 +2022,7 @@ proto.setState = function(s) {
         this._ghostCommandedVel = { x: pv.x, y: pv.y, z: pv.z };
     }
     this._prevCrouch = this.crouching;
-    if (s.userData !== undefined) this.userData = s.userData;
+    if (s.userData !== undefined) { this.userData = s.userData; }
 };
 
 /**
