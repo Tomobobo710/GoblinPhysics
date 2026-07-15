@@ -8673,7 +8673,7 @@ Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a,
  *
  * DESIGN SEAMS:
  *   The controller never reads input directly. Gameplay samples an input command (pure data, so
- *   any caller can run remote players' commands through the exact same path) and feeds it in,
+ *   any caller can run remote characters' commands through the exact same path) and feeds it in,
  *   bracketing a single Goblin world step:
  *       const cmd = mySampleInput(input);       // input mapping is policy, lives outside this class
  *       controller.beginStep(cmd, dt);           // pre-physics: velocity + assists
@@ -8725,8 +8725,8 @@ Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a,
  * @param {Number} [options.slideSlopeMin] - Min slope (sin of angle) that sustains a slide via gravity.
  * @param {Number} [options.slideSlopeFriction] - Cross-slope bleed per second on a sustaining slope.
  * @param {Number} [options.slideCoyoteFrames] - Frames after dropping below slide speed a crouch still slides.
- * @param {Boolean} [options.receivePush=true] - Enable object-to-player knockback via the ghost body.
- * @param {Number} [options.receiveMaxSpeed] - Cap on how fast a single object hit can knock the player.
+ * @param {Boolean} [options.receivePush=true] - Enable object-to-character knockback via the ghost body.
+ * @param {Number} [options.receiveMaxSpeed] - Cap on how fast a single object hit can knock the character.
  * @param {Number} [options.receiveKnockbackFraction] - Fraction of the ghost's contact velocity transferred.
  * @param {Number} [options.ghostMaxSpeed] - Cap on the ghost's follow/shove speed (units/sec).
  * @param {Number} [options.ghostDamping] - Fraction of the ghost's current velocity damped each tick (0..1).
@@ -8766,7 +8766,7 @@ var FPSC = {
                               // gate's job), not a wall to clip horizontal velocity against
 
     // Knockback gating (see _readGhostKnockback).
-    KB_CLOSING_MIN: 0.5,      // object must close on the player faster than this (units/s) to knock back
+    KB_CLOSING_MIN: 0.5,      // object must close on the character faster than this (units/s) to knock back
     KB_MIN: 0.05,             // ignore a computed knockback smaller than this
 
     // Ground-suppress frame counts — ticks the ground clamp is held off after an event.
@@ -8861,7 +8861,7 @@ function FPSCharacterController(world, options) {
     // sprint (and the momentum it can impart to an object) is 2x faster, but a ghost capped at the
     // UNSCALED base speed can't keep pace at that scale, falls behind, and stops being physically
     // present to block a fast-moving object from passing straight through the (solver-invisible)
-    // player. Explicit overrides are taken as literal (caller asked for that exact number, not a
+    // character. Explicit overrides are taken as literal (caller asked for that exact number, not a
     // scale-derived one); the multiplier-derived defaults are re-derived in _applyScale so they
     // track scale both at construction and on any later setScale().
     this._ghostMaxSpeedOverride = o.ghostMaxSpeed;
@@ -8919,15 +8919,15 @@ function FPSCharacterController(world, options) {
     this._baseLadderMountReach = o.ladderMountReach !== undefined ? o.ladderMountReach : lad.mountReach;
     this._baseLadderDismountPushSpeed = o.ladderDismountPushSpeed !== undefined ? o.ladderDismountPushSpeed : lad.dismountPushSpeed;
     this._onLadder = false;
-    this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the player
+    this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the character
 
     // Moving platforms (see endStep's acquire + beginStep's apply). A body tagged isPlatform=true,
     // when it's what the ground probe is currently resting on, has its linear_velocity read into
     // this vector once per endStep. beginStep adds it into the horizontal move so collide-and-slide
     // carries the rider through real swept collision; it stays baked into gb.x/z afterward (position
     // integrates from gb on a LATER, separate world step, so subtracting it back out first would
-    // discard the ride). _ownVelocityX/Z tracks the player's OWN horizontal velocity separately, so
-    // endStep's groundStopDecel (and the sprint-decay branch) decay the player's momentum without
+    // discard the ride). _ownVelocityX/Z tracks the character's OWN horizontal velocity separately, so
+    // endStep's groundStopDecel (and the sprint-decay branch) decay the character's momentum without
     // also decaying the platform's contribution. The vertical component is folded into a jump's
     // velocity ASSIGNMENT additively (not overwritten) in _updateVertical.
     this._baseVelocity = new Goblin.Vector3(0, 0, 0);
@@ -9086,11 +9086,11 @@ proto._buildBody = function(position) {
     this.body.name = this._bodyName;
     this._ignoreSelf = [this._bodyName, this._bodyName + "_ghost"];
     // Mark this as a kinematic character body so OTHER characters' receive-push pass skips it
-    // (player-vs-player is already handled by collide-and-slide treating each other as walls;
+    // (character-vs-character is already handled by collide-and-slide treating each other as walls;
     // the body-push coupling is only meant for free dynamic objects).
     this.body.isKinematicCharacter = true;
 
-    // Exclude the player from ALL solver contacts (mask bit 1 = only collide with bodies sharing a
+    // Exclude the character from ALL solver contacts (mask bit 1 = only collide with bodies sharing a
     // matching group; world geometry is group 0). The body still integrates and is still
     // raycast-queryable. Collision is done entirely via raycasts (ground clamp + collide-and-slide),
     // so the solver can never fight the control loop.
@@ -9103,16 +9103,16 @@ proto._buildBody = function(position) {
 };
 
 /**
- * GHOST: a solver-participating dynamic body that trails the kinematic player. The player's own
+ * GHOST: a solver-participating dynamic body that trails the kinematic character. The character's own
  * body is excluded from solver contacts (collision_mask 1); the ghost is its stand-in for object
- * contact. Control is one-way: player position -> ghost target. The ghost's position never writes
- * back to the player; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.
+ * contact. Control is one-way: character position -> ghost target. The ghost's position never writes
+ * back to the character; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.
  *
  * @method _buildGhost
  * @private
  */
 proto._buildGhost = function(position, carriedVel) {
-    // Ghost bottom is inset above the player's feet so it doesn't overlap a surface the player is
+    // Ghost bottom is inset above the character's feet so it doesn't overlap a surface the character is
     // standing on (that's _probeGround's job). Top is unchanged, so head-height contact is unaffected.
     var groundInset = this.height * FPSC.GHOST_GROUND_INSET;
     var ghostHeight = this.height - groundInset;
@@ -9147,8 +9147,8 @@ proto._destroyGhost = function() {
 };
 
 /**
- * Drive the ghost toward the player each tick and read back contact-driven knockback. Called once
- * per endStep, after the player's position is settled.
+ * Drive the ghost toward the character each tick and read back contact-driven knockback. Called once
+ * per endStep, after the character's position is settled.
  *
  * @method _syncGhost
  * @private
@@ -9162,7 +9162,7 @@ proto._syncGhost = function(dt) {
     var gap = Math.sqrt(dx * dx + dy * dy + dz * dz);
     var gv = this._ghost.linear_velocity;
 
-    // A gap this large is a rebuild/respawn/teleport: beam the ghost to the player instead of chasing.
+    // A gap this large is a rebuild/respawn/teleport: beam the ghost to the character instead of chasing.
     var teleportDist = Math.max(this.width, this.height) * 2;
     if (gap > teleportDist) {
         this._ghost.position.set(p.x, targetY, p.z);
@@ -9173,7 +9173,7 @@ proto._syncGhost = function(dt) {
 
     // Knockback signal = (ghost's actual velocity) - (velocity the drive commanded last tick). This
     // runs during resim too: an authority that never resims applies knockback in its own live step, so
-    // skipping it here while resimulating would reconcile the player's velocity to a value that
+    // skipping it here while resimulating would reconcile the character's velocity to a value that
     // permanently disagrees with authority by the knockback amount. It only needs to be deterministic
     // run-to-run (it is — the read is a pure function of the current contact state).
     this._readGhostKnockback();
@@ -9189,7 +9189,7 @@ proto._syncGhost = function(dt) {
     gv.y = gv.y * (1 - k) + wy * k;
     gv.z = gv.z * (1 - k) + wz * k;
 
-    // Clip the ghost's horizontal velocity through the same swept collide-and-slide the player uses.
+    // Clip the ghost's horizontal velocity through the same swept collide-and-slide the character uses.
     var clip = this._sweptCollideAndSlide({
         position: new Goblin.Vector3(gp.x, gp.y, gp.z),
         width: this.width, depth: this.depth, height: this.height - (this._ghostGroundInset || 0),
@@ -9208,7 +9208,7 @@ proto._syncGhost = function(dt) {
 
 /**
  * Knockback speed = mass ratio (objectMass/(objectMass+playerMass)) x the object's closing speed
- * onto the player, gated to only apply when the object is moving into the player above a small
+ * onto the character, gated to only apply when the object is moving into the character above a small
  * momentum floor. Horizontal only; never moves position, only velocity.
  *
  * @method _readGhostKnockback
@@ -9234,7 +9234,7 @@ proto._readGhostKnockback = function() {
             var nz = this._ghost.position.z - other.position.z;
             var nlen = Math.sqrt(nx * nx + nz * nz);
             if (nlen > FPSC.EPS_LEN) { nx /= nlen; nz /= nlen; } else { nx = 0; nz = 0; }
-            // n points box->player. The knockback should trigger on how fast the BOX is coming at you
+            // n points box->character. The knockback should trigger on how fast the BOX is coming at you
             // (ov.n), NOT the relative closing speed (ov-pb).n. Using the relative speed folds in YOUR
             // OWN approach velocity (-pb.n > 0 when you walk into the box), so pushing a box knocked you
             // backward every tick — you push, it shoves you back, you re-approach: a limit cycle that
@@ -9252,8 +9252,8 @@ proto._readGhostKnockback = function() {
                 kbv *= this._receiveKnockbackFraction;
                 // Cap the RESULTING along-n speed, not just this tick's increment: clamping only kb
                 // bounds each tick's contribution but not the running total, so sustained contact (a
-                // heavy object pressed against the player for many ticks) adds another kb-worth of speed
-                // every tick and blows straight past receiveMaxSpeed. Clamp what the player's velocity
+                // heavy object pressed against the character for many ticks) adds another kb-worth of speed
+                // every tick and blows straight past receiveMaxSpeed. Clamp what the character's velocity
                 // ALONG n would become after this tick's push to receiveMaxSpeed instead — a fresh hit
                 // (little/no existing along-n speed) still gets up to the full kb, but once already at
                 // the cap from prior contact, further ticks add nothing more.
@@ -9400,7 +9400,7 @@ proto._findLadderAhead = function(dir) {
  * Ladder state transitions + climb velocity. A fourth movement state alongside grounded /
  * noTraction / airborne, resolved once per beginStep before that branch runs. The ladder body is
  * never excluded from collision — _collideAndSlide still runs afterward on whatever velocity this
- * writes, so ordinary contact resolution is what holds the player against the face tick over tick.
+ * writes, so ordinary contact resolution is what holds the character against the face tick over tick.
  *
  * Mount requires movement intent toward the ladder (wishdir), not mere proximity — probing along
  * the current input direction rather than scanning all directions means jumping away from a ladder
@@ -9485,7 +9485,7 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
     gb.y = velY - out;
 
     // Descent is blocked against solid ground here (rather than in endStep's ground clamp, which is
-    // skipped while mounted so it doesn't re-snap the player onto the floor near the ladder's base
+    // skipped while mounted so it doesn't re-snap the character onto the floor near the ladder's base
     // even while climbing up). Uses the same _probeGroundCandidates primitive endStep itself uses.
     if (gb.y < 0) {
         var half = this.height / 2;
@@ -9565,7 +9565,7 @@ proto.getForwardHorizontal = function(yaw) {
 
 /**
  * Horizontal right for a given yaw (defaults to current facing). Negated to match a
- * left-handed view convention so DirRight strafes to the player's visual right.
+ * left-handed view convention so DirRight strafes to the character's visual right.
  * @method getRightHorizontal
  */
 proto.getRightHorizontal = function(yaw) {
@@ -9752,7 +9752,7 @@ proto.beginStep = function(command, dt) {
 
     this._updateVertical(cmd, dt);
 
-    // A surface steeper than the standable limit gives no footing: gravity pulls the player down
+    // A surface steeper than the standable limit gives no footing: gravity pulls the character down
     // it and input only has weak air-control authority. climbSteepSlopes opts out.
     var noTraction = this.grounded && !this.climbSteepSlopes &&
         this.groundNormal.y < this._minStandableNormalY;
@@ -9914,7 +9914,7 @@ proto.endStep = function(dt) {
     var gb = this.body.linear_velocity;
 
     // While mounted, _updateLadder owns vertical motion (including its own descent-blocks-on-ground
-    // check) — the clamp below would otherwise re-snap the player onto the floor near the ladder's
+    // check) — the clamp below would otherwise re-snap the character onto the floor near the ladder's
     // base every tick even while actively climbing up, since this.grounded still reads whatever it
     // was at mount time.
     if (this._onLadder) {
@@ -9954,7 +9954,7 @@ proto.endStep = function(dt) {
     var feetGap = probe ? this.body.position.y - half - probe.point.y : Infinity;
 
     // Don't MOUNT a too-steep (unstandable) surface from below. A too-steep surface still grounds
-    // here — it's what keeps the player ON the slope for the noTraction slip mechanic in beginStep.
+    // here — it's what keeps the character ON the slope for the noTraction slip mechanic in beginStep.
     // Recomputed here since endStep's idle ground-stop must not bleed the downhill slip to zero.
     var noTraction = probe && !this.climbSteepSlopes && probe.normal.y < this._minStandableNormalY;
     if (!suppressed && probe && feetGap <= maxStick && !tooHighToStep) {
@@ -9966,7 +9966,7 @@ proto.endStep = function(dt) {
         gb.y = 0;
         if (this._cmdIdle && !this._sliding && !noTraction) {
             // Sole ground-stop authority: bleed horizontal speed toward zero at groundStopDecel.
-            // Reads/writes _ownVelocityX/Z (the player's OWN component), NOT gb.x/z directly — gb
+            // Reads/writes _ownVelocityX/Z (the character's OWN component), NOT gb.x/z directly — gb
             // may already carry a platform's base velocity baked in, and decaying THAT would fight
             // the ride. The decayed own-component is added back onto base velocity so gb ends up
             // carrying: decayed own motion + full undecayed platform motion.
@@ -10023,13 +10023,13 @@ proto.endStep = function(dt) {
 
     this.velocityY = gb.y;
 
-    // Drive the ghost every tick, INCLUDING during resim: the ghost is how the player pushes objects,
+    // Drive the ghost every tick, INCLUDING during resim: the ghost is how the character pushes objects,
     // and object pushes must be reproduced when already-run commands get rolled back and resimulated
     // (otherwise a pushed object is predicted live but snaps back every snapshot — rubber-banding). The
-    // ghost drive is deterministic given the player's state. What must NOT run during resim is the
-    // knockback READBACK from the ghost into the player (see _syncGhost / _readGhostKnockback): feeding
-    // a solver body's contact velocity back into the player mid-rollback is what injects non-determinism
-    // into the reconciled player path. That readback is gated inside _syncGhost.
+    // ghost drive is deterministic given the character's state. What must NOT run during resim is the
+    // knockback READBACK from the ghost into the character (see _syncGhost / _readGhostKnockback): feeding
+    // a solver body's contact velocity back into the character mid-rollback is what injects non-determinism
+    // into the reconciled character path. That readback is gated inside _syncGhost.
     // Opt-out (driveGhostDuringResim=false): freeze the ghost during resim (older behavior).
     if (!this._resimulating || this._driveGhostDuringResim) { this._syncGhost(dt); }
 
@@ -10186,7 +10186,7 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
 /**
  * Vertical hook. Base = grounded jump only (gravity/landing handled by the solver). A jump adds
  * platform base velocity's Y component additively, not an overwrite — jumping off a rising
- * platform flings the player higher than jumpSpeed alone would.
+ * platform flings the character higher than jumpSpeed alone would.
  * @method _updateVertical
  * @protected
  */
@@ -10196,7 +10196,7 @@ proto._updateVertical = function(cmd, dt) {
     if (canJump && wantJump) {
         // Additive, not a bare overwrite: jumping off a platform that's currently rising carries
         // its vertical base velocity into the jump (a "fling"), on top of whatever base velocity
-        // the player already had that tick.
+        // the character already had that tick.
         this.body.linear_velocity.y = this.jumpSpeed + this._baseVelocity.y;
         this.grounded = false;
         this._groundSuppress = FPSC.GROUND_SUPPRESS_JUMP;
@@ -10293,7 +10293,7 @@ proto._probeGround = function(maxSnap) {
 };
 
 /**
- * Kinematic collide-and-slide. The player is excluded from the solver, so we stop
+ * Kinematic collide-and-slide. The character is excluded from the solver, so we stop
  * ourselves at walls and slide along them here. For the current horizontal velocity
  * we cast a fan of rays (across the footprint width, at a few heights) in the move
  * direction; if a vertical wall is within the box's reach this step we remove the
@@ -10322,7 +10322,7 @@ proto._collideAndSlide = function(vx, vz, dt) {
 };
 
 /**
- * Core swept-move collide-and-slide, parameterized so any caller (player body, ghost body) can
+ * Core swept-move collide-and-slide, parameterized so any caller (character body, ghost body) can
  * apply the same wall/mass-yield rule.
  *
  * `opts`: { position, width, depth, height, skin, mass, stepHeight, selfBody, otherSelfBody,
@@ -10391,7 +10391,7 @@ proto._sweptCollideAndSlide = function(opts) {
             var nlen = Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
             if (nlen < FPSC.N_DEGENERATE) { continue; }
             if (Math.abs(n.y) >= minStandableNy) { continue; }
-            // Vertical wall: normal horizontal, points player->object; heading in is v.n > 0.
+            // Vertical wall: normal horizontal, points character->object; heading in is v.n > 0.
             // Too-steep floor-like face (0.1 < n.y < cutoff): normal tilts up-and-back, so heading
             // in is v.(n.x,n.z) < 0 — sign flipped below.
             var floorLike = n.y > FPSC.NY_FLOORLIKE;
@@ -10617,8 +10617,8 @@ proto.getState = function() {
         onLadder: this._onLadder,
         lnx: this._ladderNormal.x, lnz: this._ladderNormal.z,
         // NB: the ghost (the body that pushes objects) is deliberately NOT serialized. It's a local
-        // follow-the-player construct; setState re-derives it locally by snapping it to the
-        // authoritative player. Serializing it added bandwidth for identical results.
+        // follow-the-character construct; setState re-derives it locally by snapping it to the
+        // authoritative character. Serializing it added bandwidth for identical results.
         userData: this.userData
     };
 };
@@ -10667,7 +10667,7 @@ proto.setState = function(s) {
     if (s.onLadder !== undefined) { this._onLadder = s.onLadder; }
     if (s.lnx !== undefined) { this._ladderNormal.set(s.lnx, 0, s.lnz); }
     // Re-baseline the ghost LOCALLY (not from the snapshot — the ghost isn't serialized). Snap it onto
-    // the just-adopted authoritative player, moving at the player's velocity, so every resim starts
+    // the just-adopted authoritative character, moving at the character's velocity, so every resim starts
     // from the same consistent ghost state and re-pushes objects identically each time.
     // Opt-out (hardsnapGhostOnReconcile=false): leave the ghost drifted.
     if (this._ghost && this._hardsnapGhostOnReconcile) {
