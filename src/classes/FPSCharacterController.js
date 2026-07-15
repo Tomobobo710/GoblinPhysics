@@ -21,7 +21,7 @@
  *
  * DESIGN SEAMS:
  *   The controller never reads input directly. Gameplay samples an input command (pure data, so
- *   a host can run remote players' commands through the exact same path) and feeds it in,
+ *   any caller can run remote players' commands through the exact same path) and feeds it in,
  *   bracketing a single Goblin world step:
  *       const cmd = mySampleInput(input);       // input mapping is policy, lives outside this class
  *       controller.beginStep(cmd, dt);           // pre-physics: velocity + assists
@@ -321,7 +321,7 @@ function FPSCharacterController(world, options) {
     // Vertical eye displacement this controller applied via the ground-clamp/crouch/scale snaps
     // (not from velocity integration). Render-only; a camera consumes it to smooth those snaps.
     this._viewDisplacementY = 0;
-    // True while the netcode is resimulating un-acked commands (see beginResim/endResim).
+    // True while the caller is resimulating already-run commands (see beginResim/endResim).
     // View-displacement is suppressed during resim so re-derived state doesn't double-count.
     this._resimulating = false;
 
@@ -520,10 +520,10 @@ proto._syncGhost = function(dt) {
     }
 
     // Knockback signal = (ghost's actual velocity) - (velocity the drive commanded last tick). This
-    // runs during resim too: the SERVER applies knockback in its own live step (it never resims), so a
-    // client that skipped knockback while resimulating would reconcile its player velocity to a value
-    // that permanently disagrees with authority by the knockback amount. It only needs to be
-    // deterministic run-to-run (it is — the read is a pure function of the current contact state).
+    // runs during resim too: an authority that never resims applies knockback in its own live step, so
+    // skipping it here while resimulating would reconcile the player's velocity to a value that
+    // permanently disagrees with authority by the knockback amount. It only needs to be deterministic
+    // run-to-run (it is — the read is a pure function of the current contact state).
     this._readGhostKnockback();
 
     // Blend the ghost's velocity toward the velocity that closes the gap this tick (want = gap/dt).
@@ -879,10 +879,10 @@ proto.getLookDirection = function() {
 };
 
 /**
- * Set the LIVE, client-owned aim — call once per render frame from your mouse-look. Render-only:
- * this NEVER enters the simulation (it doesn't touch yaw/pitch, the command, movement, or netcode),
- * it just keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing
- * the between-tick "dangle" in every mode.
+ * Set the LIVE, caller-owned aim — call once per render frame from your mouse-look. Render-only:
+ * this NEVER enters the simulation (it doesn't touch yaw/pitch, the command, or movement), it just
+ * keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing the
+ * between-tick "dangle" in every mode.
  *
  * @method aim
  */
@@ -1015,10 +1015,10 @@ Object.defineProperty(proto, 'bodyId', { get: function() { return this._bodyName
 Object.defineProperty(proto, 'raycastIgnore', { get: function() { return this._ignoreSelf; } });
 
 /**
- * Netcode reconciliation hooks (opt-in, called by a netcode layer around the un-acked-command
- * RESIMULATION — rollback-and-resim, distinct from a game "replay"). During resim the controller
- * re-derives already-perceived state, so its step/crouch snaps must NOT feed a render smoother
- * (that double-counts every step until the command acks). Live ticks are unaffected.
+ * Reconciliation hooks (opt-in, called by the caller around a ROLLBACK-AND-RESIM of already-run
+ * commands — distinct from a game "replay"). During resim the controller re-derives already-
+ * perceived state, so its step/crouch snaps must NOT feed a render smoother (that double-counts
+ * every step until the resim catches back up). Live ticks are unaffected.
  * @method beginResim
  */
 proto.beginResim = function() { this._resimulating = true; };
@@ -1032,12 +1032,11 @@ proto.endResim = function() { this._resimulating = false; };
 /**
  * PRE-physics: set this tick's horizontal velocity (slope/wall projected) + assists.
  *
- * Aim/sim separation (netcode cornerstone): the movement basis comes from the COMMAND's yaw
- * (`cmd.yaw`) — a per-tick input — not from any persistent "live aim". The live aim is owned by
- * the client (camera reads it, never the sim), so replaying commands during reconciliation can't
- * drag the view backward. We record the commanded yaw/pitch as this entity's facing (for
- * getState/avatars) only when the command carries them; single-player passes no yaw and keeps
- * driving facing via look().
+ * Aim/sim separation: the movement basis comes from the COMMAND's yaw (`cmd.yaw`) — a per-tick
+ * input — not from any persistent "live aim". The live aim belongs to the caller (a camera reads
+ * it, never the sim), so replaying commands during reconciliation can't drag the view backward.
+ * We record the commanded yaw/pitch as this entity's facing (for getState/avatars) only when the
+ * command carries them; a caller that never sets yaw keeps driving facing via look() instead.
  *
  * Also applies platform base velocity into the horizontal move (see the constructor's
  * _baseVelocity comment) immediately before collide-and-slide, so a rider is carried through real
@@ -1373,7 +1372,7 @@ proto.endStep = function(dt) {
     this.velocityY = gb.y;
 
     // Drive the ghost every tick, INCLUDING during resim: the ghost is how the player pushes objects,
-    // and object pushes must be reproduced when the netcode rolls back and resimulates un-acked commands
+    // and object pushes must be reproduced when already-run commands get rolled back and resimulated
     // (otherwise a pushed object is predicted live but snaps back every snapshot — rubber-banding). The
     // ghost drive is deterministic given the player's state. What must NOT run during resim is the
     // knockback READBACK from the ghost into the player (see _syncGhost / _readGhostKnockback): feeding
@@ -1932,9 +1931,9 @@ proto._headroomGate = function(vx, vz, dt) {
     return { x: vx, z: vz };
 };
 
-// ---- Entity interface (host-authoritative snapshots / reconciliation) ----
+// ---- Entity interface (authoritative snapshots / reconciliation) ----
 // beginStep/endStep are above; getState/setState complete the duck-typed entity contract
-// {beginStep, endStep, getState, setState} a netcode framework can drive.
+// {beginStep, endStep, getState, setState} an external framework can drive.
 
 /**
  * Snapshot this controller's authoritative state for the network.
@@ -1973,13 +1972,13 @@ proto.getState = function() {
 };
 
 /**
- * Apply an authoritative state (from a host snapshot). Sets position, velocity and grounded;
- * does not touch yaw/pitch. Used for client-side reconciliation before replaying un-acked inputs.
+ * Apply an authoritative state (from a snapshot). Sets position, velocity and grounded; does not
+ * touch yaw/pitch. Used for reconciliation before replaying already-run commands.
  * @method setState
  */
 proto.setState = function(s) {
     // Rebuild the collider at the authoritative center/height before adopting position, so the
-    // geometry matches the server's before replay (a height mismatch would re-plant crouch from
+    // geometry matches the snapshot's before replay (a height mismatch would re-plant crouch from
     // the wrong baseline every snapshot).
     if (s.h !== undefined && Math.abs(s.h - this.height) > FPSC.EPS_SPEED_MARGIN) {
         this.crouching = s.h < this.standHeight - FPSC.EPS_SPEED_MARGIN;
@@ -2009,13 +2008,13 @@ proto.setState = function(s) {
     if (s.ct !== undefined) { this._coyoteTimer = s.ct; }
     if (s.jb !== undefined) { this._jumpBufferTimer = s.jb; }
     if (s.gnx !== undefined) { this.groundNormal.set(s.gnx, s.gny, s.gnz); }
-    // Adopt the authoritative steep-slope allowance. This is the ONLY place the live flag is written in
-    // MP — the client key sets command INTENT, the host grants/refuses it, and the truth comes back
-    // here. Read live each tick by the mover/grounding, so no rebuild is needed.
+    // Adopt the authoritative steep-slope allowance. This is the ONLY place the live flag is written
+    // from outside — a command only sets INTENT, an authority grants/refuses it, and the truth comes
+    // back here. Read live each tick by the mover/grounding, so no rebuild is needed.
     if (s.climb !== undefined) { this.climbSteepSlopes = s.climb; }
     if (s.onLadder !== undefined) { this._onLadder = s.onLadder; }
     if (s.lnx !== undefined) { this._ladderNormal.set(s.lnx, 0, s.lnz); }
-    // Re-baseline the ghost LOCALLY (not from the snapshot — the ghost isn't networked). Snap it onto
+    // Re-baseline the ghost LOCALLY (not from the snapshot — the ghost isn't serialized). Snap it onto
     // the just-adopted authoritative player, moving at the player's velocity, so every resim starts
     // from the same consistent ghost state and re-pushes objects identically each time.
     // Opt-out (hardsnapGhostOnReconcile=false): leave the ghost drifted.
