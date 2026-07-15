@@ -8863,6 +8863,10 @@ function FPSCharacterController(world, options) {
     this._ghostMaxDampSpeedOverride = o.ghostMaxDampSpeed;
     this._ghostMaxSpeedMult = gh.maxSpeedSprintMult;
     this._ghostMaxDampSpeedMult = gh.maxDampSpeedSprintMult;
+    // Ghost body's physics material (not the chase-behavior tuning above) — read once here so
+    // _buildGhost (called on every rebuild: crouch, setScale, respawn) doesn't need its own access
+    // to Goblin.FPS_CONTROLLER_DEFAULTS.
+    this._ghostMaterial = o.ghostMaterial || gh.material;
     this._ghostDamping = o.ghostDamping !== undefined ? o.ghostDamping : gh.damping;
     this._ghostStiffness = o.ghostStiffness !== undefined ? o.ghostStiffness : gh.stiffness;
     this._driveGhostDuringResim = o.driveGhostDuringResim !== undefined ? o.driveGhostDuringResim !== false : net.driveGhostDuringResim;
@@ -9098,7 +9102,10 @@ proto._buildGhost = function(position, carriedVel) {
     var ghostShape = new Goblin.BoxShape(this.width / 2, ghostHeight / 2, this.depth / 2);
     this._ghost = new Goblin.RigidBody(ghostShape, this.mass);
     applyMaterial(this._ghost, {
-        friction: 0, restitution: 0, linearDamping: 0, angularDamping: 0.9,
+        friction: this._ghostMaterial.friction,
+        restitution: this._ghostMaterial.restitution,
+        linearDamping: this._ghostMaterial.linearDamping,
+        angularDamping: this._ghostMaterial.angularDamping,
         gravity: new Goblin.Vector3(0, 0, 0)
     });
     this._ghost.position.copy(ghostPos);
@@ -10742,6 +10749,15 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         damping: 1.0,          // fraction of the ghost's velocity opposed each tick (0..1)
         stiffness: 0.9,        // 0..1 blend toward the gap-closing velocity each tick
         pushMassBaseMult: 35,  // objects heavier than mass * this block like a wall; lighter yield proportionally
+        // Physics material of the ghost body itself (not the chase behavior above). Zero friction/
+        // restitution/linearDamping so the chase-drive velocity is never fought by the solver; high
+        // angularDamping keeps contact torque from spinning it up while it shoves objects.
+        material: {
+            friction: 0,
+            restitution: 0,
+            linearDamping: 0,
+            angularDamping: 0.9,
+        },
     },
 
     // ---- Knockback: how the player RECEIVES a push from an object (see _readGhostKnockback) ----
