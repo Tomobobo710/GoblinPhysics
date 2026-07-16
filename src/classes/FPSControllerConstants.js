@@ -62,6 +62,7 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         slopeAccel: 1.5,       // downhill acceleration factor while sliding
         slopeMin: 0.2,         // sin(angle) at/above which the slide is gravity-governed (Infinity disables)
         slopeFriction: 1.5,    // cross-slope friction while gravity-sliding
+        reversalBrakeMult: 4,  // multiplier on slopeFriction for how hard a deliberate reversal brakes
         coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
     },
 

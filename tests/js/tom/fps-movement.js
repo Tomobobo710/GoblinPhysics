@@ -410,6 +410,119 @@
 		});
 		t.simulate(w, 150);
 	}, { page: P, steps: 150, description: 'Sprint at a low box and jump onto it; land and rest on top while the box stays put.' });
+
+	// ---- M13: flat-ground slide reversal is straight, not a U-turn (and no longer exits) ----
+	PBF.scaleTest(G, 'M13', 'flat-ground slide reversal is straight, not a U-turn', function (t, S) {
+		var w = S.flat();
+		var p = S.feetSpawn(w, 0, 0, {});
+		PBF.renderables(t, p);
+		var enteredSlide = false, reversed = false, worstLateral = 0, everLeftSlideDuringHold = false;
+		PBF.drive(t, p, function (tick) {
+			if (tick <= 15) return { forward: 1, sprint: true, yaw: 0 };
+			if (tick <= 25) return { forward: 1, sprint: true, crouch: true, yaw: 0 };
+			// From tick 26: hold straight backward (same yaw) through the whole reversal. Started
+			// moving toward +Z; reversal means net -Z, with X (lateral) staying tight throughout.
+			if (p._sliding) { enteredSlide = true; }
+			if (enteredSlide) {
+				if (!p._sliding) { everLeftSlideDuringHold = true; }
+				var v = p.body.linear_velocity;
+				worstLateral = Math.max(worstLateral, Math.abs(v.x));
+				if (v.z < 0) { reversed = true; }
+			}
+			return { forward: -1, crouch: true, yaw: 0 };
+		});
+		t.log('Sprint into a flat-ground slide, then hold straight backward (same yaw) through the whole reversal. Expect: still sliding throughout (no longer exits on backward), velocity reverses along Z, and X (lateral) never drifts far — a straight brake-and-reverse, not an arcing U-turn.');
+		t.expect('entered a slide before the reversal hold began', function () {
+			return { ok: enteredSlide, detail: 'enteredSlide=' + enteredSlide };
+		});
+		t.expect('never exits the slide while holding a straight reversal', function () {
+			return { ok: !everLeftSlideDuringHold, detail: 'everLeftSlideDuringHold=' + everLeftSlideDuringHold };
+		});
+		t.expect('velocity actually reverses by the end', function () {
+			return { ok: reversed, detail: 'reversed=' + reversed };
+		});
+		t.expect('lateral drift stays tight through the reversal (< ' + S.sc(1.0).toFixed(2) + ' u/s)', function () {
+			return { ok: worstLateral < S.sc(1.0), detail: 'worstLateral=' + worstLateral.toFixed(3) + ' expect<' + S.sc(1.0).toFixed(2) };
+		});
+		t.simulate(w, 120);
+	}, { page: P, steps: 120, description: 'Sprint into a flat-ground slide, then hold straight backward through the reversal — must brake-and-reverse in a straight line (tight lateral drift), staying in the slide the whole time, not U-turn or exit early.' });
+
+	// ---- M14: airborne slide continuation — sliding off an edge stays sliding through the fall ----
+	PBF.scaleTest(G, 'M14', 'airborne slide continuation off a ledge', function (t, S) {
+		// A bare world (NOT S.flat(), which comes with its own y=0 floor spanning +-60 that would
+		// silently occlude the drop below) — the platform IS the only floor near spawn, so the edge
+		// is a genuine fall, not a step-down the ground clamp absorbs.
+		var w = PBF.makeWorld();
+		var edgeZ = S.sc(10), dropH = S.sc(3), platformTop = 0, platformHalfH = S.sc(0.5);
+		var platform = PBF.staticBox(S.sc(20), platformHalfH, edgeZ / 2 + S.sc(0.01), { x: 0, y: platformTop - platformHalfH, z: edgeZ / 2 }, '#665544');
+		w.addRigidBody(platform);
+		var lowGround = PBF.staticBox(S.sc(20), platformHalfH, S.sc(30), { x: 0, y: platformTop - dropH - platformHalfH, z: edgeZ + S.sc(15) }, '#444444');
+		w.addRigidBody(lowGround);
+		var p = S.spawn(w, { x: 0, y: platformTop + 0.9 * S.SC + 0.001, z: 0 }, {});
+		PBF.renderables(t, p);
+		var enteredSlide = false, wentAirborne = false, slidWhileAirborne = false, droppedSlideMidair = false,
+			landed = false, slidingAfterLanding = false;
+		PBF.drive(t, p, function (tick) {
+			if (tick <= 15) return { forward: 1, sprint: true, yaw: 0 };
+			if (tick <= 25) return { forward: 1, sprint: true, crouch: true, yaw: 0 };
+			if (p._sliding) { enteredSlide = true; }
+			if (enteredSlide && !p.grounded) {
+				wentAirborne = true;
+				if (p._sliding) { slidWhileAirborne = true; } else { droppedSlideMidair = true; }
+			}
+			if (wentAirborne && p.grounded && !landed) {
+				landed = true;
+				slidingAfterLanding = p._sliding;
+			}
+			return { forward: 1, crouch: true, yaw: 0 };
+		});
+		t.log('Sprint into a slide, then off a ledge. Expect: still sliding through the airborne phase (not dropped to ordinary air-control), and still sliding immediately on landing (fast enough on flat ground to sustain it).');
+		t.expect('entered a slide before reaching the ledge', function () {
+			return { ok: enteredSlide, detail: 'enteredSlide=' + enteredSlide };
+		});
+		t.expect('actually went airborne off the ledge', function () {
+			return { ok: wentAirborne, detail: 'wentAirborne=' + wentAirborne };
+		});
+		t.expect('stayed sliding through the airborne phase (never dropped to ordinary air-control)', function () {
+			return { ok: slidWhileAirborne && !droppedSlideMidair,
+				detail: 'slidWhileAirborne=' + slidWhileAirborne + ' droppedSlideMidair=' + droppedSlideMidair };
+		});
+		t.expect('landed', function () {
+			return { ok: landed, detail: 'landed=' + landed };
+		});
+		t.expect('still sliding immediately on landing', function () {
+			return { ok: slidingAfterLanding, detail: 'slidingAfterLanding=' + slidingAfterLanding };
+		});
+		t.simulate(w, 220);
+	}, { page: P, steps: 220, description: 'Sprint into a slide, off a ledge, and confirm the slide persists through the airborne phase and continues immediately on landing (fast enough on flat ground below).' });
+
+	// ---- M15: slideBoost actually boosts speed once, on the slide-entry edge ----
+	PBF.scaleTest(G, 'M15', 'slideBoost launches speed at slide entry', function (t, S) {
+		var boost = 1.3;
+		var w = S.flat();
+		var p = S.feetSpawn(w, 0, 0, { slideBoost: boost });
+		PBF.renderables(t, p);
+		var preEntrySpeed = -1, entrySpeed = -1, oneTickLaterSpeed = -1, wasSliding = false;
+		PBF.drive(t, p, function (tick) {
+			if (!p._sliding) { preEntrySpeed = PBF.hsp(p); }
+			var cmd = (tick <= 15) ? { forward: 1, sprint: true } : { forward: 1, sprint: true, crouch: true };
+			if (!wasSliding && p._sliding) { entrySpeed = PBF.hsp(p); }
+			if (entrySpeed >= 0 && oneTickLaterSpeed < 0 && wasSliding) { oneTickLaterSpeed = PBF.hsp(p); }
+			wasSliding = p._sliding;
+			return cmd;
+		});
+		t.log('Sprint then crouch into a slide (slideBoost=' + boost + '). Expect: speed right at the slide-entry tick is measurably boosted above pre-entry speed (roughly x' + boost + ', modulo the same tick\'s own friction/slope decay) — not applied again on later ticks.');
+		t.expect('entry speed is boosted above pre-entry speed', function () {
+			return { ok: entrySpeed > preEntrySpeed * 1.05,
+				detail: 'preEntrySpeed=' + preEntrySpeed.toFixed(2) + ' entrySpeed=' + entrySpeed.toFixed(2) + ' expect entry > preEntry*1.05' };
+		});
+		t.expect('boost is close to the configured multiplier (within 15%, allowing for same-tick decay)', function () {
+			var ratio = entrySpeed / preEntrySpeed;
+			return { ok: ratio > boost * 0.85 && ratio <= boost * 1.02,
+				detail: 'ratio=' + ratio.toFixed(3) + ' expect~' + boost };
+		});
+		t.simulate(w, 40);
+	}, { page: P, steps: 40, description: 'Sprint then crouch into a slide with slideBoost configured; the entry tick\'s speed should be boosted roughly by that multiplier over the pre-entry speed, applied once.' });
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

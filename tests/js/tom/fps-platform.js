@@ -204,6 +204,50 @@
 		});
 		t.simulate(w, 340);
 	}, { page: P, steps: 340, description: 'Riding an elevator from the bottom with no jitter, jumping near the top of the ascent flings the player measurably higher than a normal jump, then they fall back and land.' });
+
+	// ---- PL4: sliding onto a moving platform doesn't read the ride as the character's own boost ----
+	PBF.scaleTest(G, 'PL4', 'sliding on a moving platform decays own speed, not a boost pad', function (t, S) {
+		var w = S.flat();
+		// A big platform the character SPAWNS already standing on (like PL1/PL3, not a timed
+		// approach like PL2 — avoids tuning two independently-moving bodies to cross paths), moving
+		// along X while the character slides along Z — own and base velocity point along different
+		// axes, so the boost-pad symptom (own speed growing instead of decaying) can't be masked by
+		// summed magnitude.
+		var mover = S.splatform(w, 8, 0.3, { x: -6, y: 0, z: 0 }, { x: 6, y: 0, z: 0 }, 4, '#4a7ab0', { startFrac: 0.5 });
+		var platY = mover.position.y + (0.3 * S.SC) / 2;
+		var p = S.spawn(w, { x: 0, y: platY + 0.9 * S.SC + 0.001, z: 0 }, {});
+		PBF.renderables(t, p, [mover]);
+
+		var onPlatform = function () {
+			var cands = p._probeGroundCandidates(p.stepDownDist);
+			for (var i = 0; i < cands.length; i++) if (cands[i].object && cands[i].object.isPlatform) return true;
+			return false;
+		};
+
+		var boardedAt = -1, ownSpeedAtBoard = -1, ownSpeedLate = -1, everGrewAfterBoard = false;
+		PBF.drive(t, p, function (tick) {
+			var standing = p.grounded && onPlatform();
+			if (standing && boardedAt < 0) { boardedAt = tick; }
+			if (boardedAt > 0) {
+				var own = Math.hypot(p._ownVelocityX, p._ownVelocityZ);
+				if (ownSpeedAtBoard < 0) ownSpeedAtBoard = own;
+				if (tick > boardedAt + 5 && own > ownSpeedAtBoard + S.sc(0.5)) everGrewAfterBoard = true;
+				ownSpeedLate = own;
+			}
+			if (tick <= 15) return { forward: 1, sprint: true, yaw: 0 };
+			return { forward: 1, sprint: true, crouch: true, yaw: 0 };
+		}, [mover]);
+
+		t.log('Spawn on a moving platform, sprint into a slide across it (perpendicular to the platform\'s own travel). Expect: the character\'s OWN speed (separate from the platform\'s ride) decays normally like any other slide, never reading the platform\'s speed as its own and growing instead of decaying — the "boost pad" feel this test guards against.');
+		t.expect('boarded/standing on the platform', function () {
+			return { ok: boardedAt > 0, detail: 'boardedAt=' + boardedAt };
+		});
+		t.expect('own speed never grows after boarding (no boost-pad compounding)', function () {
+			return { ok: !everGrewAfterBoard, detail: 'everGrewAfterBoard=' + everGrewAfterBoard +
+				' atBoard=' + ownSpeedAtBoard.toFixed(2) + ' late=' + ownSpeedLate.toFixed(2) };
+		});
+		t.simulate(w, 120);
+	}, { page: P, steps: 120, description: 'Spawn on a moving platform, sprint into a slide across it — the character\'s own momentum (separate from the ride) must decay normally, not compound with the platform\'s speed like a boost pad.' });
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

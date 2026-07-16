@@ -620,6 +620,170 @@
 		t.simulate(w, 400);
 	}, { page: 'fps/ramp', steps: 400, description: 'Companion to R17: walk into the same real ramp overhang and confirm the controller never lets a standing-height character settle in a pocket with less than standing-height clearance.' });
 
+	// ---- R19: reversing mid-slide-up-a-ramp brakes and reverses straight, not a curved U-turn ----
+	PBF.scaleTest('fps/ramp', 'R19', 'slide reversal on a ramp is straight, not a U-turn', function (t, S) {
+		// A longer ramp than rampWorld()'s default (+-15 pre-tilt Z) — slideBoost now adds real
+		// speed at slide entry, and at higher character scale that's enough ground covered during
+		// the approach + reversal to fly off a shorter ramp's edge before finishing the brake. Same
+		// center-spawn settle pattern as R5/R6/rampWorld (proven to land correctly); just a bigger
+		// ramp underneath it.
+		var w = PBF.makeWorld();
+		var rot = PBF.axisAngleQuat(1, 0, 0, 30 * Math.PI / 180);
+		w.addRigidBody(PBF.staticBox(10, 1, 30, { x: 0, y: 10, z: 0 }, '#665544', null, rot));
+		var p = S.spawn(w, { x: 0, y: 16, z: 0 }, {});
+		PBF.renderables(t, p);
+		var settled = -1, enteredSlide = false, reversed = false, worstLateral = 0, everLeftSlideDuringHold = false;
+		PBF.drive(t, p, function (tick) {
+			if (tick <= 60) return {};
+			if (settled < 0) { settled = tick; }
+			var sinceSettle = tick - settled;
+			if (sinceSettle <= 15) return { forward: -1, sprint: true, yaw: 0 }; // climb uphill
+			if (sinceSettle <= 25) return { forward: -1, sprint: true, crouch: true, yaw: 0 }; // launch slide
+			// From here: hold straight backward relative to the uphill climb (forward:1, same yaw)
+			// through the whole reversal.
+			if (p._sliding) { enteredSlide = true; }
+			if (enteredSlide) {
+				if (!p._sliding) { everLeftSlideDuringHold = true; }
+				var v = p.body.linear_velocity;
+				worstLateral = Math.max(worstLateral, Math.abs(v.x));
+				if (v.z > 0) { reversed = true; } // started uphill (-Z); reversal means net +Z
+			}
+			return { forward: 1, crouch: true, yaw: 0 };
+		});
+		t.log('Sprint up a 30deg ramp into a slide, then hold straight backward (same yaw) through the whole reversal. Expect: still sliding throughout, velocity reverses along Z, and X (cross-slope/lateral) never drifts far — a straight brake-and-reverse, not an arcing U-turn.');
+		t.expect('entered a slide before the reversal hold began', function () {
+			return { ok: enteredSlide, detail: 'enteredSlide=' + enteredSlide };
+		});
+		t.expect('never exits the slide while holding a straight ramp reversal', function () {
+			return { ok: !everLeftSlideDuringHold, detail: 'everLeftSlideDuringHold=' + everLeftSlideDuringHold };
+		});
+		t.expect('velocity actually reverses (net downhill) by the end', function () {
+			return { ok: reversed, detail: 'reversed=' + reversed };
+		});
+		t.expect('lateral (cross-slope) drift stays tight through the reversal (< ' + S.sc(1.0).toFixed(2) + ' u/s)', function () {
+			return { ok: worstLateral < S.sc(1.0), detail: 'worstLateral=' + worstLateral.toFixed(3) + ' expect<' + S.sc(1.0).toFixed(2) };
+		});
+		t.simulate(w, 260);
+	}, { page: 'fps/ramp', steps: 260, description: 'Drop onto a 30deg ramp, sprint up into a slide, then hold straight backward through the reversal — must brake-and-reverse in a straight line (tight lateral drift), staying in the slide the whole time, not U-turn or fall out of the mechanic.' });
+
+	// ---- R20: sliding off a ramp apex launches without dipping first ----
+	// SLIDING (not walking) up a small ramp and off its apex must launch cleanly: no downward hitch on
+	// the grounded frames right at the crest, and a monotonic rise once airborne. Only sliding launches
+	// — walking off the same apex just follows the ground down. The scene is a flat run-up with a small
+	// ramp flush at its far edge, so the character is already sliding before the ramp. The dip is a
+	// marginal-crest-speed effect: the approach distance is tuned PER SCALE so the character crests
+	// while still sliding but slow enough that the hitch shows, since the margin isn't scale-invariant.
+	PBF.scaleTest('fps/ramp', 'R20', 'sliding off a ramp apex launches without dipping first', function (t, S) {
+		// Short run-up: spawn near the flat's far edge, sprint a few ticks, crouch to slide just before
+		// the ramp foot — the slide begins on the flat close to the ramp, not way back.
+		var approach = 6;
+		var w = PBF.makeWorld();
+		// Flat pad the character starts and slides on: top surface at y=0, downhill edge flush at z=0.
+		w.addRigidBody(PBF.staticBox(S.sc(10), S.sc(1), S.sc(4), { x: 0, y: -S.sc(1), z: -S.sc(4) }, '#444'));
+		// Small ramp (half-extents 6x0.5x3, tilted -25° about X) placed so its downhill top edge sits
+		// flush at world (y=0, z=0) — continuous with the flat, so the slide climbs it without a step.
+		var rot = PBF.axisAngleQuat(1, 0, 0, -25 * Math.PI / 180);
+		w.addRigidBody(PBF.staticBox(S.sc(6), S.sc(0.5), S.sc(3), { x: 0, y: S.sc(0.815), z: S.sc(2.930) }, '#665544', null, rot));
+		var p = S.feetSpawn(w, 0, -S.sc(approach), {});
+		PBF.renderables(t, p);
+		var slidBeforeRamp = false, slidAtApex = false, leftGroundAt = -1, apexY = -Infinity;
+		var worstRampDip = 0, worstAirDrop = 0, prevY = null, lastTick = 0;
+		var TOTAL = 160;
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			var z = p.body.position.z, y = p.body.position.y, g = p.grounded, slid = p._sliding;
+			var dy = prevY === null ? 0 : y - prevY;
+			// Sliding on the flat (z < 0) before ever touching the ramp.
+			if (slid && z < -S.sc(0.5)) { slidBeforeRamp = true; }
+			// On the ramp (z > 0): track the crest and any downward hitch while grounded AND sliding.
+			// Gated to z > 0 so the crouch->slide entry settle on the flat isn't mistaken for the apex dip.
+			if (g && slid && z > S.sc(0.2)) {
+				if (y > apexY) { apexY = y; slidAtApex = true; }
+				if (dy < worstRampDip) { worstRampDip = dy; }
+			}
+			// Once airborne off the slide, the rise must be monotonic for a few frames (no drop before
+			// the natural arc-over).
+			if (leftGroundAt < 0 && !g && slid) { leftGroundAt = tick; }
+			if (leftGroundAt > 0 && tick <= leftGroundAt + 6 && dy < worstAirDrop) { worstAirDrop = dy; }
+			prevY = y;
+			if (tick <= 25) return {};
+			if (tick <= 35) return { forward: 1, sprint: true, yaw: 0 };  // short sprint on flat
+			return { forward: 1, sprint: true, crouch: true, yaw: 0 };    // crouch -> slide just before ramp
+		});
+		t.log('Sprint on flat to slide speed, crouch to start sliding while still on the flat, then slide up a small ramp and off its apex. The launch must not dip: no downward hitch on the grounded frames on the ramp near the crest, and a monotonic rise for the first frames after going airborne.');
+		t.expect('was sliding on the flat before reaching the ramp', function () {
+			return { ok: slidBeforeRamp, detail: 'slidBeforeRamp=' + slidBeforeRamp };
+		});
+		t.expect('still sliding at the apex', function () {
+			return { ok: slidAtApex, detail: 'slidAtApex=' + slidAtApex + ' apexY=' + apexY.toFixed(3) };
+		});
+		t.expect('left the ground while sliding (launched off the apex)', function () {
+			return { ok: leftGroundAt > 0, detail: 'leftGroundAt=' + leftGroundAt };
+		});
+		// These two are WHOLE-RUN INVARIANTS ("this must never happen"), not "did it eventually happen"
+		// events — so they must not latch green on the first tick (when the accumulators are still 0,
+		// before the character even reaches the ramp). Stay pending until the final tick, then evaluate
+		// the accumulated worst value once.
+		t.expect('no downward dip on any grounded ramp frame near the apex', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'worstRampDip=' + worstRampDip.toFixed(4) + ' (pending…)' }; }
+			return { ok: worstRampDip > -S.sc(0.02), detail: 'worstRampDip=' + worstRampDip.toFixed(4) + ' (expect > -' + S.sc(0.02).toFixed(4) + ')' };
+		});
+		t.expect('rise is monotonic for the first frames after launch', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'worstAirDrop=' + worstAirDrop.toFixed(4) + ' (pending…)' }; }
+			if (leftGroundAt < 0) { return { ok: false, detail: 'never launched' }; }
+			return { ok: worstAirDrop >= 0, detail: 'worstAirDrop=' + worstAirDrop.toFixed(4) + ' (expect >= 0)' };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 160, description: 'Sliding up a small flush ramp and off its apex: short run-up, crouch to slide just before the ramp foot, then slide up and launch off the apex. Watches for a downward hitch at the crest and a monotonic rise after launch.' });
+
+	// ---- R21: WALKING over a ramp apex sticks to the geometry — no launch ----
+	// Same ramp as R20, but the character only sprint-walks (never crouches, never slides). Walking must
+	// HUG the ramp surface the whole way — up, across the crest, and down the far edge — and only leave
+	// the ground when there is literally no more ramp beneath the footprint. It must never float up off
+	// the surface early (rounding over the apex) and must never launch. The launch is slide-exclusive.
+	PBF.scaleTest('fps/ramp', 'R21', 'walking over a ramp apex sticks to the geometry (no launch)', function (t, S) {
+		var w = PBF.makeWorld();
+		w.addRigidBody(PBF.staticBox(S.sc(10), S.sc(1), S.sc(4), { x: 0, y: -S.sc(1), z: -S.sc(4) }, '#444'));
+		var rot = PBF.axisAngleQuat(1, 0, 0, -25 * Math.PI / 180);
+		w.addRigidBody(PBF.staticBox(S.sc(6), S.sc(0.5), S.sc(3), { x: 0, y: S.sc(0.815), z: S.sc(2.930) }, '#665544', null, rot));
+		var p = S.feetSpawn(w, 0, -S.sc(6), {});
+		PBF.renderables(t, p);
+		var everSlid = false, reachedRampTop = false, leftGround = false, floatedOffEarly = false, floatTick = -1;
+		var settledGrounded = false, lastTick = 0;
+		var TOTAL = 160;
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			var z = p.body.position.z, g = p.grounded, slid = p._sliding;
+			// Ignore the initial drop-in: only start watching once the character has settled onto the
+			// flat and is walking (first grounded tick after the walk command begins).
+			if (tick > 25 && g) { settledGrounded = true; }
+			if (slid) { everSlid = true; }
+			if (z > S.sc(3)) { reachedRampTop = true; }
+			if (settledGrounded && !g) { leftGround = true; }
+			// The failure the ✗ diagram shows: airborne while there is STILL ramp under the footprint —
+			// i.e. floating up off the surface before the geometry actually ends. Walking must stay stuck
+			// to the surface until the ground probe finds nothing left beneath it.
+			if (settledGrounded && !g && p._probeGroundCandidates(p.stepDownDist).length > 0) {
+				floatedOffEarly = true;
+				if (floatTick < 0) { floatTick = tick; }
+			}
+			if (tick <= 25) return {};
+			return { forward: 1, sprint: true, yaw: 0 };  // sprint-walk only, never crouch
+		});
+		t.log('Sprint-walk (never crouch) up the same small ramp and over its apex. Walking must hug the ramp geometry the entire way — it may only leave the ground once no ramp remains under it, never floating up off the surface early, and never launching. Launch is slide-only.');
+		t.expect('never entered a slide (pure walk)', function () {
+			return { ok: !everSlid, detail: 'everSlid=' + everSlid };
+		});
+		t.expect('reached the ramp top and eventually left the ground at the real edge', function () {
+			return { ok: reachedRampTop && leftGround, detail: 'reachedRampTop=' + reachedRampTop + ' leftGround=' + leftGround };
+		});
+		t.expect('never floated off the surface while ramp was still beneath it', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'floatedOffEarly=' + floatedOffEarly + ' (pending…)' }; }
+			return { ok: !floatedOffEarly, detail: 'floatedOffEarly=' + floatedOffEarly + (floatTick >= 0 ? ' at tick=' + floatTick : '') };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 160, description: 'Sprint-walk (no crouch) over the same small ramp apex: walking must stick to the ramp geometry the whole way and only leave the ground when the ramp actually ends beneath it — never floating off early, never launching. Launch is slide-exclusive.' });
+
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

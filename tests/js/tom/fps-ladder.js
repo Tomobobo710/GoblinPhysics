@@ -185,6 +185,41 @@
 		});
 		t.simulate(w, 90);
 	}, { page: P, steps: 90, description: 'Pressing jump while on a ladder dismounts with a horizontal-only shove and no phantom jump on landing.' });
+
+	// ---- L7: sliding into a ladder stops the slide ----
+	PBF.scaleTest(G, 'L7', 'sliding into a ladder stops the slide', function (t, S) {
+		var w = S.flat();
+		S.pillarLadder(w);
+		// Further back than L1/L2's approach spawn, so there's room to sprint up to slide speed
+		// before crouching, then still cover ground into the ladder while sliding.
+		var p = S.spawn(w, { x: 0, y: 0.9 * S.SC + 0.001, z: S.sc(-14) }, {});
+		PBF.renderables(t, p);
+		var enteredSlide = false, mountedAt = -1, slidingAtMount = null, slidingAfterMount = false;
+		PBF.drive(t, p, function (tick) {
+			if (p._sliding) { enteredSlide = true; }
+			if (p._onLadder && mountedAt < 0) {
+				mountedAt = tick;
+				slidingAtMount = p._sliding;
+			}
+			if (mountedAt > 0 && p._onLadder && p._sliding) { slidingAfterMount = true; }
+			if (tick <= 15) return { forward: 1, sprint: true };
+			return { forward: 1, sprint: true, crouch: true };
+		});
+		t.log('Sprint into a slide, then straight into a ladder. Expect: the slide is entered before reaching the ladder, and mounting clears it immediately — no lingering slide state while climbing.');
+		t.expect('entered a slide before reaching the ladder', function () {
+			return { ok: enteredSlide, detail: 'enteredSlide=' + enteredSlide };
+		});
+		t.expect('mounted the ladder', function () {
+			return { ok: mountedAt > 0, detail: 'mountedAt=' + mountedAt };
+		});
+		t.expect('not sliding on the mount tick', function () {
+			return { ok: slidingAtMount === false, detail: 'slidingAtMount=' + slidingAtMount };
+		});
+		t.expect('never reads as sliding while on the ladder', function () {
+			return { ok: !slidingAfterMount, detail: 'slidingAfterMount=' + slidingAfterMount };
+		});
+		t.simulate(w, 120);
+	}, { page: P, steps: 120, description: 'Sprint into a slide, then into a ladder — mounting must clear the slide flag immediately, not carry it in stale while climbing.' });
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

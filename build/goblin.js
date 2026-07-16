@@ -8724,6 +8724,9 @@ Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a,
  * @param {Number} [options.slideSlopeAccel] - Gravity-along-slope multiplier while sliding.
  * @param {Number} [options.slideSlopeMin] - Min slope (sin of angle) that sustains a slide via gravity.
  * @param {Number} [options.slideSlopeFriction] - Cross-slope bleed per second on a sustaining slope.
+ * @param {Number} [options.slideReversalBrakeMult] - Multiplier on slideSlopeFriction for how hard a
+ *   deliberate on-slope reversal (wish opposing current slide direction) brakes before the carve
+ *   steering picks the new heading back up.
  * @param {Number} [options.slideCoyoteFrames] - Frames after dropping below slide speed a crouch still slides.
  * @param {Boolean} [options.receivePush=true] - Enable object-to-character knockback via the ghost body.
  * @param {Number} [options.receiveMaxSpeed] - Cap on how fast a single object hit can knock the character.
@@ -8764,6 +8767,10 @@ var FPSC = {
     TOE_BAND_FRAC: 0.6,       // a too-steep floor-like contact only blocks as a slope-toe within this
                               // fraction of body height above the feet; higher is an overhang (headroom
                               // gate's job), not a wall to clip horizontal velocity against
+
+    // Slide reversal (see _updateSlide's onSlope steering). Below this dot product between wish and
+    // current slide direction, wish counts as a deliberate reversal (brake) rather than a carve.
+    SLIDE_REVERSAL_DOT: -0.5,
 
     // Knockback gating (see _readGhostKnockback).
     KB_CLOSING_MIN: 0.5,      // object must close on the character faster than this (units/s) to knock back
@@ -8904,6 +8911,10 @@ function FPSCharacterController(world, options) {
     this.slideSlopeAccel = o.slideSlopeAccel !== undefined ? o.slideSlopeAccel : sld.slopeAccel;
     this.slideSlopeMin = o.slideSlopeMin !== undefined ? o.slideSlopeMin : sld.slopeMin;
     this._baseSlideSlopeFriction = o.slideSlopeFriction !== undefined ? o.slideSlopeFriction : sld.slopeFriction;
+    // Reversal brake rate, as a multiplier on slideSlopeFriction — how hard a deliberate reversal
+    // (wish opposing current slide direction, see FPSC.SLIDE_REVERSAL_DOT) bleeds speed before the
+    // ordinary carve blend picks the new heading back up.
+    this.slideReversalBrakeMult = o.slideReversalBrakeMult !== undefined ? o.slideReversalBrakeMult : sld.reversalBrakeMult;
     this.slideCoyoteFrames = o.slideCoyoteFrames !== undefined ? o.slideCoyoteFrames : sld.coyoteFrames;
     this._slideCoyoteTimer = 0;
     this._slideCoyoteVX = 0;
@@ -8937,6 +8948,7 @@ function FPSCharacterController(world, options) {
     var g = world.gravity || { y: -9.81 };
     this._gravityVec = new Goblin.Vector3(0, g.y, 0);
     this._groundSuppress = 0;
+    this._prevTopCandidateY = null; // last tick's highest ground candidate — see the slide-launch gate in endStep
 
     this._color = o.color || msc.color;
     this._visible = o.visible !== undefined ? o.visible === true : msc.visible;
@@ -9461,6 +9473,10 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
 
     this._onLadder = true;
     this.grounded = false;
+    // Mounting owns movement now — a slide carried in from the tick before must not read as still
+    // active while climbing (or linger stale after a later dismount): _updateSlide doesn't run at
+    // all while onLadderThisTick is true, so nothing else would ever clear this.
+    this._sliding = false;
     this._ladderNormal.set(hit.normal.x, 0, hit.normal.z);
     var nl = Math.sqrt(this._ladderNormal.x * this._ladderNormal.x + this._ladderNormal.z * this._ladderNormal.z);
     if (nl > FPSC.EPS_LEN) { this._ladderNormal.x /= nl; this._ladderNormal.z /= nl; }
@@ -9846,27 +9862,42 @@ proto.beginStep = function(command, dt) {
             gb.y = -dot * n2.y;
         }
     } else {
-        this._sliding = false;
         this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
         var cur = gb;
         if (cur.y < -this._maxFall) { gb.y = -this._maxFall; }
-        if (hasInput) {
-            var curSp2 = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-            var wishSp2 = Math.sqrt(wishX * wishX + wishZ * wishZ);
-            if (wishSp2 >= curSp2) {
-                vx = cur.x + (wishX - cur.x) * this.airControl;
-                vz = cur.z + (wishZ - cur.z) * this.airControl;
-            } else {
-                // Steer heading toward wish at the same magnitude, without bleeding speed.
-                var wl = wishSp2 || 1;
-                var tx = (wishX / wl) * curSp2;
-                var tz = (wishZ / wl) * curSp2;
-                vx = cur.x + (tx - cur.x) * this.airControl;
-                vz = cur.z + (tz - cur.z) * this.airControl;
-            }
-        } else {
+        // Airborne slide continuation: a slide that leaves the ground (ramp lip, drop-off) stays a
+        // slide through the airborne phase, carried mostly ballistically rather than air-controlled
+        // — as long as horizontal speed is still above slideEndSpeed (the same floor flat sliding
+        // itself uses to decide "still going"). On landing, the ordinary grounded branch above calls
+        // _updateSlide again on the fresh ground normal, so it naturally continues if landing on a
+        // ramp (onSlope) or still fast enough on flat, or ends there if not — no special landing
+        // logic needed here, only NOT forcing _sliding false the instant the ground clamp lets go.
+        var curSp2 = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
+        var airborneSlideContinues = this.slideEnabled && this._sliding && !!cmd.crouch &&
+            curSp2 >= this.slideEndSpeed;
+        if (airborneSlideContinues) {
+            this._sliding = true;
             vx = cur.x;
             vz = cur.z;
+        } else {
+            this._sliding = false;
+            var wishSp2 = Math.sqrt(wishX * wishX + wishZ * wishZ);
+            if (hasInput) {
+                if (wishSp2 >= curSp2) {
+                    vx = cur.x + (wishX - cur.x) * this.airControl;
+                    vz = cur.z + (wishZ - cur.z) * this.airControl;
+                } else {
+                    // Steer heading toward wish at the same magnitude, without bleeding speed.
+                    var wl = wishSp2 || 1;
+                    var tx = (wishX / wl) * curSp2;
+                    var tz = (wishZ / wl) * curSp2;
+                    vx = cur.x + (tx - cur.x) * this.airControl;
+                    vz = cur.z + (tz - cur.z) * this.airControl;
+                }
+            } else {
+                vx = cur.x;
+                vz = cur.z;
+            }
         }
     }
 
@@ -9941,6 +9972,20 @@ proto.endStep = function(dt) {
     // anyway. Falling through to a lower, valid candidate here means grounding never has to lie
     // about resting on real ground just because a taller obstacle also happened to be in reach.
     var candidates = this._probeGroundCandidates(this.stepDownDist);
+    // Slide launch off a ramp apex: only while SLIDING and genuinely rising (gb.y > 0, tangent to the
+    // surface being ridden). Climbing a slope, the highest ground candidate rises every tick with the
+    // character. At the uphill edge the forward probe rays overshoot into air, so the highest hit stops
+    // rising and RECEDES (the rear rays win) — the tick that happens is the real apex. Clamping to that
+    // receded surface would hug the character down a fraction (a one-tick dip) before the edge finally
+    // leaves probe reach; instead skip the clamp so the slide launches ballistically off the true edge.
+    // Gated on _sliding: walking off the same edge just follows the ground down, no launch.
+    var topCandidateY = candidates.length > 0 ? candidates[0].point.y : null;
+    if (this._sliding && this.grounded && gb.y > FPSC.EPS_LEN &&
+        topCandidateY !== null && this._prevTopCandidateY !== null &&
+        topCandidateY < this._prevTopCandidateY - FPSC.EPS_LEN) {
+        candidates = [];
+    }
+    this._prevTopCandidateY = topCandidateY;
     var probe = null, tooHighToStep = false;
     for (var ci = 0; ci < candidates.length; ci++) {
         var c = candidates[ci];
@@ -10103,9 +10148,16 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
         this._sliding = false;
         return null;
     }
+    var wasSliding = this._sliding; // read before the entry gate below overwrites it
     var gb = this.body.linear_velocity;
-    var vx = gb.x;
-    var vz = gb.z;
+    // _ownVelocityX/Z, NOT gb.x/z — gb may already carry a platform's base velocity baked in (see
+    // the constructor comment). Reading the combined value here would re-seed the slide's own
+    // momentum with the platform's speed already added, which then compounds every tick instead of
+    // properly decaying (the "boost pad" feel: sliding onto a moving platform read as if the
+    // platform's speed were the character's own build-up). Same reasoning as the sprint-decay/idle
+    // branches in beginStep, just applied inside the slide model too.
+    var vx = this._ownVelocityX;
+    var vz = this._ownVelocityZ;
     var vyActual = gb.y;
     var horizSp = Math.sqrt(vx * vx + vz * vz);
     var sp = horizSp;
@@ -10138,6 +10190,17 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
         (groundSp > this.moveSpeed + FPSC.EPS_SPEED_MARGIN || sustained);
     if (!this._sliding) { return null; }
 
+    // Launch boost, applied ONCE on the entry edge (was not sliding last tick, is now) — not every
+    // tick, which would be unbounded acceleration. Scales the character's OWN current momentum at
+    // the moment of entry (a crouch-into-sprint launch feels stronger the faster you already were
+    // going), not a fixed reference speed. Applied to vx/vz directly so every downstream step this
+    // same tick (slope accel, flat friction, steering) operates on the boosted speed as its baseline.
+    if (!wasSliding && this.slideBoost !== 1) {
+        vx *= this.slideBoost;
+        vz *= this.slideBoost;
+        sp *= this.slideBoost;
+    }
+
     if (onSlope) {
         // Gravity accelerates the fall-line (downhill) component; the cross-slope (sideways)
         // part bleeds lightly. Returned as full 3D so the grounded branch doesn't re-project it.
@@ -10167,11 +10230,33 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
     // Rotate the slide heading toward input without adding speed (renormalize to sp).
     var wl = Math.sqrt(wishX * wishX + wishZ * wishZ);
     if (this.slideControl > 0 && wl > FPSC.EPS_DIR && sp > FPSC.EPS_DIR) {
-        var tx = vx + ((wishX / wl) * sp - vx) * this.slideControl;
-        var tz = vz + ((wishZ / wl) * sp - vz) * this.slideControl;
-        var tl = Math.sqrt(tx * tx + tz * tz) || 1;
-        vx = (tx / tl) * sp;
-        vz = (tz / tl) * sp;
+        var wnx = wishX / wl, wnz = wishZ / wl;
+        // Wish opposing current motion (e.g. holding backward mid-slide) is a deliberate reversal,
+        // not a carve — the ordinary partial blend below would slowly rotate the heading through an
+        // arc instead of braking straight back. Detect that case (wish nearly opposite current
+        // velocity) and brake toward zero along the CURRENT heading instead of blending toward
+        // wish; once speed has bled down, the same blend below is what picks the (now-reversed)
+        // heading back up, so the reversal itself still ends up sliding in the wish direction — it
+        // just brakes-then-goes instead of curving through it. Applies on flat ground too: without
+        // this, flat sliding's own friction decay bled speed down to the slideEndSpeed exit
+        // threshold WHILE the un-braked blend was arcing the heading toward wish, so a backward
+        // hold curved through a U-turn on its way out instead of braking straight.
+        var brakeRate = onSlope ? this.slideSlopeFriction * this.slideReversalBrakeMult
+            : this.slideFriction * this.slideReversalBrakeMult;
+        var vnx = vx / sp, vnz = vz / sp;
+        var facing = wnx * vnx + wnz * vnz; // 1 = same direction, -1 = dead opposite
+        if (facing < FPSC.SLIDE_REVERSAL_DOT) {
+            var braked = Math.max(0, sp - brakeRate * dt);
+            var bf = sp > FPSC.EPS_DIR ? braked / sp : 0;
+            vx *= bf;
+            vz *= bf;
+        } else {
+            var tx = vx + (wnx * sp - vx) * this.slideControl;
+            var tz = vz + (wnz * sp - vz) * this.slideControl;
+            var tl = Math.sqrt(tx * tx + tz * tz) || 1;
+            vx = (tx / tl) * sp;
+            vz = (tz / tl) * sp;
+        }
     }
 
     if (onSlope) {
@@ -10788,6 +10873,7 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         slopeAccel: 1.5,       // downhill acceleration factor while sliding
         slopeMin: 0.2,         // sin(angle) at/above which the slide is gravity-governed (Infinity disables)
         slopeFriction: 1.5,    // cross-slope friction while gravity-sliding
+        reversalBrakeMult: 4,  // multiplier on slopeFriction for how hard a deliberate reversal brakes
         coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
     },
 
