@@ -8715,7 +8715,8 @@ Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a,
  * @param {Number} [options.coyoteTime] - Seconds after leaving a ledge you can still jump (0=off).
  * @param {Number} [options.jumpBuffer] - Seconds before landing a jump press is remembered (0=off).
  * @param {Boolean} [options.slideEnabled=true] - Enable crouch-at-speed sliding.
- * @param {Boolean} [options.slideRequiresMoveInput=false] - Require a movement key held to slide.
+ * @param {Boolean} [options.slideRequiresMoveInput=true] - Require a movement key held to START a slide (exit never requires it).
+ * @param {Boolean} [options.slideAllowLandingWithoutInput=true] - Waive the movement-key requirement on the landing frame, so an impact-slide can start from crouch + speed alone.
  * @param {Number} [options.slideMinSpeed] - Min along-ground speed (pre-scale) to start a slide.
  * @param {Number} [options.slideEndSpeed] - Flat slide ends below this speed (pre-scale).
  * @param {Number} [options.slideFriction] - Speed bled per second on flat ground (pre-scale).
@@ -8727,7 +8728,6 @@ Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a,
  * @param {Number} [options.slideReversalBrakeMult] - Multiplier on slideSlopeFriction for how hard a
  *   deliberate on-slope reversal (wish opposing current slide direction) brakes before the carve
  *   steering picks the new heading back up.
- * @param {Number} [options.slideCoyoteFrames] - Frames after dropping below slide speed a crouch still slides.
  * @param {Boolean} [options.receivePush=true] - Enable object-to-character knockback via the ghost body.
  * @param {Number} [options.receiveMaxSpeed] - Cap on how fast a single object hit can knock the character.
  * @param {Number} [options.receiveKnockbackFraction] - Fraction of the ghost's contact velocity transferred.
@@ -8771,6 +8771,21 @@ var FPSC = {
     // Slide reversal (see _updateSlide's onSlope steering). Below this dot product between wish and
     // current slide direction, wish counts as a deliberate reversal (brake) rather than a carve.
     SLIDE_REVERSAL_DOT: -0.5,
+
+    // MOVEMENT STATE — one flat enum, mutually exclusive, decided ONCE per tick by endStep (the only
+    // place with a fresh ground probe) and read everywhere else (beginStep dispatches on it verbatim;
+    // nothing re-derives it from other flags). See the "Movement state machine" comment above endStep
+    // for the full design and why it replaced the old grounded+sliding+wishSlide flag soup.
+    //   LADDER   = mounted on a ladder; _updateLadder owns velocity fully.
+    //   AIRBORNE = no ground contact; gravity + air control own velocity.
+    //   WALK     = grounded, standable surface, not sliding: ordinary input-driven movement.
+    //   SLIP     = grounded, too-steep surface, not sliding: gravity-fed slip, weak air-control.
+    //   SLIDE    = grounded, crouch-at-speed slide: _updateSlide's surface-tracking model owns velocity.
+    MOVE_LADDER: 'ladder',
+    MOVE_AIRBORNE: 'airborne',
+    MOVE_WALK: 'walk',
+    MOVE_SLIP: 'slip',
+    MOVE_SLIDE: 'slide',
 
     // Knockback gating (see _readGhostKnockback).
     KB_CLOSING_MIN: 0.5,      // object must close on the character faster than this (units/s) to knock back
@@ -8903,6 +8918,7 @@ function FPSCharacterController(world, options) {
     // Slide (crouch-at-speed). slide* tuning values only take effect once sliding.
     this.slideEnabled = o.slideEnabled !== undefined ? o.slideEnabled !== false : sld.enabled;
     this.slideRequiresMoveInput = o.slideRequiresMoveInput !== undefined ? !!o.slideRequiresMoveInput : sld.requiresMoveInput;
+    this.slideAllowLandingWithoutInput = o.slideAllowLandingWithoutInput !== undefined ? !!o.slideAllowLandingWithoutInput : sld.allowLandingWithoutInput;
     this._baseSlideMinSpeed = o.slideMinSpeed !== undefined ? o.slideMinSpeed : sld.minSpeed;
     this._baseSlideEndSpeed = o.slideEndSpeed !== undefined ? o.slideEndSpeed : sld.endSpeed;
     this._baseSlideFriction = o.slideFriction !== undefined ? o.slideFriction : sld.friction;
@@ -8915,14 +8931,13 @@ function FPSCharacterController(world, options) {
     // (wish opposing current slide direction, see FPSC.SLIDE_REVERSAL_DOT) bleeds speed before the
     // ordinary carve blend picks the new heading back up.
     this.slideReversalBrakeMult = o.slideReversalBrakeMult !== undefined ? o.slideReversalBrakeMult : sld.reversalBrakeMult;
-    this.slideCoyoteFrames = o.slideCoyoteFrames !== undefined ? o.slideCoyoteFrames : sld.coyoteFrames;
-    this._slideCoyoteTimer = 0;
-    this._slideCoyoteVX = 0;
-    this._slideCoyoteVZ = 0;
-    this._sliding = false;
+    // Authoritative movement state — see the "Movement state machine" comment above endStep. Starts
+    // AIRBORNE; the first tick's endStep probe corrects it (e.g. to WALK if spawned on the ground).
+    this._moveState = FPSC.MOVE_AIRBORNE;
+    this._slipJustEntered = false; // gates the SLIP branch's one-time velocity projection; set by endStep
+    this._wantCrouch = false; // this tick's crouch intent, stashed by beginStep for endStep to read
+    this._hasMoveInput = false; // this tick's movement input, stashed by beginStep for endStep to read
     this._prevCrouch = false;
-    this._groundedPrev = false;
-    this._justLanded = false;
 
     // Ladders (see _updateLadder). base* values scale with the character like every other speed.
     this._baseLadderClimbSpeed = o.ladderClimbSpeed !== undefined ? o.ladderClimbSpeed : lad.climbSpeed;
@@ -8949,6 +8964,7 @@ function FPSCharacterController(world, options) {
     this._gravityVec = new Goblin.Vector3(0, g.y, 0);
     this._groundSuppress = 0;
     this._prevTopCandidateY = null; // last tick's highest ground candidate — see the slide-launch gate in endStep
+    this._slideLaunched = false; // latched true the tick a slide apex launch fires; see endStep
 
     this._color = o.color || msc.color;
     this._visible = o.visible !== undefined ? o.visible === true : msc.visible;
@@ -9276,6 +9292,13 @@ proto._readGhostKnockback = function() {
                     pb.x += nx * kbv;
                     pb.z += nz * kbv;
                     this.grounded = false;
+                    // This runs mid-tick, inside beginStep's ghost sync — the movement-state dispatch
+                    // for THIS tick already ran (it's earlier in beginStep), so this can't retroactively
+                    // change what velocity model owned this tick's motion. It CAN and must fix what the
+                    // NEXT tick sees: without this, next tick's dispatch would read the stale grounded
+                    // sub-state (WALK) and immediately re-clamp the character back onto the ground via
+                    // WALK's kinematic model, killing the knockback before it ever got airborne.
+                    this._moveState = FPSC.MOVE_AIRBORNE;
                     if (this._groundSuppress < FPSC.GROUND_SUPPRESS_KB) { this._groundSuppress = FPSC.GROUND_SUPPRESS_KB; }
                 }
             }
@@ -9458,6 +9481,10 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
         gb.z = n0.z * this.ladderDismountPushSpeed;
         gb.y = 0;
         this._onLadder = false;
+        // The push flings the character off the ladder into the air — next tick's beginStep
+        // dispatch (before endStep gets a chance to re-probe) must see AIRBORNE, not whatever
+        // ground state was true before this ladder mount.
+        this._moveState = FPSC.MOVE_AIRBORNE;
         this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
         return true;
     }
@@ -9473,10 +9500,10 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
 
     this._onLadder = true;
     this.grounded = false;
-    // Mounting owns movement now — a slide carried in from the tick before must not read as still
-    // active while climbing (or linger stale after a later dismount): _updateSlide doesn't run at
-    // all while onLadderThisTick is true, so nothing else would ever clear this.
-    this._sliding = false;
+    // Mounting owns movement now — any grounded state carried in from the tick before must not read
+    // as still active while climbing (or linger stale after a later dismount): beginStep's dispatch
+    // only reads this._moveState when NOT on a ladder, so nothing else would ever clear this.
+    this._moveState = FPSC.MOVE_LADDER;
     this._ladderNormal.set(hit.normal.x, 0, hit.normal.z);
     var nl = Math.sqrt(this._ladderNormal.x * this._ladderNormal.x + this._ladderNormal.z * this._ladderNormal.z);
     if (nl > FPSC.EPS_LEN) { this._ladderNormal.x /= nl; this._ladderNormal.z /= nl; }
@@ -9516,6 +9543,10 @@ proto._updateLadder = function(cmd, moveYaw, movePitch, dt) {
                 this.body.updateDerived();
                 gb.y = 0;
                 this.grounded = true;
+                // Still LADDER for as long as _onLadder stays true this tick (movement is fully
+                // owned above) — this only matters for the tick AFTER dismounting, so beginStep's
+                // dispatch sees WALK rather than a stale pre-mount state.
+                this._moveState = FPSC.MOVE_WALK;
                 this.groundNormal.set(ground.normal.x, ground.normal.y, ground.normal.z);
             }
         }
@@ -9658,12 +9689,36 @@ proto.renderEye = function(alpha) {
 };
 
 /**
- * True while a slide is active this tick (stateless predicate; see _updateSlide).
+ * True while a slide is active this tick. Reads the single authoritative _moveState field that
+ * endStep sets — see the "Movement state machine" comment above endStep.
  * @property sliding
  * @type {Boolean}
  * @readOnly
  */
-Object.defineProperty(proto, 'sliding', { get: function() { return this._sliding; } });
+Object.defineProperty(proto, 'sliding', { get: function() { return this._moveState === FPSC.MOVE_SLIDE; } });
+
+/**
+ * This tick's movement state: one of FPSC.MOVE_LADDER / MOVE_AIRBORNE / MOVE_WALK / MOVE_SLIP /
+ * MOVE_SLIDE. Set exactly once per tick, by endStep, from a fresh ground probe — beginStep (which
+ * runs BEFORE endStep, on the state endStep decided last tick) only ever READS this, never
+ * re-derives it. See the "Movement state machine" comment above endStep for the full design.
+ * @property moveState
+ * @type {String}
+ * @readOnly
+ */
+Object.defineProperty(proto, 'moveState', { get: function() { return this._moveState; } });
+
+/**
+ * The "too steep to stand on" rule — a floor whose normal tilts below the standable limit gives no
+ * footing (MOVE_SLIP). climbSteepSlopes opts out.
+ * @method _isSlipSurface
+ * @param {Object} normal - a surface normal (uses .y)
+ * @return {Boolean}
+ * @private
+ */
+proto._isSlipSurface = function(normal) {
+    return !this.climbSteepSlopes && normal.y < this._minStandableNormalY;
+};
 
 /**
  * This controller's physics-body name (the value raycasts exclude to avoid self-hits).
@@ -9717,9 +9772,6 @@ proto.endResim = function() { this._resimulating = false; };
 proto.beginStep = function(command, dt) {
     var cmd = command || {};
 
-    this._justLanded = this.grounded && !this._groundedPrev;
-    this._groundedPrev = this.grounded;
-
     if (this._jumpBufferTimer > 0) { this._jumpBufferTimer = Math.max(0, this._jumpBufferTimer - dt); }
 
     if (cmd.scale !== undefined && Math.abs(cmd.scale - this.scale) > FPSC.EPS_LEN) { this.setScale(cmd.scale); }
@@ -9758,85 +9810,104 @@ proto.beginStep = function(command, dt) {
         wishZ = (dirZ / dirLen) * speed;
     }
 
+    // Stashed for endStep (this same tick, after world.step) to use when it decides this tick's
+    // movement state from the fresh ground probe — see the "MOVEMENT STATE DECISION" block there.
+    this._wantCrouch = wantCrouch;
+    this._hasMoveInput = hasInput;
+
+    // _updateLadder mounts/dismounts and, while mounted, owns velocity fully — checked first since
+    // it can override every other state this tick (a ladder grab works even mid-air or mid-slide).
     var onLadderThisTick = this._updateLadder(cmd, moveYaw, movePitch, dt);
 
     var vx, vz;
     if (onLadderThisTick) {
+        // LADDER: _updateLadder already wrote gb.x/gb.z; velocity is fully its.
         vx = gb.x;
         vz = gb.z;
     } else {
+        // A jump flips grounded→airborne HERE, before the dispatch below reads this._moveState —
+        // _updateVertical updates this._moveState directly on a jump so the same-tick dispatch
+        // correctly takes the AIRBORNE branch instead of the stale GROUNDED one.
+        this._updateVertical(cmd, dt);
 
-    this._updateVertical(cmd, dt);
-
-    // A surface steeper than the standable limit gives no footing: gravity pulls the character down
-    // it and input only has weak air-control authority. climbSteepSlopes opts out.
-    var noTraction = this.grounded && !this.climbSteepSlopes &&
-        this.groundNormal.y < this._minStandableNormalY;
-
-    if (noTraction) {
-        this.body.setGravity(0, 0, 0);
-        var n = this.groundNormal;
-        var slopeMag = Math.sqrt(n.x * n.x + n.z * n.z);
-        var dxu = slopeMag > FPSC.EPS_LEN ? n.x / slopeMag : 0;
-        var dzu = slopeMag > FPSC.EPS_LEN ? n.z / slopeMag : 0;
-        var g = -this._gravityVec.y;
-        // On the tick landing actually happens, gb.x/gb.z still hold whatever velocity the body
-        // had a moment before contact (e.g. leftover fall/toss speed) — NOT yet a slope-tangential
-        // speed. Feeding that raw into the steady-state formula below (which assumes gb is already
-        // tangent to the plane) let a large incoming fall/toss velocity read as "already sliding
-        // fast" and back-solve a huge, spurious gb.y, launching the character on contact. Fix: on
-        // landing only, first project the true incoming 3D velocity onto the plane (v -= (v.n)n)
-        // to get a legitimate starting tangential speed, then let the existing per-tick formula
-        // (which correctly builds g*sin(theta) tangential acceleration turn over turn) continue
-        // from there — unchanged from every tick after the first.
-        var gbx = gb.x, gbz = gb.z;
-        if (this._justLanded) {
-            var dot0 = gb.x * n.x + gb.y * n.y + gb.z * n.z;
-            gbx = gb.x - dot0 * n.x;
-            gbz = gb.z - dot0 * n.z;
-        }
-        vx = gbx + dxu * g * slopeMag * dt;
-        vz = gbz + dzu * g * slopeMag * dt;
-        if (hasInput) {
-            var twx = wishX, twz = wishZ;
-            var up = -(twx * dxu + twz * dzu);
-            if (up > 0) { twx += dxu * up; twz += dzu * up; }
-            vx += (twx - vx) * this.airControl;
-            vz += (twz - vz) * this.airControl;
-            var along2 = vx * dxu + vz * dzu;
-            if (along2 < 0) { vx -= dxu * along2; vz -= dzu * along2; }
-        }
-        var alongOut = vx * dxu + vz * dzu;
-        gb.y = -alongOut * slopeMag / Math.max(n.y, 0.1);
-    } else if (this.grounded) {
-        // KINEMATIC GROUND: gravity off; we drive velocity ALONG the ground plane and
-        // clamp the feet to the surface in endStep. This is fully deterministic and
-        // doesn't rely on the solver to hold us on a slope (which is what jittered).
-        //   projected = wish - (wish . n) n   -> motion tangent to the surface.
-        this.body.setGravity(0, 0, 0);
-        var n2 = this.groundNormal;
-        // SLIDE (opt-in): crouch at speed. Returns null when not sliding; a flat slide returns
-        // {mx,mz} (horizontal momentum, projected onto the plane like a walk); a SLOPE slide
-        // returns {full:true, vx,vy,vz} — the full 3D surface velocity it owns directly. The
-        // slope case must NOT be re-projected to horizontal: that projection multiplies the
-        // surviving horizontal speed by n.y^2 every tick (the velocity leak that made slope
-        // slides crawl), so gravity could never build speed. Full 3D bypasses it.
-        var slide = this._updateSlide(cmd, wishX, wishZ, dt);
-        if (slide && slide.full) {
-            vx = slide.vx;
-            vz = slide.vz;
-            gb.y = slide.vy;
-        } else {
+        // ================================================================================
+        // MOVEMENT STATE DISPATCH — reads this._moveState, set authoritatively by LAST tick's
+        // endStep (or by _updateVertical just above, on a jump this tick). Never re-derives the
+        // state from other flags; each branch below is a fully self-contained velocity model for
+        // that one state, duplicated rather than shared, so there is exactly one thing to read
+        // (this._moveState) to know which branch is live and exactly one place per state that
+        // decides its velocity. See the "Movement state machine" comment above endStep.
+        // ================================================================================
+        if (this._moveState === FPSC.MOVE_SLIDE && this.grounded) {
+            // SLIDE, GROUNDED: crouch-at-speed, owns velocity via _updateSlide's surface-tracking
+            // model. _updateSlide is a pure per-tick evolver here — it does NOT decide entry/exit
+            // anymore (endStep already decided this tick IS a slide); it only advances the
+            // slide's velocity one tick (slope accel, friction, steering) from gb, which endStep
+            // already set to the correct tangential speed for this tick.
+            var slideResult = this._updateSlide(cmd, wishX, wishZ, dt);
+            vx = slideResult.vx;
+            vz = slideResult.vz;
+            gb.y = slideResult.vy;
+        } else if (this._moveState === FPSC.MOVE_SLIDE && !this.grounded) {
+            // SLIDE, AIRBORNE: a slide that left the ground (ramp lip, drop-off) — see endStep's
+            // "genuinely airborne" branch for the condition that keeps this state through the
+            // launch. Carried ballistically (gravity, no air-control degradation, no slope model —
+            // there's no surface under the character to track) until it lands or slows below
+            // slideEndSpeed, at which point endStep drops it to AIRBORNE.
+            this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
+            if (gb.y < -this._maxFall) { gb.y = -this._maxFall; }
+            vx = gb.x;
+            vz = gb.z;
+        } else if (this._moveState === FPSC.MOVE_SLIP) {
+            // SLIP: too-steep surface, gravity-fed, weak air-control.
+            this.body.setGravity(0, 0, 0);
+            var n = this.groundNormal;
+            var slopeMag = Math.sqrt(n.x * n.x + n.z * n.z);
+            var dxu = slopeMag > FPSC.EPS_LEN ? n.x / slopeMag : 0;
+            var dzu = slopeMag > FPSC.EPS_LEN ? n.z / slopeMag : 0;
+            var g = -this._gravityVec.y;
+            // Project the incoming 3D velocity onto the plane ONLY on the tick contact is new
+            // (endStep left gb.y raw, non-zero, from the fall/toss, on that one tick — see the
+            // "MOVEMENT STATE DECISION" comment in endStep). On every later slip tick, endStep
+            // zeroes gb.y (the kinematic model owns vertical here, not the solver), so gb.x/gb.z
+            // are ALREADY the correctly-accumulated tangential speed from the previous tick's
+            // formula below — re-projecting again would read that zeroed gb.y as "no vertical
+            // motion yet" and subtract a spurious correction, fighting the accumulation into a
+            // false plateau instead of letting speed build tick over tick.
+            var gbx = gb.x, gbz = gb.z;
+            if (this._slipJustEntered) {
+                var dot0 = gb.x * n.x + gb.y * n.y + gb.z * n.z;
+                gbx = gb.x - dot0 * n.x;
+                gbz = gb.z - dot0 * n.z;
+                this._slipJustEntered = false;
+            }
+            vx = gbx + dxu * g * slopeMag * dt;
+            vz = gbz + dzu * g * slopeMag * dt;
+            if (hasInput) {
+                var twx = wishX, twz = wishZ;
+                var up = -(twx * dxu + twz * dzu);
+                if (up > 0) { twx += dxu * up; twz += dzu * up; }
+                vx += (twx - vx) * this.airControl;
+                vz += (twz - vz) * this.airControl;
+                var along2 = vx * dxu + vz * dzu;
+                if (along2 < 0) { vx -= dxu * along2; vz -= dzu * along2; }
+            }
+            var alongOut = vx * dxu + vz * dzu;
+            gb.y = -alongOut * slopeMag / Math.max(n.y, 0.1);
+        } else if (this._moveState === FPSC.MOVE_WALK) {
+            // WALK: ordinary input-driven ground movement, projected tangent to groundNormal.
+            // KINEMATIC GROUND: gravity off; endStep clamps the feet to the surface. Fully
+            // deterministic, doesn't rely on the solver to hold us on a slope (which jittered).
+            this.body.setGravity(0, 0, 0);
+            var n2 = this.groundNormal;
             var mx, mz;
-            if (slide) {
-                mx = slide.mx;
-                mz = slide.mz;
-            } else if (hasInput) {
+            if (hasInput) {
                 // When slowing while still moving, bleed excess speed at sprintDecay instead of
-                // snapping to the lower target speed. _ownVelocityX/Z, not gb.x/z — gb may already
-                // carry a platform's base velocity baked in (see the constructor comment); reading it
-                // here would re-seed "current speed" with the platform's own speed already added,
-                // which then gets base velocity added AGAIN below every tick instead of decaying.
+                // snapping to the lower target speed. _ownVelocityX/Z, not gb.x/z — gb may
+                // already carry a platform's base velocity baked in (see the constructor
+                // comment); reading it here would re-seed "current speed" with the platform's
+                // own speed already added, which then gets base velocity added AGAIN below
+                // every tick instead of decaying.
                 var cvx = this._ownVelocityX;
                 var cvz = this._ownVelocityZ;
                 var curSp = Math.sqrt(cvx * cvx + cvz * cvz);
@@ -9851,8 +9922,8 @@ proto.beginStep = function(command, dt) {
                     mz = wishZ;
                 }
             } else {
-                // Carry current ground velocity; endStep's groundStopDecel is the sole stop authority.
-                // _ownVelocityX/Z, NOT gb.x/z — same reasoning as the hasInput branch above.
+                // Carry current ground velocity; endStep's groundStopDecel is the sole stop
+                // authority. _ownVelocityX/Z, NOT gb.x/z — same reasoning as above.
                 mx = this._ownVelocityX;
                 mz = this._ownVelocityZ;
             }
@@ -9860,27 +9931,12 @@ proto.beginStep = function(command, dt) {
             vx = mx - dot * n2.x;
             vz = mz - dot * n2.z;
             gb.y = -dot * n2.y;
-        }
-    } else {
-        this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
-        var cur = gb;
-        if (cur.y < -this._maxFall) { gb.y = -this._maxFall; }
-        // Airborne slide continuation: a slide that leaves the ground (ramp lip, drop-off) stays a
-        // slide through the airborne phase, carried mostly ballistically rather than air-controlled
-        // — as long as horizontal speed is still above slideEndSpeed (the same floor flat sliding
-        // itself uses to decide "still going"). On landing, the ordinary grounded branch above calls
-        // _updateSlide again on the fresh ground normal, so it naturally continues if landing on a
-        // ramp (onSlope) or still fast enough on flat, or ends there if not — no special landing
-        // logic needed here, only NOT forcing _sliding false the instant the ground clamp lets go.
-        var curSp2 = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-        var airborneSlideContinues = this.slideEnabled && this._sliding && !!cmd.crouch &&
-            curSp2 >= this.slideEndSpeed;
-        if (airborneSlideContinues) {
-            this._sliding = true;
-            vx = cur.x;
-            vz = cur.z;
         } else {
-            this._sliding = false;
+            // AIRBORNE: gravity + air control own velocity.
+            this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z);
+            var cur = gb;
+            if (cur.y < -this._maxFall) { gb.y = -this._maxFall; }
+            var curSp2 = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
             var wishSp2 = Math.sqrt(wishX * wishX + wishZ * wishZ);
             if (hasInput) {
                 if (wishSp2 >= curSp2) {
@@ -9900,8 +9956,6 @@ proto.beginStep = function(command, dt) {
             }
         }
     }
-
-    } // end onLadderThisTick else-branch
 
     if (!onLadderThisTick) {
         var cs = this._ceilingSlide(vx, gb.y, vz, dt);
@@ -9924,7 +9978,9 @@ proto.beginStep = function(command, dt) {
     var bvz = onLadderThisTick ? 0 : this._baseVelocity.z;
 
     // Step-up/step-down are emergent: collide-and-slide ignores anything shorter than
-    // stepHeight, and the ground clamp in endStep raises/lowers us onto it.
+    // stepHeight, and the ground clamp in endStep raises/lowers us onto it. _collideAndSlide reads
+    // this._moveState itself (see its own comment) to exempt an active slide from the too-steep
+    // wall rule.
     var slid = this._collideAndSlide(gated.x + bvx, gated.z + bvz, dt);
     gb.x = slid.x;
     gb.z = slid.z;
@@ -9963,14 +10019,9 @@ proto.endStep = function(dt) {
     var maxStick = this.grounded ? this.stepDownDist + this._skin : this._groundTol;
 
     // Walk candidates highest-first and take the first that ISN'T too tall to step onto (relative
-    // to current feet, only while already grounded — see tooHighToStep below). A single edge ray
-    // grazing a too-tall obstacle (e.g. a box shoved against the footprint) used to win "highest
-    // point" outright over every other ray that found the REAL floor underneath — collapsing to
-    // one hit before this rejection could ever happen, so there was no floor left to fall back to.
-    // That false "too high" rejection then read as ungrounded next tick, which (being read as "must
-    // be landing from a fall") skipped the height check entirely and snapped onto the obstacle
-    // anyway. Falling through to a lower, valid candidate here means grounding never has to lie
-    // about resting on real ground just because a taller obstacle also happened to be in reach.
+    // to current feet, only while already grounded — see tooHighToStep below). Falling through to
+    // a lower, valid candidate keeps grounding honest when a taller obstacle (e.g. a box shoved
+    // against the footprint) is also in reach.
     var candidates = this._probeGroundCandidates(this.stepDownDist);
     // Slide launch off a ramp apex: only while SLIDING and genuinely rising (gb.y > 0, tangent to the
     // surface being ridden). Climbing a slope, the highest ground candidate rises every tick with the
@@ -9978,12 +10029,39 @@ proto.endStep = function(dt) {
     // rising and RECEDES (the rear rays win) — the tick that happens is the real apex. Clamping to that
     // receded surface would hug the character down a fraction (a one-tick dip) before the edge finally
     // leaves probe reach; instead skip the clamp so the slide launches ballistically off the true edge.
-    // Gated on _sliding: walking off the same edge just follows the ground down, no launch.
-    var topCandidateY = candidates.length > 0 ? candidates[0].point.y : null;
-    if (this._sliding && this.grounded && gb.y > FPSC.EPS_LEN &&
-        topCandidateY !== null && this._prevTopCandidateY !== null &&
-        topCandidateY < this._prevTopCandidateY - FPSC.EPS_LEN) {
-        candidates = [];
+    // Slide launch off a ramp apex — only while SLIDING and rising (walking off the same edge just
+    // follows the ground down). ANGLE-BLIND: a slide treats every slope identically regardless of
+    // steepness, so this gate never asks "is this too steep" — only "is this still the surface I'm
+    // riding." Two ways the true edge shows up in the probe, both handled here:
+    //   1. The highest surface RECEDES: the ramp face we were climbing runs out ahead, so the highest
+    //      remaining ramp hit drops vs last tick. Clamping to it would hug us down a one-tick dip.
+    //   2. A MISMATCHED face (e.g. the ramp's own end-cap) becomes the highest candidate: taller than
+    //      the ramp face but not the surface we're riding (normal meaningfully off groundNormal). It can
+    //      mask signal #1 by sitting on top, so we test it independently — riding a ramp, the candidate
+    //      still ON that same face keeps matching every tick and never trips this; only a genuinely
+    //      different face (the real edge) does.
+    var topCandidate = candidates.length > 0 ? candidates[0] : null;
+    var topCandidateY = topCandidate ? topCandidate.point.y : null;
+    var wasSliding = this._moveState === FPSC.MOVE_SLIDE;
+    if (this.grounded && wasSliding && gb.y > FPSC.EPS_LEN && topCandidate !== null) {
+        var receded = this._prevTopCandidateY !== null && topCandidateY < this._prevTopCandidateY - FPSC.EPS_LEN;
+        var normalDot = topCandidate.normal.x * this.groundNormal.x +
+            topCandidate.normal.y * this.groundNormal.y +
+            topCandidate.normal.z * this.groundNormal.z;
+        var mismatched = normalDot < this._minStandableNormalY;
+        if (receded || mismatched) { candidates = []; this._slideLaunched = true; }
+    }
+    // A slide apex launch is latched, not a one-tick decision: the tick it fires, grounded flips false
+    // immediately, so the gate above (which requires it true) can never re-arm to catch a second graze
+    // later in the same arc. Without this latch, a low/shallow launch that skims just above the ramp's
+    // tail gets ground-clamped straight back down the very next tick the probe happens to reach it — a
+    // one-tick "dip" mid-arc. Sliding off an apex must NEVER re-hug the geometry, full stop, so once
+    // latched we force every candidate away regardless of what the probe finds, for as long as the arc
+    // is still rising. The latch clears once gb.y stops climbing (the arc has peaked and started to
+    // fall) — from that point a real landing is legitimate and ground detection must resume normally.
+    if (this._slideLaunched) {
+        if (gb.y > FPSC.EPS_LEN) { candidates = []; }
+        else { this._slideLaunched = false; }
     }
     this._prevTopCandidateY = topCandidateY;
     var probe = null, tooHighToStep = false;
@@ -9998,45 +10076,19 @@ proto.endStep = function(dt) {
     // feetGap > 0 = feet above ground; < 0 = penetrating (always clamp back out).
     var feetGap = probe ? this.body.position.y - half - probe.point.y : Infinity;
 
-    // Don't MOUNT a too-steep (unstandable) surface from below. A too-steep surface still grounds
-    // here — it's what keeps the character ON the slope for the noTraction slip mechanic in beginStep.
-    // Recomputed here since endStep's idle ground-stop must not bleed the downhill slip to zero.
-    var noTraction = probe && !this.climbSteepSlopes && probe.normal.y < this._minStandableNormalY;
     if (!suppressed && probe && feetGap <= maxStick && !tooHighToStep) {
         var p = this.body.position;
         var clampedY = probe.point.y + half;
         if (!this._resimulating) { this._viewDisplacementY += clampedY - p.y; }
         this.body.position.set(p.x, clampedY, p.z);
         this.body.updateDerived();
-        gb.y = 0;
-        if (this._cmdIdle && !this._sliding && !noTraction) {
-            // Sole ground-stop authority: bleed horizontal speed toward zero at groundStopDecel.
-            // Reads/writes _ownVelocityX/Z (the character's OWN component), NOT gb.x/z directly — gb
-            // may already carry a platform's base velocity baked in, and decaying THAT would fight
-            // the ride. The decayed own-component is added back onto base velocity so gb ends up
-            // carrying: decayed own motion + full undecayed platform motion.
-            var cvx = this._ownVelocityX || 0;
-            var cvz = this._ownVelocityZ || 0;
-            var sp = Math.sqrt(cvx * cvx + cvz * cvz);
-            // Don't bleed momentum a slide is about to claim on its landing frame.
-            var slideImminent =
-                this.slideEnabled &&
-                !this.slideRequiresMoveInput &&
-                this._prevCrouch &&
-                sp > this.moveSpeed + FPSC.EPS_SPEED_MARGIN;
-            if (!slideImminent) {
-                var target = Math.max(0, sp - this.groundStopDecel * dt);
-                var kf = sp > FPSC.EPS_SPD ? target / sp : 0;
-                this._ownVelocityX = cvx * kf;
-                this._ownVelocityZ = cvz * kf;
-                gb.x = this._ownVelocityX + this._baseVelocity.x;
-                gb.z = this._ownVelocityZ + this._baseVelocity.z;
-            }
-        }
-        this.grounded = true;
-        this.groundNormal.set(probe.normal.x, probe.normal.y, probe.normal.z);
-        // Acquire base velocity from whatever we're now resting on. Read fresh every tick so
-        // stepping off a platform onto solid ground (or vice versa) updates immediately.
+
+        // Acquire base velocity from whatever we're now resting on BEFORE splitting gb into
+        // own-vs-base components below — every own-velocity computation this tick (tangentX/Z,
+        // _ownVelocityX/Z) must subtract THIS tick's platform speed, not last tick's. Read fresh
+        // every tick so stepping off a platform onto solid ground (or vice versa) updates
+        // immediately, and so landing on a moving platform doesn't misread one tick of its speed
+        // as newly-acquired character momentum.
         var standingOn = probe.object;
         if (standingOn && standingOn.isPlatform) {
             var pv = standingOn.linear_velocity;
@@ -10044,18 +10096,153 @@ proto.endStep = function(dt) {
         } else {
             this._baseVelocity.set(0, 0, 0);
         }
+
+        // ================================================================================
+        // MOVEMENT STATE DECISION — the ONE place per tick this is decided, from the ONE real
+        // ground probe this tick has. beginStep (next tick) only ever reads this._moveState; it
+        // never re-derives sliding/slipping/walking from other flags.
+        // ================================================================================
+        var pn = probe.normal;
+        var probeSlope = Math.sqrt(pn.x * pn.x + pn.z * pn.z);
+
+        // Project the incoming 3D velocity onto the surface plane ONCE, here, on every grounding
+        // tick — not just the first-contact tick. (v -= (v·n)n): removes the into-surface
+        // component, keeps the along-surface (tangential) component. On a tick where the body was
+        // already resting on this same surface last tick too, this is a no-op (gb is already
+        // tangent), so it's safe to always run — no separate "first contact only" special case.
+        var vdotn = gb.x * pn.x + gb.y * pn.y + gb.z * pn.z;
+        var tangentX = gb.x - vdotn * pn.x;
+        var tangentZ = gb.z - vdotn * pn.z;
+        var horizTangentSpeed = Math.sqrt(tangentX * tangentX + tangentZ * tangentZ);
+
+        // TRUE along-the-ground speed, for the slide entry/sustain SPEED test only (tangentX/Z above
+        // is what actually gets written to gb — always the horizontal projection). On a steep slope,
+        // riding fast downhill puts most of the character's speed into the VERTICAL component (the
+        // kinematic ground clamp keeps gb.y at 0 between ticks, so a slip's own steady-state horizontal
+        // speed converges to a value bounded near moveSpeed by its air-control blend toward wish — it
+        // can never actually EXCEED moveSpeed on its own, and never would cross the slide-entry
+        // threshold below if measured on the horizontal component alone). Reconstruct the true 3D
+        // along-surface speed the same way a raw fall's vertical energy converts to horizontal on a
+        // slide: split gb into along-slope (dxu,dzu) and cross-slope, then divide the along-slope part
+        // by ny to recover the steeper true speed a shallow horizontal reading was hiding.
+        var slopeMag0 = probeSlope;
+        var ny0 = Math.max(pn.y, 0.1);
+        var groundSp;
+        if (slopeMag0 > FPSC.EPS_LEN) {
+            var dxu0 = pn.x / slopeMag0, dzu0 = pn.z / slopeMag0;
+            var alongH = tangentX * dxu0 + tangentZ * dzu0;
+            var crossSq = Math.max(0, horizTangentSpeed * horizTangentSpeed - alongH * alongH);
+            var surfFall = alongH / ny0;
+            groundSp = Math.sqrt(surfFall * surfFall + crossSq);
+        } else {
+            groundSp = horizTangentSpeed;
+        }
+        var tangentSpeed = groundSp;
+
+        var isSlipSurface = this._isSlipSurface(pn);
+        // Slide ENTRY/SUSTAIN uses the SAME rule regardless of whether this is the first contact
+        // tick or the 500th tick of an already-active slide: crouch held, and (on a slope, ride
+        // until crouch releases; on flat, need speed above slideEndSpeed to keep going / above
+        // moveSpeed to start). This mirrors _updateSlide's old entry/sustain split, but evaluated
+        // ONCE, with this tick's own fresh probe normal and true tangential speed — not the
+        // previous tick's groundNormal, not a landing-only special case.
+        var slopeSlideEligible = probeSlope >= this.slideSlopeMin;
+        var hasMoveInputThisTick = this._hasMoveInput;
+        var slideInputOk = !this.slideRequiresMoveInput || hasMoveInputThisTick ||
+            (this.slideAllowLandingWithoutInput && !this.grounded);
+        var slideSustainOk = slopeSlideEligible || tangentSpeed >= this.slideEndSpeed;
+        var slideEntryOk = slideInputOk && tangentSpeed > this.moveSpeed + FPSC.EPS_SPEED_MARGIN;
+        var wantsSlide = !!this._wantCrouch && (wasSliding ? slideSustainOk : slideEntryOk);
+
+        if (wantsSlide) {
+            this._moveState = FPSC.MOVE_SLIDE;
+            var enteringSlide = !wasSliding;
+            // slideBoost applied HERE, on the exact entry tick, directly to the velocity endStep is
+            // about to commit — not inside _updateSlide (which only runs the FOLLOWING tick, in
+            // beginStep). Applying it there would show the boost one tick later than the state
+            // transition itself, which is observably wrong (a caller reading "just started
+            // sliding" this tick would see un-boosted speed).
+            var boostedX = tangentX, boostedZ = tangentZ;
+            if (enteringSlide && this.slideBoost !== 1) {
+                boostedX *= this.slideBoost;
+                boostedZ *= this.slideBoost;
+            }
+            gb.x = boostedX;
+            gb.z = boostedZ;
+            // gb.y is left for _updateSlide's onSlope solve to derive from the tangential speed
+            // above — writing a raw projected vertical here overshoots the surface-follow value
+            // and skips the character off the ramp for a tick (a bounce).
+            gb.y = 0;
+        } else if (isSlipSurface) {
+            // Entry edge: this tick starts a NEW slip iff last tick wasn't already one. beginStep's
+            // SLIP branch only re-projects gb onto
+            // groundNormal on that one entry tick (see its own comment) — every later tick, gb.y
+            // is already 0 (set below) and gb.x/gb.z already hold the correctly-accumulated
+            // tangential speed from beginStep's own per-tick formula, so re-projecting again would
+            // corrupt that accumulation into a false plateau.
+            var enteringSlip = this._moveState !== FPSC.MOVE_SLIP;
+            this._slipJustEntered = enteringSlip;
+            this._moveState = FPSC.MOVE_SLIP;
+            // Keep the RAW incoming gb.x/gb.z/gb.y (NOT the tangential projection) on the entry
+            // tick — beginStep's SLIP branch does its own plane projection from this.groundNormal
+            // next tick, gated to _slipJustEntered, and needs gb.y to still be the real incoming
+            // fall speed to project. From the SECOND slip tick on, gb.y is zeroed here as usual —
+            // beginStep's per-tick formula derives its own vy from there on, and leaving a stale
+            // gb.y would double-count it.
+            if (!enteringSlip) { gb.y = 0; }
+        } else {
+            this._moveState = FPSC.MOVE_WALK;
+            gb.x = tangentX;
+            gb.z = tangentZ;
+            gb.y = 0;
+        }
+        this._ownVelocityX = gb.x - this._baseVelocity.x;
+        this._ownVelocityZ = gb.z - this._baseVelocity.z;
+
+        // Idle ground-stop: WALK only. Bleeds horizontal speed toward zero at groundStopDecel.
+        // Reads/writes _ownVelocityX/Z (the character's OWN component), NOT gb.x/z directly — gb
+        // may already carry a platform's base velocity baked in, and decaying THAT would fight
+        // the ride. The decayed own-component is added back onto base velocity so gb ends up
+        // carrying: decayed own motion + full undecayed platform motion.
+        if (this._cmdIdle && this._moveState === FPSC.MOVE_WALK) {
+            var cvx = this._ownVelocityX || 0;
+            var cvz = this._ownVelocityZ || 0;
+            var sp = Math.sqrt(cvx * cvx + cvz * cvz);
+            var target = Math.max(0, sp - this.groundStopDecel * dt);
+            var kf = sp > FPSC.EPS_SPD ? target / sp : 0;
+            this._ownVelocityX = cvx * kf;
+            this._ownVelocityZ = cvz * kf;
+            gb.x = this._ownVelocityX + this._baseVelocity.x;
+            gb.z = this._ownVelocityZ + this._baseVelocity.z;
+        }
+
+        this.grounded = true;
+        this.groundNormal.set(probe.normal.x, probe.normal.y, probe.normal.z);
     } else if (tooHighToStep) {
-        // Correctly refusing to climb something too tall (e.g. a box shoved into the footprint)
-        // must NOT be treated as leaving the ground: the feet haven't moved, there's no gap, no
-        // fall — the character is exactly where it was a moment ago, still resting on whatever it
-        // was resting on. Falling through to grounded=false here was the actual bug: it made a
-        // correct rejection look identical to "fell off an edge," and the height-limit check above
-        // (this.grounded && rise > stepHeight) reads that false as "must be landing from a fall" —
-        // silently waiving itself and clamping onto the very obstacle it just rejected, one tick
-        // later. Staying grounded on rejection keeps the limit honest on the next tick too.
+        // Refusing to climb something too tall (e.g. a box shoved into the footprint) must NOT be
+        // treated as leaving the ground: the feet haven't moved, there's no gap, no fall — the
+        // character is exactly where it was a moment ago, still resting on whatever it was resting
+        // on. Staying grounded on rejection keeps the height-limit check
+        // (this.grounded && rise > stepHeight) honest on the next tick too.
         gb.y = 0;
+        // Movement state is UNCHANGED here on purpose: the character is exactly where it was,
+        // still resting on whatever it was resting on, so whatever state that was is still true.
     } else {
         this.grounded = false;
+        // A slide that leaves the ground (ramp lip, drop-off) stays MOVE_SLIDE through the airborne
+        // arc — carried mostly ballistically rather than air-controlled — as long as horizontal
+        // speed is still above slideEndSpeed (the same floor flat sliding itself uses to decide
+        // "still going") and crouch is still held. beginStep's SLIDE branch has its own airborne vs.
+        // grounded sub-cases for exactly this reason. Landing re-enters the ordinary MOVEMENT STATE
+        // DECISION above on the fresh probe normal, so it naturally continues sliding (onto a ramp)
+        // or drops to WALK/SLIP there — no separate landing special-case needed here.
+        var wasSlideBeforeLoss = this._moveState === FPSC.MOVE_SLIDE;
+        var stillFastEnough = Math.sqrt(gb.x * gb.x + gb.z * gb.z) >= this.slideEndSpeed;
+        if (wasSlideBeforeLoss && this._wantCrouch && stillFastEnough) {
+            this._moveState = FPSC.MOVE_SLIDE;
+        } else {
+            this._moveState = FPSC.MOVE_AIRBORNE;
+        }
         // Genuinely airborne — no ground entity to inherit velocity from. A jump already captured
         // baseVelocity.y additively the tick it fired (_updateVertical); clearing here only stops
         // FUTURE ticks from reading a stale platform velocity while falling free.
@@ -10077,52 +10264,6 @@ proto.endStep = function(dt) {
     // into the reconciled character path. That readback is gated inside _syncGhost.
     // Opt-out (driveGhostDuringResim=false): freeze the ghost during resim (older behavior).
     if (!this._resimulating || this._driveGhostDuringResim) { this._syncGhost(dt); }
-
-    // Debug ring-buffer, off unless _debugCapture is set. Console: _debugStart(); reproduce; _debugDump().
-    if (this._debugCapture && !this._resimulating) {
-        var p2 = this.body.position, v2 = this.body.linear_velocity;
-        var buf = this._debugCapture;
-        buf.push({
-            z: +p2.z.toFixed(4), y: +p2.y.toFixed(4), x: +p2.x.toFixed(4),
-            vz: +v2.z.toFixed(3), vy: +v2.y.toFixed(3), vx: +v2.x.toFixed(3),
-            g: this.grounded, ny: +this.groundNormal.y.toFixed(3),
-            steep: this.groundNormal.y < this._minStandableNormalY,
-            vdisp: +this._viewDisplacementY.toFixed(4),
-            mark: this._debugMark || null // label dropped by _debugMark(), attached to this tick then cleared
-        });
-        this._debugMark = null;
-        if (buf.length > this._debugCap) { buf.shift(); }
-    }
-};
-
-/**
- * TEMP DEBUG: begin capturing per-tick movement state (see endStep). `seconds` sizes the ring
- * buffer (default 20s at 60Hz). Console-driven: _debugStart(20), reproduce, _debugDump().
- * @method _debugStart
- * @private
- */
-proto._debugStart = function(seconds) { this._debugCap = Math.round((seconds || 20) * 60); this._debugCapture = []; return "capturing ~" + (seconds || 20) + "s — reproduce, mark tests with _debugMark('name'), then _debugDump()"; };
-/**
- * TEMP DEBUG: label the NEXT captured tick (e.g. the start of one of your sub-tests).
- * @method _debugMark
- * @private
- */
-proto._debugMark = function(label) { this._debugMark = String(label || "mark"); return "marked: " + this._debugMark; };
-/**
- * TEMP DEBUG: stop + return the captured ticks as a compact table string (markers inline).
- * @method _debugDump
- * @private
- */
-proto._debugDump = function() {
-    var buf = this._debugCapture || [];
-    this._debugCapture = null;
-    var rows = buf.map(function(r, i) {
-        return (r.mark ? '\n===== ' + r.mark + ' =====\n' : '') +
-            i + '\t z=' + r.z + ' y=' + r.y + ' x=' + r.x +
-            ' | vz=' + r.vz + ' vy=' + r.vy + ' vx=' + r.vx +
-            ' | g=' + (r.g ? 1 : 0) + ' ny=' + r.ny + ' steep=' + (r.steep ? 1 : 0) + ' vdisp=' + r.vdisp;
-    });
-    return buf.length + ' ticks:\n' + rows.join('\n');
 };
 
 // ---- Overridable kit hooks --------------------------------------------
@@ -10134,83 +10275,51 @@ proto._getMoveSpeed = function(cmd) {
 };
 
 /**
- * Slide model (opt-in via slideEnabled). Stateless: sliding iff crouching + grounded + moving at
- * slide speed, recomputed every tick from inputs and the body's own velocity — no stored slide
- * flag or entry edge. Momentum is preserved while sliding (low effective friction on flat, gravity
- * accel on slopes) and steered weakly (slideControl).
+ * Slide velocity EVOLVER — advances one tick of the slide's surface-tracking model (slope accel,
+ * friction, steering). Pure: only called from beginStep's MOVE_SLIDE branch, which is only reached
+ * when endStep has ALREADY decided this tick is a slide (see the "MOVEMENT STATE DECISION" block
+ * in endStep) and has already written the correct starting tangential velocity into gb — including
+ * the one-time entry boost (slideBoost), applied there rather than here so it lands on the exact
+ * tick the state transition itself is observable, not one tick later. This function does not
+ * decide whether to slide — it has no entry gate, no exit gate, no stored flag. It reads gb (this
+ * tick's starting velocity, already tangent to groundNormal), advances it one tick, and returns
+ * the result.
  *
  * @method _updateSlide
  * @private
- * @return {Object|null} {mx,mz} slide velocity this tick, or null when not sliding.
+ * @return {Object} {vx, vy, vz} — this tick's slide velocity, always 3D.
  */
 proto._updateSlide = function(cmd, wishX, wishZ, dt) {
-    if (!this.slideEnabled) {
-        this._sliding = false;
-        return null;
-    }
-    var wasSliding = this._sliding; // read before the entry gate below overwrites it
-    var gb = this.body.linear_velocity;
-    // _ownVelocityX/Z, NOT gb.x/z — gb may already carry a platform's base velocity baked in (see
-    // the constructor comment). Reading the combined value here would re-seed the slide's own
+    // _ownVelocityX/Z, NOT gb.x/z — gb carries the platform's base velocity baked in (see the
+    // constructor's _baseVelocity comment). Evolving the raw gb value would re-seed the slide's own
     // momentum with the platform's speed already added, which then compounds every tick instead of
-    // properly decaying (the "boost pad" feel: sliding onto a moving platform read as if the
-    // platform's speed were the character's own build-up). Same reasoning as the sprint-decay/idle
-    // branches in beginStep, just applied inside the slide model too.
+    // properly decaying (the platform reads as if its own speed were the character's own build-up —
+    // a "boost pad" while sliding on a moving platform).
     var vx = this._ownVelocityX;
     var vz = this._ownVelocityZ;
-    var vyActual = gb.y;
-    var horizSp = Math.sqrt(vx * vx + vz * vz);
-    var sp = horizSp;
+    var sp = Math.sqrt(vx * vx + vz * vz);
 
-    // Reconstruct true along-the-ground speed (the kinematic clamp zeros vertical velocity while
-    // grounded, so a slope deflates the raw horizontal reading below the true surface speed).
     var n = this.groundNormal;
     var slopeMag = Math.sqrt(n.x * n.x + n.z * n.z);
-    var ny = Math.max(n.y, 0.1);
     var gy = this._gravityVec.y;
     var onSlope = slopeMag >= this.slideSlopeMin;
-    var groundSp;
-    if (slopeMag > FPSC.EPS_LEN) {
-        var alongH = (vx * n.x + vz * n.z) / slopeMag;
-        var crossSq = Math.max(0, horizSp * horizSp - alongH * alongH);
-        var surfFall = alongH / ny;
-        groundSp = Math.sqrt(surfFall * surfFall + crossSq);
-    } else {
-        groundSp = Math.sqrt(horizSp * horizSp + vyActual * vyActual);
-    }
-
-    // On a slope the slide is gravity-fed and never ends on low speed; on flat it's spent
-    // momentum that rides the slow-tail floor (slideEndSpeed) to a stop.
-    var sustained = this._sliding && (onSlope || groundSp >= this.slideEndSpeed);
-    var inputOk = !this.slideRequiresMoveInput || (wishX * wishX + wishZ * wishZ) > FPSC.EPS_INPUT2;
-    this._sliding =
-        !!cmd.crouch &&
-        this.grounded &&
-        inputOk &&
-        (groundSp > this.moveSpeed + FPSC.EPS_SPEED_MARGIN || sustained);
-    if (!this._sliding) { return null; }
-
-    // Launch boost, applied ONCE on the entry edge (was not sliding last tick, is now) — not every
-    // tick, which would be unbounded acceleration. Scales the character's OWN current momentum at
-    // the moment of entry (a crouch-into-sprint launch feels stronger the faster you already were
-    // going), not a fixed reference speed. Applied to vx/vz directly so every downstream step this
-    // same tick (slope accel, flat friction, steering) operates on the boosted speed as its baseline.
-    if (!wasSliding && this.slideBoost !== 1) {
-        vx *= this.slideBoost;
-        vz *= this.slideBoost;
-        sp *= this.slideBoost;
-    }
+    // Downhill fall-line unit vector, used both by the slope-accel step below and by the reversal
+    // brake's uphill test further down. Only meaningful when onSlope; 0 otherwise (unused there).
+    var dx = onSlope ? n.x / slopeMag : 0;
+    var dz = onSlope ? n.z / slopeMag : 0;
 
     if (onSlope) {
         // Gravity accelerates the fall-line (downhill) component; the cross-slope (sideways)
         // part bleeds lightly. Returned as full 3D so the grounded branch doesn't re-project it.
-        var inv = 1 / slopeMag;
-        var dx = n.x * inv;
-        var dz = n.z * inv;
         var along = vx * dx + vz * dz;
         var crossX = vx - along * dx;
         var crossZ = vz - along * dz;
-        along += -gy * n.y * slopeMag * this.slideSlopeAccel * dt;
+        // Along-slope gravitational accel is g*sin(theta) — slopeMag alone (sin of the tilt from
+        // horizontal). The extra n.y (cos theta) factor here was wrong: sin(theta)*cos(theta) PEAKS at
+        // 45° and falls back off toward vertical, so a 55°+ face decelerated barely harder than a 20°
+        // one, and a near-vertical wall almost not at all — backwards from real physics, where steeper
+        // always means more deceleration, up to g at 90°.
+        along += -gy * slopeMag * this.slideSlopeAccel * dt;
         var cs = Math.sqrt(crossX * crossX + crossZ * crossZ);
         var cn = Math.max(0, cs - this.slideSlopeFriction * dt);
         var cf = cs > FPSC.EPS_DIR ? cn / cs : 0;
@@ -10245,7 +10354,13 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
             : this.slideFriction * this.slideReversalBrakeMult;
         var vnx = vx / sp, vnz = vz / sp;
         var facing = wnx * vnx + wnz * vnz; // 1 = same direction, -1 = dead opposite
-        if (facing < FPSC.SLIDE_REVERSAL_DOT) {
+        // ANGLE-BLIND: on ANY slope, gravity always wins the fall-line — you can't carve a slide uphill
+        // against it, only brake. A wish with any uphill component (against the downhill fall-line
+        // dx/dz) must BRAKE toward a stop, not carve; otherwise the carve below redirects the blocked
+        // uphill momentum into a cross-slope skid off the side. On flat there's no fall-line to fight,
+        // so only a near-opposite wish counts as a reversal there (unchanged).
+        var uphillOnSlope = onSlope && (wnx * dx + wnz * dz) < 0;
+        if (uphillOnSlope || facing < FPSC.SLIDE_REVERSAL_DOT) {
             var braked = Math.max(0, sp - brakeRate * dt);
             var bf = sp > FPSC.EPS_DIR ? braked / sp : 0;
             vx *= bf;
@@ -10259,13 +10374,19 @@ proto._updateSlide = function(cmd, wishX, wishZ, dt) {
         }
     }
 
+    var vy = 0;
     if (onSlope) {
         var inv2 = 1 / slopeMag;
         var alongOut = vx * (n.x * inv2) + vz * (n.z * inv2);
-        var vy = -alongOut * slopeMag / Math.max(n.y, 0.1);
-        return { full: true, vx: vx, vy: vy, vz: vz };
+        vy = -alongOut * slopeMag / Math.max(n.y, 0.1);
+        // The velocity returned here is already tangent to the surface — including on a TOO-STEEP slope.
+        // The too-steep-can't-move-up rules don't re-clip it: an active slide is exempt everywhere they
+        // apply (see _collideAndSlide's climbSteepSlopes opt) — the slide IS the climb.
     }
-    return { mx: vx, mz: vz };
+    // Flat ground (!onSlope): groundNormal.y is ~1, so gb.y should stay ~0 — the caller (beginStep's
+    // ground clamp path, same as WALK) doesn't need a nonzero vy to track a surface that's already
+    // level. vy=0 here is that "no vertical correction needed" case, not a special flat-only shape.
+    return { vx: vx, vy: vy, vz: vz };
 };
 
 /**
@@ -10284,6 +10405,9 @@ proto._updateVertical = function(cmd, dt) {
         // the character already had that tick.
         this.body.linear_velocity.y = this.jumpSpeed + this._baseVelocity.y;
         this.grounded = false;
+        // beginStep's movement-state dispatch runs right after this call, on the SAME tick — must
+        // see AIRBORNE now, not whatever grounded sub-state was true a moment ago.
+        this._moveState = FPSC.MOVE_AIRBORNE;
         this._groundSuppress = FPSC.GROUND_SUPPRESS_JUMP;
         this._coyoteTimer = 0;
         this._jumpBufferTimer = 0;
@@ -10368,16 +10492,6 @@ proto._probeGroundCandidates = function(maxSnap) {
 };
 
 /**
- * Back-compat single-hit wrapper: highest floor-like candidate, or null.
- * @method _probeGround
- * @private
- */
-proto._probeGround = function(maxSnap) {
-    var c = this._probeGroundCandidates(maxSnap);
-    return c.length ? c[0] : null;
-};
-
-/**
  * Kinematic collide-and-slide. The character is excluded from the solver, so we stop
  * ourselves at walls and slide along them here. For the current horizontal velocity
  * we cast a fan of rays (across the footprint width, at a few heights) in the move
@@ -10394,7 +10508,15 @@ proto._collideAndSlide = function(vx, vz, dt) {
         width: this.width, depth: this.depth, height: this.height,
         skin: this._skin, mass: this.mass, stepHeight: this.stepHeight,
         selfBody: this.body, otherSelfBody: this._ghost || null,
-        climbSteepSlopes: this.climbSteepSlopes,
+        // A SLIDE is exempt from the too-steep-can't-move-up block (the slide IS the climb — momentum,
+        // not input, is what carries it up). This must hold while AIRBORNE-sliding too: an airborne
+        // slide sweeping into a steep face otherwise wall-clips to zero speed mid-air, which kills the
+        // slide before it ever lands on the surface. _climbableSlopeAhead inside still tells real
+        // slopes from vertical walls, so walls keep stopping a slide. this._moveState is already
+        // MOVE_SLIDE on the true first-contact tick too — endStep decides movement state (including
+        // slide entry) BEFORE this function runs later in the same beginStep, so there's no
+        // "one tick behind" gap here to patch around.
+        climbSteepSlopes: this.climbSteepSlopes || this._moveState === FPSC.MOVE_SLIDE,
         vx: vx, vz: vz, dt: dt,
     });
     // Depenetration is a horizontal position correction out of a wall, separate from the velocity move.
@@ -10685,7 +10807,13 @@ proto.getState = function() {
         yaw: this.yaw, pitch: this.pitch,
         grounded: this.grounded,
         w: this.width, h: this.height,
-        sliding: this._sliding,
+        // The full authoritative movement state (see the "Movement state machine" comment above
+        // endStep) — not just a sliding boolean, so resim re-adopts WALK/SLIP/SLIDE exactly, not a
+        // flag it has to re-derive (and could re-derive differently than live prediction did).
+        moveState: this._moveState,
+        // Plain boolean, for snapshot consumers that only care about this one bit (e.g. a body
+        // model tilting itself while sliding) and shouldn't need to know the full state enum above.
+        sliding: this._moveState === FPSC.MOVE_SLIDE,
         // Jump/air transition timers; resim of an airborne phase must start from these or it
         // re-grounds / re-times the jump differently than the live prediction did.
         gs: this._groundSuppress,
@@ -10734,13 +10862,10 @@ proto.setState = function(s) {
     // constructor comment).
     this._ownVelocityX = v.x - this._baseVelocity.x;
     this._ownVelocityZ = v.z - this._baseVelocity.z;
-    if (s.grounded !== undefined) {
-        this.grounded = s.grounded;
-        // Seed the landing edge to the authoritative grounded so the resim doesn't see a phantom
-        // grounded transition at the reconcile seam (left at the live-present value, `_justLanded`
-        // could mis-fire). The real touchdown is re-detected by the replayed physics.
-        this._groundedPrev = s.grounded;
-    }
+    if (s.grounded !== undefined) { this.grounded = s.grounded; }
+    // Adopt the authoritative movement state directly — resim then starts from exactly the state
+    // live prediction was in (WALK/SLIP/SLIDE/AIRBORNE/LADDER), not a locally re-derived guess.
+    if (s.moveState !== undefined) { this._moveState = s.moveState; }
     if (s.gs !== undefined) { this._groundSuppress = s.gs; }
     if (s.ct !== undefined) { this._coyoteTimer = s.ct; }
     if (s.jb !== undefined) { this._jumpBufferTimer = s.jb; }
@@ -10775,6 +10900,7 @@ proto.applyKnockback = function(vx, vy, vz) {
     gb.y += vy;
     gb.z += vz;
     this.grounded = false;
+    this._moveState = FPSC.MOVE_AIRBORNE;
     this._groundSuppress = 10;
     this.velocityY = gb.y;
 };
@@ -10790,6 +10916,7 @@ proto.setPosition = function(pos) {
     this.body.updateDerived();
     this.body.linear_velocity.set(0, 0, 0);
     this.grounded = false;
+    this._moveState = FPSC.MOVE_AIRBORNE;
     if (this._ghost) {
         var inset = this._ghostGroundInset || 0;
         this._ghost.position.set(pos.x, pos.y + inset / 2, pos.z);
@@ -10864,7 +10991,8 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
     // ---- Slide (crouch-at-speed) ----
     slide: {
         enabled: true,
-        requiresMoveInput: false, // also require a movement key held (not crouch alone)
+        requiresMoveInput: true,  // ENTRY requires a movement key held (not crouch alone); exit does not
+        allowLandingWithoutInput: true, // ...EXCEPT on the landing frame, where crouch + speed alone can start a slide
         minSpeed: 7.8,         // speed at/above which a crouch launches a slide
         endSpeed: 1,           // slide ends when speed bleeds below this
         friction: 6,           // flat-ground slide friction
@@ -10874,7 +11002,6 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         slopeMin: 0.2,         // sin(angle) at/above which the slide is gravity-governed (Infinity disables)
         slopeFriction: 1.5,    // cross-slope friction while gravity-sliding
         reversalBrakeMult: 4,  // multiplier on slopeFriction for how hard a deliberate reversal brakes
-        coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
     },
 
     // ---- Ladders (see _updateLadder) ----
