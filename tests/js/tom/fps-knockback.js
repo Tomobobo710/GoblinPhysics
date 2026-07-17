@@ -101,16 +101,18 @@
 		PBF.renderables(t, p);
 		PBF.drive(t, p, function (tick) {
 			if (tick === 30) {
-				c = box(w, 0.6, 2, { x: 0, y: 4, z: 0 }, '#0f0', { friction: 0.4, restitution: 0.05 });
-				c.linear_velocity.set(0, -10, 0);
+				var cs = S.sc(0.6);
+				var dropY = p.body.position.y + p.height / 2 + S.sc(3.4);
+				c = box(w, cs, 2 * S.SC * S.SC * S.SC, { x: 0, y: dropY, z: 0 }, '#0f0', { friction: 0.4, restitution: 0.05 });
+				c.linear_velocity.set(0, -S.sc(10), 0);
 			}
 			if (tick > 30) maxPlayerH = Math.max(maxPlayerH, PBF.hsp(p));
 			return {};
 		});
-		t.log('A straight vertical drop has no closing horizontal speed; player horiz speed stays ~0 (< 0.3).');
+		t.log('A straight vertical drop has no closing horizontal speed; player horiz speed stays ~0 (< ' + S.sc(0.3).toFixed(2) + ').');
 		var done = finalGate(t, 150);
-		t.expect('player not flung (horiz < 0.3)', function () {
-			return { ok: done() && c != null && maxPlayerH < 0.3, detail: 'maxPlayerHoriz=' + maxPlayerH.toFixed(2) };
+		t.expect('player not flung (horiz < sc(0.3))', function () {
+			return { ok: done() && c != null && maxPlayerH < S.sc(0.3), detail: 'maxPlayerHoriz=' + maxPlayerH.toFixed(2) + ' expect<' + S.sc(0.3).toFixed(2) };
 		});
 		t.simulate(w, 150);
 	}, { page: 'fps/knockback', steps: 150, description: 'A box dropped straight down onto the head must not fling the player.' });

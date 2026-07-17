@@ -196,12 +196,12 @@
 		PBF.renderables(t, p);
 		var enteredSlide = false, mountedAt = -1, slidingAtMount = null, slidingAfterMount = false;
 		PBF.drive(t, p, function (tick) {
-			if (p._sliding) { enteredSlide = true; }
+			if (p.sliding) { enteredSlide = true; }
 			if (p._onLadder && mountedAt < 0) {
 				mountedAt = tick;
-				slidingAtMount = p._sliding;
+				slidingAtMount = p.sliding;
 			}
-			if (mountedAt > 0 && p._onLadder && p._sliding) { slidingAfterMount = true; }
+			if (mountedAt > 0 && p._onLadder && p.sliding) { slidingAfterMount = true; }
 			if (tick <= 15) return { forward: 1, sprint: true };
 			return { forward: 1, sprint: true, crouch: true };
 		});

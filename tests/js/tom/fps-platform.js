@@ -205,49 +205,133 @@
 		t.simulate(w, 340);
 	}, { page: P, steps: 340, description: 'Riding an elevator from the bottom with no jitter, jumping near the top of the ascent flings the player measurably higher than a normal jump, then they fall back and land.' });
 
-	// ---- PL4: sliding onto a moving platform doesn't read the ride as the character's own boost ----
-	PBF.scaleTest(G, 'PL4', 'sliding on a moving platform decays own speed, not a boost pad', function (t, S) {
-		var w = S.flat();
-		// A big platform the character SPAWNS already standing on (like PL1/PL3, not a timed
-		// approach like PL2 — avoids tuning two independently-moving bodies to cross paths), moving
-		// along X while the character slides along Z — own and base velocity point along different
-		// axes, so the boost-pad symptom (own speed growing instead of decaying) can't be masked by
-		// summed magnitude.
-		var mover = S.splatform(w, 8, 0.3, { x: -6, y: 0, z: 0 }, { x: 6, y: 0, z: 0 }, 4, '#4a7ab0', { startFrac: 0.5 });
-		var platY = mover.position.y + (0.3 * S.SC) / 2;
-		var p = S.spawn(w, { x: 0, y: platY + 0.9 * S.SC + 0.001, z: 0 }, {});
+	// ---- PL4: sprint-slide down a lane, cross a platform heading the other way, keep going normally ----
+	PBF.scaleTest(G, 'PL4', 'sliding across an oncoming platform behaves normally, not a boost pad', function (t, S) {
+		var w = PBF.makeWorld();
+		w.addRigidBody(PBF.staticBox(S.sc(15), S.sc(1), S.sc(30), { x: 0, y: -S.sc(1), z: S.sc(10) }, '#333'));
+		// Platform starts at the FAR end of the lane and travels toward the player (who starts at the
+		// near end), flush with the floor, so a sprint+slide down the lane meets it head-on and
+		// crosses over it — matching the real in-game scenario directly. Thickness (0.3, pre-scale)
+		// matches game.js's actual shuttle platform — it must stay under the controller's stepHeight
+		// (0.4 pre-scale) so the character steps up onto it instead of clipping/phasing at its edge.
+		var mover = S.splatform(w, 4, 0.3, { x: 0, y: 0.15, z: 15 }, { x: 0, y: 0.15, z: -15 }, 3, '#4a7ab0');
+		var p = S.feetSpawn(w, 0, -S.sc(10), {});
 		PBF.renderables(t, p, [mover]);
 
-		var onPlatform = function () {
-			var cands = p._probeGroundCandidates(p.stepDownDist);
-			for (var i = 0; i < cands.length; i++) if (cands[i].object && cands[i].object.isPlatform) return true;
-			return false;
-		};
-
-		var boardedAt = -1, ownSpeedAtBoard = -1, ownSpeedLate = -1, everGrewAfterBoard = false;
+		// t.expect(label, fn) is the ONLY mechanism that works both headless AND live in the browser
+		// viewer — the live render loop (render.js) drives ticks itself and re-evaluates every
+		// t.expect() predicate each tick via ctx.evalTick; code placed after t.simulate() in the test
+		// body runs exactly once, synchronously, at t=0, before the browser ever steps a single tick
+		// (see render.js's captureSetup, which stubs out simulate() and runs the rest of the test
+		// function immediately) — a plain t.checkTrue() there always sees the untouched initial state
+		// in the live viewer even though it works fine headless. So: accumulate state every tick in
+		// PBF.drive's per-tick callback as before, but each PREDICATE below only resolves (ok:true or
+		// ok:false) once the run has reached its final tick — before that it stays pending — so it
+		// still gets ONE check against the FULLY accumulated result, the same as before, just via the
+		// mechanism that also works live.
+		var enteredSlide = false, slidingAtBoard = false, boardedAt = -1, leftAt = -1,
+			ownAtBoard = -1, prevOwn = -1, grewAfterBoardTick = false, worstGrowth = 0,
+			stalledAfterBoard = false, minPzAdvanceAfterBoard = Infinity, prevPz = null;
+		var TOTAL_TICKS = 220, curTick = 0;
 		PBF.drive(t, p, function (tick) {
-			var standing = p.grounded && onPlatform();
-			if (standing && boardedAt < 0) { boardedAt = tick; }
-			if (boardedAt > 0) {
+			curTick = tick;
+			if (p.sliding) { enteredSlide = true; }
+			var onPlatform = p._baseVelocity.z !== 0 || p._baseVelocity.x !== 0;
+			if (onPlatform && boardedAt < 0) { boardedAt = tick; slidingAtBoard = p.sliding; }
+			if (!onPlatform && boardedAt >= 0 && leftAt < 0) { leftAt = tick; }
+			var standing = p.grounded && p.sliding && onPlatform;
+			if (standing) {
 				var own = Math.hypot(p._ownVelocityX, p._ownVelocityZ);
-				if (ownSpeedAtBoard < 0) ownSpeedAtBoard = own;
-				if (tick > boardedAt + 5 && own > ownSpeedAtBoard + S.sc(0.5)) everGrewAfterBoard = true;
-				ownSpeedLate = own;
+				if (ownAtBoard < 0) { ownAtBoard = own; }
+				else if (prevOwn >= 0 && own > prevOwn) {
+					grewAfterBoardTick = true;
+					if (own - prevOwn > worstGrowth) worstGrowth = own - prevOwn;
+				}
+				prevOwn = own;
 			}
-			if (tick <= 15) return { forward: 1, sprint: true, yaw: 0 };
+			// "Slid over, not stopped dead": WHILE ABOARD (between boardedAt and leftAt only — not for
+			// the rest of the run after dismount, where ordinary end-of-slide friction decay also
+			// slows the per-tick advance and would otherwise be misread as a stall), the player must
+			// keep making forward progress every tick, not flatline in place (the boost-pad bug's
+			// stall symptom). Measured directly: broken crawls ~0.01-0.11 units/tick while aboard;
+			// correctly-fixed advances ~0.14-0.17+ units/tick throughout the crossing.
+			if (boardedAt >= 0 && leftAt < 0 && prevPz !== null) {
+				var advance = p.body.position.z - prevPz;
+				if (advance < minPzAdvanceAfterBoard) { minPzAdvanceAfterBoard = advance; }
+				if (advance <= S.sc(0.06)) { stalledAfterBoard = true; }
+			}
+			prevPz = p.body.position.z;
+			// Sprint long enough to actually close most of the distance to the platform before
+			// crouching — triggering the slide right away (as tick<=20 did) launches it at the start
+			// line, so it's fully decayed well before ever reaching the platform. Real play sprints
+			// most of the approach, then slides in at the last moment.
+			if (tick <= 45) { return { forward: 1, sprint: true, yaw: 0 }; }
 			return { forward: 1, sprint: true, crouch: true, yaw: 0 };
 		}, [mover]);
 
-		t.log('Spawn on a moving platform, sprint into a slide across it (perpendicular to the platform\'s own travel). Expect: the character\'s OWN speed (separate from the platform\'s ride) decays normally like any other slide, never reading the platform\'s speed as its own and growing instead of decaying — the "boost pad" feel this test guards against.');
-		t.expect('boarded/standing on the platform', function () {
+		t.log('Sprint then crouch-slide straight down a lane; a platform travels the same lane toward the player and they cross over it. Expect: nothing special happens — own speed keeps decaying from friction the whole time, same as sliding on plain ground, and the player slides all the way OVER the platform rather than stalling dead partway across. Any tick where own speed goes UP instead of down while aboard is the platform\'s motion leaking into the character\'s own momentum — the boost-pad bug.');
+		t.expect('entered a slide at some point', function () {
+			if (curTick < TOTAL_TICKS) { return { ok: false, detail: 'enteredSlide=' + enteredSlide + ' (pending…)' }; }
+			return { ok: enteredSlide, detail: 'enteredSlide=' + enteredSlide };
+		});
+		t.expect('was still sliding when it reached/boarded the platform', function () {
+			if (curTick < TOTAL_TICKS) { return { ok: false, detail: 'boardedAt=' + boardedAt + ' (pending…)' }; }
+			return { ok: boardedAt > 0 && slidingAtBoard, detail: 'boardedAt=' + boardedAt + ' slidingAtBoard=' + slidingAtBoard };
+		});
+		t.expect('slid all the way over the platform, never stalled dead', function () {
+			if (curTick < TOTAL_TICKS) { return { ok: false, detail: 'boardedAt=' + boardedAt + ' leftAt=' + leftAt + ' (pending…)' }; }
+			return { ok: boardedAt > 0 && leftAt > boardedAt && !stalledAfterBoard,
+				detail: 'boardedAt=' + boardedAt + ' leftAt=' + leftAt + ' stalledAfterBoard=' + stalledAfterBoard +
+					' minPzAdvanceAfterBoard=' + (isFinite(minPzAdvanceAfterBoard) ? minPzAdvanceAfterBoard.toFixed(4) : 'n/a') };
+		});
+		t.expect('own speed never grows while aboard, no boost-pad compounding', function () {
+			if (curTick < TOTAL_TICKS) { return { ok: false, detail: 'worstGrowth=' + worstGrowth.toFixed(3) + ' (pending…)' }; }
+			return { ok: !grewAfterBoardTick, detail: 'worstGrowth=' + worstGrowth.toFixed(3) + ' ownAtBoard=' + ownAtBoard.toFixed(2) };
+		});
+		t.simulate(w, TOTAL_TICKS);
+	}, { page: P, steps: 220, description: 'Sprint-sliding down a lane while a platform travels toward the player down the same lane — crossing it must feel like normal ground, not a boost pad.' });
+
+	// ---- PL5: sprint-slide down a lane, catch a platform heading the SAME way — must NOT boost ----
+	PBF.scaleTest(G, 'PL5', 'catching an outrunning platform from behind must not launch the player faster', function (t, S) {
+		var w = PBF.makeWorld();
+		w.addRigidBody(PBF.staticBox(S.sc(15), S.sc(1), S.sc(30), { x: 0, y: -S.sc(1), z: S.sc(10) }, '#333'));
+		// Platform starts just ahead of the player and travels AWAY down the same lane the player is
+		// sprinting/sliding — the player catches up from behind and boards while it's still moving away.
+		// The bug: touching the platform launches the player to a way-higher speed than they already
+		// had. That must NOT happen — total speed right after boarding should stay close to whatever
+		// speed the player already had, not spike.
+		var mover = S.splatform(w, 4, 0.3, { x: 0, y: 0.15, z: 5 }, { x: 0, y: 0.15, z: 25 }, 3, '#4a7ab0');
+		var p = S.feetSpawn(w, 0, -S.sc(10), {});
+		PBF.renderables(t, p, [mover]);
+
+		var boardedAt = -1, speedBeforeBoard = -1, worstSpikeAfterBoard = 0;
+		var TOTAL_TICKS = 220, curTick = 0;
+		PBF.drive(t, p, function (tick) {
+			curTick = tick;
+			var onPlatform = p._baseVelocity.z !== 0 || p._baseVelocity.x !== 0;
+			var total = Math.hypot(p.body.linear_velocity.x, p.body.linear_velocity.z);
+			if (!onPlatform) { speedBeforeBoard = total; }
+			if (onPlatform) {
+				if (boardedAt < 0) { boardedAt = tick; }
+				var spike = total - speedBeforeBoard;
+				if (spike > worstSpikeAfterBoard) { worstSpikeAfterBoard = spike; }
+			}
+			if (tick <= 45) { return { forward: 1, sprint: true, yaw: 0 }; }
+			return { forward: 1, sprint: true, crouch: true, yaw: 0 };
+		}, [mover]);
+
+		t.log('Sprint then crouch-slide down a lane, catching a platform from behind that\'s moving away down the same lane. The bug: touching the platform hauls the player to a much higher speed than they already had. Expect: boarding must NOT launch the player faster — speed while aboard stays close to whatever speed they already had going in.');
+		t.expect('boarded the platform from behind', function () {
+			if (curTick < TOTAL_TICKS) { return { ok: false, detail: 'boardedAt=' + boardedAt + ' (pending…)' }; }
 			return { ok: boardedAt > 0, detail: 'boardedAt=' + boardedAt };
 		});
-		t.expect('own speed never grows after boarding (no boost-pad compounding)', function () {
-			return { ok: !everGrewAfterBoard, detail: 'everGrewAfterBoard=' + everGrewAfterBoard +
-				' atBoard=' + ownSpeedAtBoard.toFixed(2) + ' late=' + ownSpeedLate.toFixed(2) };
+		t.expect('touching the platform did not launch the player faster', function () {
+			if (curTick < TOTAL_TICKS) { return { ok: false, detail: 'worstSpikeAfterBoard=' + worstSpikeAfterBoard.toFixed(2) + ' (pending…)' }; }
+			return { ok: worstSpikeAfterBoard <= S.sc(1), detail: 'speedBeforeBoard=' + speedBeforeBoard.toFixed(2) +
+				' worstSpikeAfterBoard=' + worstSpikeAfterBoard.toFixed(2) };
 		});
-		t.simulate(w, 120);
-	}, { page: P, steps: 120, description: 'Spawn on a moving platform, sprint into a slide across it — the character\'s own momentum (separate from the ride) must decay normally, not compound with the platform\'s speed like a boost pad.' });
+		t.simulate(w, TOTAL_TICKS);
+	}, { page: P, steps: 220, description: 'Sprint-sliding down a lane and catching a platform from behind, moving away down the same lane — boarding it must not launch the player to a higher speed.' });
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

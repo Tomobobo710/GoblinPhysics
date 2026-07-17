@@ -150,6 +150,19 @@
 		return litMesh(geoForShape(s), color);
 	}
 	function syncMesh(m, b) { m.position.set(b.position.x, b.position.y, b.position.z); m.quaternion.set(b.rotation.x, b.rotation.y, b.rotation.z, b.rotation.w); }
+	// Live-refresh a mesh's colour from its body's _color (which a test may change per tick, e.g. to tint
+	// the controller by movement state). meshForBody bakes _color at creation only; without this, later
+	// _color changes never show. Walks the mesh + any child meshes (capsule/compound groups), skipping the
+	// white wireframe overlay child (a MeshBasicMaterial) so only the lit body material is recoloured.
+	function syncColor(m, b) {
+		if (!b || !b._color) { return; }
+		var color = parseInt(b._color.replace('#', '0x'));
+		if (m._lastColor === color) { return; }
+		m._lastColor = color;
+		m.traverse(function (o) {
+			if (o.material && o.material instanceof THREE.MeshLambertMaterial) { o.material.color.setHex(color); }
+		});
+	}
 	function clearScene() { if (!R) return; R.meshes.forEach(function (m) { R.scene.remove(m); if (m._b) m._b._drawable = null; }); R.meshes = []; R.extras.forEach(function (m) { R.scene.remove(m); }); R.extras = []; }
 	function drawBodies(bodies) { bodies.forEach(function (b) { var m = meshForBody(b); m._b = b; b._drawable = m; R.meshes.push(m); R.scene.add(m); syncMesh(m, b); }); }
 	function drawRay(ray) {
@@ -393,7 +406,7 @@
 					anim.meshes.splice(mi, 1);
 				}
 			}
-			anim.meshes.forEach(function (m) { if (m._b) syncMesh(m, m._b); });
+			anim.meshes.forEach(function (m) { if (m._b) { syncMesh(m, m._b); syncColor(m, m._b); } });
 			var tl = document.getElementById('tickline'); if (tl) tl.textContent = 'tick ' + anim.tick + ' / ' + anim.totalTicks;
 			if ((anim.tick >= anim.totalTicks || (done && canEarlyOut)) && !anim._finished) { anim._finished = true; anim.onFinish(); }
 		}

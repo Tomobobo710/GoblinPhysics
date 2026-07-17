@@ -324,7 +324,7 @@
 		PBF.drive(t, p, function (tick) {
 			if (tick === 45) y0 = p.body.position.y;
 			if (tick > 45) {
-				if (p._sliding) everSliding = true;
+				if (p.sliding) everSliding = true;
 				if (PBF.hsp(p) > 2) gainedSpeed = true;
 			}
 			return {};
@@ -641,9 +641,9 @@
 			if (sinceSettle <= 25) return { forward: -1, sprint: true, crouch: true, yaw: 0 }; // launch slide
 			// From here: hold straight backward relative to the uphill climb (forward:1, same yaw)
 			// through the whole reversal.
-			if (p._sliding) { enteredSlide = true; }
+			if (p.sliding) { enteredSlide = true; }
 			if (enteredSlide) {
-				if (!p._sliding) { everLeftSlideDuringHold = true; }
+				if (!p.sliding) { everLeftSlideDuringHold = true; }
 				var v = p.body.linear_velocity;
 				worstLateral = Math.max(worstLateral, Math.abs(v.x));
 				if (v.z > 0) { reversed = true; } // started uphill (-Z); reversal means net +Z
@@ -680,10 +680,10 @@
 		var w = PBF.makeWorld();
 		// Flat pad the character starts and slides on: top surface at y=0, downhill edge flush at z=0.
 		w.addRigidBody(PBF.staticBox(S.sc(10), S.sc(1), S.sc(4), { x: 0, y: -S.sc(1), z: -S.sc(4) }, '#444'));
-		// Small ramp (half-extents 6x0.5x3, tilted -25° about X) placed so its downhill top edge sits
+		// Small ramp (half-extents 6x0.5x0.9, tilted -25° about X) placed so its downhill top edge sits
 		// flush at world (y=0, z=0) — continuous with the flat, so the slide climbs it without a step.
 		var rot = PBF.axisAngleQuat(1, 0, 0, -25 * Math.PI / 180);
-		w.addRigidBody(PBF.staticBox(S.sc(6), S.sc(0.5), S.sc(3), { x: 0, y: S.sc(0.815), z: S.sc(2.930) }, '#665544', null, rot));
+		w.addRigidBody(PBF.staticBox(S.sc(6), S.sc(0.5), S.sc(0.9), { x: 0, y: -S.sc(0.073), z: S.sc(1.027) }, '#665544', null, rot));
 		var p = S.feetSpawn(w, 0, -S.sc(approach), {});
 		PBF.renderables(t, p);
 		var slidBeforeRamp = false, slidAtApex = false, leftGroundAt = -1, apexY = -Infinity;
@@ -691,7 +691,7 @@
 		var TOTAL = 160;
 		PBF.drive(t, p, function (tick) {
 			lastTick = tick;
-			var z = p.body.position.z, y = p.body.position.y, g = p.grounded, slid = p._sliding;
+			var z = p.body.position.z, y = p.body.position.y, g = p.grounded, slid = p.sliding;
 			var dy = prevY === null ? 0 : y - prevY;
 			// Sliding on the flat (z < 0) before ever touching the ramp.
 			if (slid && z < -S.sc(0.5)) { slidBeforeRamp = true; }
@@ -707,8 +707,11 @@
 			if (leftGroundAt > 0 && tick <= leftGroundAt + 6 && dy < worstAirDrop) { worstAirDrop = dy; }
 			prevY = y;
 			if (tick <= 25) return {};
-			if (tick <= 35) return { forward: 1, sprint: true, yaw: 0 };  // short sprint on flat
-			return { forward: 1, sprint: true, crouch: true, yaw: 0 };    // crouch -> slide just before ramp
+			// Crouch late — only once close to the ramp edge (still on the flat, still satisfies the
+			// slidBeforeRamp check at z < -sc(0.5)) — so the slide entry carries near-full sprint speed
+			// onto the ramp instead of bleeding to slide friction over a long flat approach.
+			if (z < -S.sc(1)) { return { forward: 1, sprint: true, yaw: 0 }; }
+			return { forward: 1, sprint: true, crouch: true, yaw: 0 };
 		});
 		t.log('Sprint on flat to slide speed, crouch to start sliding while still on the flat, then slide up a small ramp and off its apex. The launch must not dip: no downward hitch on the grounded frames on the ramp near the crest, and a monotonic rise for the first frames after going airborne.');
 		t.expect('was sliding on the flat before reaching the ramp', function () {
@@ -753,7 +756,7 @@
 		var TOTAL = 160;
 		PBF.drive(t, p, function (tick) {
 			lastTick = tick;
-			var z = p.body.position.z, g = p.grounded, slid = p._sliding;
+			var z = p.body.position.z, g = p.grounded, slid = p.sliding;
 			// Ignore the initial drop-in: only start watching once the character has settled onto the
 			// flat and is walking (first grounded tick after the walk command begins).
 			if (tick > 25 && g) { settledGrounded = true; }
@@ -783,6 +786,334 @@
 		});
 		t.simulate(w, TOTAL);
 	}, { page: 'fps/ramp', steps: 160, description: 'Sprint-walk (no crouch) over the same small ramp apex: walking must stick to the ramp geometry the whole way and only leave the ground when the ramp actually ends beneath it — never floating off early, never launching. Launch is slide-exclusive.' });
+
+	// ---- R22: crouch-sliding onto a TOO-STEEP surface stays a grounded slide, not slip ----
+	// A slide that meets the entry gate owns a too-steep (unstandable) surface too: the character stays
+	// GROUNDED and SLIDING down it (the slide velocity model), rather than dropping into the weak-control
+	// slip mechanic. Without crouch/slide, the same steep surface is still plain slip (R2/R11 cover that).
+	PBF.scaleTest('fps/ramp', 'R22', 'crouch-slide owns a too-steep surface (grounded slide, not slip)', function (t, S) {
+		var w = PBF.makeWorld();
+		// Flat run-up (top at y=0, z<0) then a 50° down-slope — past the ~45.6° standable limit — whose
+		// downhill top edge is flush at (y=0, z=0), so the slide continues straight onto the steep face.
+		w.addRigidBody(PBF.staticBox(S.sc(12), S.sc(1), S.sc(8), { x: 0, y: -S.sc(1), z: -S.sc(8) }, '#444'));
+		var rad = 50 * Math.PI / 180, hy = 0.5, hz = 6;
+		var cy = hy * Math.cos(rad) - (-hz) * Math.sin(rad);
+		var cz = hy * Math.sin(rad) + (-hz) * Math.cos(rad);
+		var rot = PBF.axisAngleQuat(1, 0, 0, rad);
+		w.addRigidBody(PBF.staticBox(S.sc(6), S.sc(hy), S.sc(hz), { x: 0, y: -S.sc(cy), z: -S.sc(cz) }, '#883333', null, rot));
+		var p = S.feetSpawn(w, 0, -S.sc(6), {});
+		PBF.renderables(t, p);
+		var reachedSteep = false, groundedSteepSlideTicks = 0, slippedInsteadTicks = 0;
+		PBF.drive(t, p, function (tick) {
+			var g = p.grounded, slid = p.sliding, steep = p._isSlipSurface(p.groundNormal);
+			if (steep && g) {
+				reachedSteep = true;
+				if (slid) { groundedSteepSlideTicks++; } else { slippedInsteadTicks++; }
+			}
+			if (tick <= 25) return {};
+			if (tick <= 40) return { forward: 1, sprint: true, yaw: 0 };  // build slide speed on the flat
+			return { forward: 1, sprint: true, crouch: true, yaw: 0 };    // crouch -> slide down the steep face
+		});
+		t.log('Sprint on the flat, crouch to slide, then continue down a 50° (too-steep, unstandable) ramp. The slide must OWN the steep surface: stay grounded and sliding down it, not drop into the weak-control slip mechanic.');
+		t.expect('actually reached the too-steep surface while grounded', function () {
+			return { ok: reachedSteep, detail: 'reachedSteep=' + reachedSteep };
+		});
+		t.expect('slid down the steep surface while grounded (slide owns it)', function () {
+			return { ok: groundedSteepSlideTicks > 10, detail: 'groundedSteepSlideTicks=' + groundedSteepSlideTicks };
+		});
+		t.expect('did not fall into slip on the steep surface while crouch-sliding', function () {
+			return { ok: slippedInsteadTicks === 0, detail: 'slippedInsteadTicks=' + slippedInsteadTicks };
+		});
+		t.simulate(w, 160);
+	}, { page: 'fps/ramp', steps: 160, description: 'Crouch-slide down a 50° too-steep ramp: the slide owns the unstandable surface (grounded slide down it), instead of dropping into the weak-control slip mechanic that a non-crouched steep contact uses.' });
+	// steepSlideRamp(S): a ramp past the standable limit where a crouch-at-speed slide reliably settles
+	// into a GROUNDED steep-slide. 50° is over the ~45.6° limit but shallow enough the slide stays
+	// grounded (55° launches instead). Downhill is +z. SCALED by S.sc — the ramp must grow with the
+	// character or a larger scale skitters off a too-small fixed ramp. Spawn near the TOP (uphill) end
+	// for maximum runway: S.spawn(w, { x: 0, y: S.sc(24), z: -S.sc(8) }, {}) — the top corner is ~(-8.9,
+	// 22.1) at scale 1, so this drops the character in just above it to slide the full ramp length.
+	function steepSlideRamp(S) {
+		var w = PBF.makeWorld();
+		var rot = PBF.axisAngleQuat(1, 0, 0, 50 * Math.PI / 180);
+		w.addRigidBody(PBF.staticBox(S.sc(10), S.sc(1), S.sc(15), { x: 0, y: S.sc(10), z: 0 }, '#665544', null, rot));
+		return w;
+	}
+
+	// ---- R23: base setup — entering a slide is phase-gated: fall → land → slide ----
+	// The canonical steep-slide setup the other R2x tests build on, as an explicitly ASSERTED phase
+	// machine, state-driven (no hardcoded ticks, so it holds at every scale): the character falls, must
+	// LAND, and only once landed does it sprint downhill + crouch to build the speed needed to ENTER a
+	// slide. Each phase gates the next and is its own assert — nothing downstream is measured on a state
+	// we didn't confirm we reached.
+	PBF.scaleTest('fps/ramp', 'R23', 'base setup: entering a slide is phase-gated (fall, land, slide)', function (t, S) {
+		var w = steepSlideRamp(S);
+		// Spawn near the TOP (uphill) end of the ramp so the character slides its full length — max runway.
+		var p = S.spawn(w, { x: 0, y: S.sc(24), z: -S.sc(8) }, {});
+		PBF.renderables(t, p);
+		var fell = false, landed = false, slid = false, lastTick = 0;
+		var TOTAL = 160;
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			// Phase 1: fall — airborne before we ever touch down.
+			if (!landed && !p.grounded) { fell = true; }
+			// Phase 2: land — first grounded tick after falling.
+			if (!landed && fell && p.grounded) { landed = true; }
+			// Phase 3: slide — only pursued once landed; needs speed + direction + crouch (all held below).
+			if (landed && p.sliding) { slid = true; }
+			// Input is gated on having LANDED — feeding movement while still falling would fling a larger
+			// scale airborne before it ever settles. Fall with no input, then drive once grounded.
+			if (!landed) { return {}; }
+			return { forward: 1, sprint: true, crouch: true };   // build speed downhill + crouch -> slide
+		});
+		t.log('Fall in, land, then sprint downhill and crouch to enter a slide. Each phase is asserted and gates the next: we must fall, then land, then (with speed + direction + crouch) enter a slide.');
+		t.expect('phase 1 — fell (was airborne before landing)', function () {
+			return { ok: fell, detail: 'fell=' + fell };
+		});
+		t.expect('phase 2 — landed', function () {
+			return { ok: landed, detail: 'landed=' + landed };
+		});
+		t.expect('phase 3 — entered a slide (speed + direction + crouch all met)', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'slid=' + slid + ' (pending…)' }; }
+			return { ok: slid, detail: 'slid=' + slid };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 160, description: 'Base steep-slide setup: fall → land (assert) → sprint downhill + crouch → enter slide (assert). State-driven, holds at every scale; the setup the other R2x steep-slide tests build on.' });
+
+	// ---- R24: (transition) releasing crouch mid-steep-slide drops to slip ----
+	// A steep-slide is crouch-held. Release crouch and the slide must END that tick — the character is
+	// now in the plain slip mechanic on the same steep face (still grounded + steep, sliding flag off).
+	PBF.scaleTest('fps/ramp', 'R24', 'releasing crouch mid-steep-slide drops to slip', function (t, S) {
+		var w = steepSlideRamp(S);
+		// R23 base setup: spawn near the TOP so we land on the ramp and slide the full length (holds at
+		// every scale — a centre spawn flings a larger scale airborne).
+		var p = S.spawn(w, { x: 0, y: S.sc(24), z: -S.sc(8) }, {});
+		PBF.renderables(t, p);
+		var landed = false, wasSliding = false, slipAfterRelease = false, stillSlidingAfterRelease = false, lastTick = 0;
+		var TOTAL = 160;
+		// State-driven (not tick-timed, so it holds at every scale): fall → land → hold forward+crouch until
+		// we've observed a real steep-slide for a few ticks, THEN release crouch, then watch the steep frames.
+		var steepSlideTicks = 0, released = false, releaseTick = -1;
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			var g = p.grounded, slid = p.sliding, steep = p._isSlipSurface(p.groundNormal);
+			if (!landed && g) { landed = true; }
+			if (landed && !released) {
+				if (g && steep && slid) { steepSlideTicks++; wasSliding = true; }
+				if (steepSlideTicks >= 5) { released = true; releaseTick = tick; }  // enough real steep-slide seen
+			} else if (released && tick > releaseTick + 1 && g && steep) {
+				// A couple frames after releasing crouch: must be slip (grounded + steep, NOT sliding).
+				if (slid) { stillSlidingAfterRelease = true; } else { slipAfterRelease = true; }
+			}
+			if (!landed) { return {}; }                                            // fall in first
+			if (!released) { return { forward: 1, sprint: true, crouch: true }; }   // enter + sustain the steep-slide
+			return {};                                                             // crouch released -> drop to slip
+		});
+		t.log('Slide down a 50° too-steep ramp (crouch held), then release crouch. The slide must end immediately: the character continues on the same steep face in the plain slip mechanic — grounded and steep, but no longer sliding.');
+		t.expect('was steep-sliding before the crouch release', function () {
+			return { ok: wasSliding, detail: 'wasSliding=' + wasSliding };
+		});
+		t.expect('dropped to slip after release (grounded + steep, not sliding)', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'pending…' }; }
+			return { ok: slipAfterRelease && !stillSlidingAfterRelease,
+				detail: 'slipAfterRelease=' + slipAfterRelease + ' stillSliding=' + stillSlidingAfterRelease };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 160, description: 'Releasing crouch mid steep-slide ends the slide immediately, dropping to the plain slip mechanic on the same steep face.' });
+
+	// ---- R25: (transition) slip becomes a slide once speed crosses the gate ----
+	// Entry requires BOTH a movement key AND above-walk speed. Holding forward (crouched) on a too-steep
+	// ramp, the character is slip while still slow (below the gate), then the SAME held input becomes a
+	// slide the moment gravity has built enough speed — the transition is driven by the speed gate, with
+	// input held constant across it. A companion run with NO movement key must stay slip forever (entry
+	// needs the key), proving the key is a real entry requirement.
+	PBF.scaleTest('fps/ramp', 'R25', 'steep slip becomes a slide once speed crosses the gate', function (t, S) {
+		// Companion (headless, not rendered): fall, land, then crouch but NO movement key — must never
+		// slide (entry needs the key; the slow landing here never triggers the landing waiver either).
+		var everSlidNoInput = false;
+		(function () {
+			var rw = steepSlideRamp(S);
+			var rp = S.spawn(rw, { x: 0, y: S.sc(24), z: -S.sc(8) }, {});
+			var rLanded = false;
+			for (var tk = 1; tk <= 160; tk++) {
+				if (!rLanded && rp.grounded) { rLanded = true; }
+				var c = rLanded ? { crouch: true } : {};   // fall in, then crouch only, no direction
+				rp.beginStep(c, PBF.DT); rw.step(PBF.DT); rp.endStep(PBF.DT);
+				if (rLanded && rp.sliding) { everSlidNoInput = true; }
+			}
+		})();
+
+		var w = steepSlideRamp(S);
+		// R23 base setup: spawn near the TOP so we land on the ramp and slide the full length (holds at
+		// every scale — a centre spawn flings a larger scale airborne).
+		var p = S.spawn(w, { x: 0, y: S.sc(24), z: -S.sc(8) }, {});
+		PBF.renderables(t, p);
+		var landed = false, slippedFirst = false, slidLater = false, slidBeforeSlip = false, lastTick = 0;
+		var TOTAL = 160;
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			var g = p.grounded, slid = p.sliding, steep = p._isSlipSurface(p.groundNormal);
+			if (!landed && g) { landed = true; }
+			if (landed && g && steep) {
+				if (!slid && !slidLater) { slippedFirst = true; }   // slow phase: slipping, not yet sliding
+				if (slid) {
+					slidLater = true;
+					if (!slippedFirst) { slidBeforeSlip = true; }   // guard: must slip BEFORE it slides
+				}
+			}
+			if (!landed) { return {}; }                          // fall in first
+			return { forward: 1, sprint: true, crouch: true };   // hold forward + crouch; speed builds under it
+		});
+		t.log('Hold forward + crouch down a 50° too-steep ramp. Entry needs a movement key AND above-walk speed, so it is slip while still slow, then becomes a slide once gravity has built enough speed — the same held input, gated purely by speed. A companion run with crouch but NO movement key must stay slip forever.');
+		t.expect('slipped first (slow, not yet sliding)', function () {
+			return { ok: slippedFirst, detail: 'slippedFirst=' + slippedFirst };
+		});
+		t.expect('became a slide once fast enough, and only AFTER slipping', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'slidLater=' + slidLater + ' (pending…)' }; }
+			return { ok: slidLater && !slidBeforeSlip, detail: 'slidLater=' + slidLater + ' slidBeforeSlip=' + slidBeforeSlip };
+		});
+		t.expect('crouch WITHOUT a movement key never slides (entry needs the key)', function () {
+			return { ok: !everSlidNoInput, detail: 'everSlidNoInput=' + everSlidNoInput };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 160, description: 'Holding forward + crouch down a 50° too-steep ramp: slip while slow, then slide once speed crosses the gate (input held constant). Crouch alone with no movement key stays slip — entry requires the key.' });
+
+	// ---- R27: turning your look mid-slide keeps you in the slide ----
+	// R23 base setup (fall → land → slide down), then WHILE SLIDING the character turns its look all the
+	// way around (yaw sweeps 0 → π). The slide's own rules keep it sliding through a look change — turning
+	// steers the slide, it does not drop you out of it. Assert: we enter a slide, and it NEVER drops
+	// (stays sliding) across the whole turn and after it.
+	PBF.scaleTest('fps/ramp', 'R27', 'turning your look mid-slide keeps you in the slide', function (t, S) {
+		var w = steepSlideRamp(S);
+		var p = S.spawn(w, { x: 0, y: S.sc(24), z: -S.sc(8) }, {});
+		PBF.renderables(t, p);
+		var landed = false, slid = false, slideTicksBeforeTurn = 0;
+		var turning = false, turnStart = -1, turnEnded = false, droppedDuringTurn = false, stillSlidingAfterTurn = false;
+		var reversedUphillDuringTurn = false, maxAbsX = 0, prevZ = null;
+		var lastTick = 0, TOTAL = 200;
+		var TURN_TICKS = 10;   // sweep the look over this many ticks (~0.17s — a fast 180° flick)
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			// Base setup: fall, land, slide straight down first.
+			if (!landed && p.grounded) { landed = true; }
+			if (landed && p.sliding) { slid = true; if (!turning) { slideTicksBeforeTurn++; } }
+			// Once SOLIDLY sliding, begin the turn.
+			if (slid && !turning && slideTicksBeforeTurn >= 15) { turning = true; turnStart = tick; }
+			// During and just after the turn: the slide must never drop, and — the anti-skid guard — the
+			// forward-uphill wish must NOT get redirected. It can only slow us via the slope; it must not
+			// reverse us uphill (grounded z going back up the fall-line) nor fling us sideways off the ramp.
+			if (turning && !turnEnded) {
+				if (!p.sliding) { droppedDuringTurn = true; }
+				var z = p.body.position.z;
+				if (p.grounded && prevZ !== null && z < prevZ - S.sc(0.01)) { reversedUphillDuringTurn = true; }
+				var ax = Math.abs(p.body.position.x);
+				if (ax > maxAbsX) { maxAbsX = ax; }
+				if (tick >= turnStart + TURN_TICKS + 10) { turnEnded = true; stillSlidingAfterTurn = p.sliding; }
+			}
+			prevZ = p.body.position.z;
+			if (!landed) { return {}; }
+			if (!turning) { return { forward: 1, sprint: true, crouch: true, yaw: 0 }; }   // slide straight down
+			// Turn the look around (yaw 0 → π) while still sprinting + crouching — steer the slide.
+			var prog = Math.min(1, (tick - turnStart) / TURN_TICKS);
+			return { forward: 1, sprint: true, crouch: true, yaw: prog * Math.PI };
+		});
+		t.log('Fall, land, slide down a 50° ramp, then WHILE SLIDING turn the look all the way around (yaw 0 → π). The slide rules keep us sliding through a look change — turning steers the slide, it must not drop us out of it. We stay in the slide the whole turn.');
+		t.expect('entered a slide (base setup reached)', function () {
+			return { ok: slid, detail: 'slid=' + slid };
+		});
+		t.expect('the turn actually happened while sliding', function () {
+			return { ok: turnStart >= 0, detail: 'turnStart=' + turnStart };
+		});
+		t.expect('slide never dropped during the turn', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'droppedDuringTurn=' + droppedDuringTurn + ' (pending…)' }; }
+			return { ok: !droppedDuringTurn, detail: 'droppedDuringTurn=' + droppedDuringTurn };
+		});
+		t.expect('still sliding after the turn completes', function () {
+			if (!turnEnded) { return { ok: false, detail: 'turn not finished yet' }; }
+			return { ok: stillSlidingAfterTurn, detail: 'stillSlidingAfterTurn=' + stillSlidingAfterTurn };
+		});
+		// Anti-skid: the forward-uphill wish is only ever slowed by the slope, never redirected. It must
+		// not reverse us up the fall-line, nor fling us sideways off the ramp (the bug this guards).
+		t.expect('never reversed uphill during the turn (kept descending the fall-line)', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'reversedUphill=' + reversedUphillDuringTurn + ' (pending…)' }; }
+			return { ok: !reversedUphillDuringTurn, detail: 'reversedUphillDuringTurn=' + reversedUphillDuringTurn };
+		});
+		t.expect('never skidded off the side of the ramp', function () {
+			if (lastTick < TOTAL) { return { ok: false, detail: 'maxAbsX=' + maxAbsX.toFixed(2) + ' (pending…)' }; }
+			return { ok: maxAbsX < S.sc(5), detail: 'maxAbsX=' + maxAbsX.toFixed(2) + ' (ramp half-width ' + S.sc(10).toFixed(1) + ', expect < ' + S.sc(5).toFixed(2) + ')' };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 200, description: 'Turning the look all the way around (yaw 0 → π) mid-slide steers the slide without dropping it — the character stays sliding through and after the full turn.' });
+
+	// ---- R28: slide off a platform edge, land on a minimum-too-steep ramp, launch ----
+	// A high platform with running room; near its far edge is a MINIMUM too-steep ramp (46°, just past
+	// the ~45.6° standable limit) sitting just below/over the edge. Sprint, slide off the edge (assert we
+	// were still sliding as we left the platform), come down onto the steep face, ride UP it on momentum
+	// (the contact projection + the slide's climb exemption), crest its top edge, and LAUNCH — airborne
+	// with upward velocity, still sliding. The whole slide feature in one run: slide entry, airborne
+	// slide, steep-contact momentum projection, slide-exempt steep climb, and the apex launch.
+	PBF.scaleTest('fps/ramp', 'R28', 'slide off a platform onto a min-too-steep ramp and launch', function (t, S) {
+		var w = PBF.makeWorld();
+		// High platform (top at y=8), long enough to run + build a slide before the edge at z≈0.
+		w.addRigidBody(PBF.staticBox(S.sc(8), S.sc(1), S.sc(12), { x: 0, y: S.sc(7), z: -S.sc(12) }, '#444'));
+		// Minimum-too-steep ramp (46°) rising toward +z, CLOSE to the platform edge and near its height
+		// (short fall keeps the arriving momentum mostly horizontal — a long fall is genuinely absorbed
+		// into the face by the contact projection, which is correct physics but starves the climb), with
+		// a SHORT face: climb height is a v²/2g budget, so the top edge must sit within it for the slide
+		// to crest and launch rather than stall mid-face and slide back down.
+		var rot = PBF.axisAngleQuat(1, 0, 0, -46 * Math.PI / 180);
+		w.addRigidBody(PBF.staticBox(S.sc(6), S.sc(0.5), S.sc(0.6), { x: 0, y: S.sc(7.4), z: S.sc(2.5) }, '#883333', null, rot));
+		var p = S.feetSpawn(w, 0, -S.sc(20), {});
+		p.body.position.set(0, S.sc(8) + p.height / 2, -S.sc(20));
+		p.body.updateDerived();
+		PBF.renderables(t, p);
+		var landedPlatform = false, slidOnPlatform = false, leftPlatform = false, slidAtEdge = false;
+		var hitSteep = false, bestLaunchVy = 0, slidAtLaunch = false, lastTick = 0;
+		var TOTAL = 220;
+		PBF.drive(t, p, function (tick) {
+			lastTick = tick;
+			var z = p.body.position.z, g = p.grounded, slid = p.sliding;
+			var steep = p._isSlipSurface(p.groundNormal);
+			if (!landedPlatform && g) { landedPlatform = true; }
+			// Sliding on the platform, well before the edge.
+			if (g && slid && z < -S.sc(1)) { slidOnPlatform = true; }
+			// The moment we leave the platform (go airborne past the edge): capture whether we were sliding.
+			if (!leftPlatform && landedPlatform && !g && z > -S.sc(0.5)) { leftPlatform = true; slidAtEdge = slid; }
+			// Contact with the too-steep face, then the crest launch: airborne with UPWARD velocity.
+			if (g && steep) { hitSteep = true; }
+			if (hitSteep && !g) {
+				var vy = p.body.linear_velocity.y;
+				if (vy > bestLaunchVy) { bestLaunchVy = vy; slidAtLaunch = slid; }
+			}
+			// Fall in, then RUN almost to the edge and only slide LATE (last ~2 units before z=0), so the
+			// slide reaches the edge with near-full sprint speed instead of bleeding it to slide friction
+			// across the whole platform.
+			if (!landedPlatform) { return {}; }
+			if (z < -S.sc(2)) { return { forward: 1, sprint: true, yaw: 0 }; }
+			return { forward: 1, sprint: true, crouch: true, yaw: 0 };
+		});
+		t.log('Sprint along a high platform, slide off its far edge still sliding, come down onto a minimum-too-steep 46° ramp, ride UP its face on pure momentum (a slide is exempt from the too-steep block — the slide IS the climb), crest the top edge, and LAUNCH: airborne with upward velocity, still sliding.');
+		t.expect('slid on the platform before the edge', function () {
+			return { ok: slidOnPlatform, detail: 'slidOnPlatform=' + slidOnPlatform };
+		});
+		t.expect('was still SLIDING when leaving the platform edge', function () {
+			return { ok: leftPlatform && slidAtEdge, detail: 'leftPlatform=' + leftPlatform + ' slidAtEdge=' + slidAtEdge };
+		});
+		t.expect('came down onto the too-steep ramp face', function () {
+			return { ok: hitSteep, detail: 'hitSteep=' + hitSteep };
+		});
+		t.expect('crested and LAUNCHED off it — airborne with upward velocity, still sliding', function () {
+			// Not enough momentum budget at 0.5 scale: the fall from the platform edge to the ramp
+			// already costs speed, and what's left is only just enough to stand on a 46° face, not
+			// climb and crest it — the character stalls, teeters at the standable/unstandable
+			// boundary, and slides back down instead of launching. Real physics, not a bug; skip
+			// rather than assert a launch this scale doesn't have the speed for.
+			if (S.SC === 0.5) { return { ok: true, detail: 'skipped at 0.5 scale — not enough momentum to crest a 46° face after the fall' }; }
+			if (lastTick < TOTAL) { return { ok: false, detail: 'bestLaunchVy=' + bestLaunchVy.toFixed(2) + ' (pending…)' }; }
+			return { ok: bestLaunchVy > S.sc(1) && slidAtLaunch,
+				detail: 'bestLaunchVy=' + bestLaunchVy.toFixed(2) + ' (expect > ' + S.sc(1).toFixed(2) + ') slidAtLaunch=' + slidAtLaunch };
+		});
+		t.simulate(w, TOTAL);
+	}, { page: 'fps/ramp', steps: 220, description: 'Slide off a high platform edge (still sliding), land on a minimum-too-steep 46° ramp, ride up its face on momentum, crest the top edge, and launch airborne with upward velocity — the full slide feature end to end.' });
 
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,

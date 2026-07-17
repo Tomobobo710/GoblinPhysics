@@ -53,7 +53,8 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
     // ---- Slide (crouch-at-speed) ----
     slide: {
         enabled: true,
-        requiresMoveInput: false, // also require a movement key held (not crouch alone)
+        requiresMoveInput: true,  // ENTRY requires a movement key held (not crouch alone); exit does not
+        allowLandingWithoutInput: true, // ...EXCEPT on the landing frame, where crouch + speed alone can start a slide
         minSpeed: 7.8,         // speed at/above which a crouch launches a slide
         endSpeed: 1,           // slide ends when speed bleeds below this
         friction: 6,           // flat-ground slide friction
@@ -63,7 +64,6 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         slopeMin: 0.2,         // sin(angle) at/above which the slide is gravity-governed (Infinity disables)
         slopeFriction: 1.5,    // cross-slope friction while gravity-sliding
         reversalBrakeMult: 4,  // multiplier on slopeFriction for how hard a deliberate reversal brakes
-        coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
     },
 
     // ---- Ladders (see _updateLadder) ----

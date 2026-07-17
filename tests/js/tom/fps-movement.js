@@ -107,7 +107,7 @@
 		var slid = false;
 		PBF.drive(t, p, function (tick) {
 			if (tick <= 25) return { forward: 1, sprint: true };
-			if (p._sliding) slid = true;
+			if (p.sliding) slid = true;
 			return { forward: 1, sprint: true, crouch: true };
 		});
 		t.log('Sprint, then crouch: the controller should enter a slide (_sliding true).');
@@ -126,7 +126,7 @@
 		PBF.drive(t, p, function (tick) {
 			var t0 = tick - 1;
 			var j = (t0 === 15), c = (t0 >= 18);
-			if (p._sliding && !slid) { slid = true; sp = PBF.hsp(p); }
+			if (p.sliding && !slid) { slid = true; sp = PBF.hsp(p); }
 			return { forward: 1, sprint: true, jumpPressed: j, crouch: c };
 		});
 		t.log('Sprint, jump, then crouch in the air to land into a fast slide (>' + S.sc(9).toFixed(2) + ' u/s at slide start).');
@@ -422,9 +422,9 @@
 			if (tick <= 25) return { forward: 1, sprint: true, crouch: true, yaw: 0 };
 			// From tick 26: hold straight backward (same yaw) through the whole reversal. Started
 			// moving toward +Z; reversal means net -Z, with X (lateral) staying tight throughout.
-			if (p._sliding) { enteredSlide = true; }
+			if (p.sliding) { enteredSlide = true; }
 			if (enteredSlide) {
-				if (!p._sliding) { everLeftSlideDuringHold = true; }
+				if (!p.sliding) { everLeftSlideDuringHold = true; }
 				var v = p.body.linear_velocity;
 				worstLateral = Math.max(worstLateral, Math.abs(v.x));
 				if (v.z < 0) { reversed = true; }
@@ -465,14 +465,14 @@
 		PBF.drive(t, p, function (tick) {
 			if (tick <= 15) return { forward: 1, sprint: true, yaw: 0 };
 			if (tick <= 25) return { forward: 1, sprint: true, crouch: true, yaw: 0 };
-			if (p._sliding) { enteredSlide = true; }
+			if (p.sliding) { enteredSlide = true; }
 			if (enteredSlide && !p.grounded) {
 				wentAirborne = true;
-				if (p._sliding) { slidWhileAirborne = true; } else { droppedSlideMidair = true; }
+				if (p.sliding) { slidWhileAirborne = true; } else { droppedSlideMidair = true; }
 			}
 			if (wentAirborne && p.grounded && !landed) {
 				landed = true;
-				slidingAfterLanding = p._sliding;
+				slidingAfterLanding = p.sliding;
 			}
 			return { forward: 1, crouch: true, yaw: 0 };
 		});
@@ -504,11 +504,11 @@
 		PBF.renderables(t, p);
 		var preEntrySpeed = -1, entrySpeed = -1, oneTickLaterSpeed = -1, wasSliding = false;
 		PBF.drive(t, p, function (tick) {
-			if (!p._sliding) { preEntrySpeed = PBF.hsp(p); }
+			if (!p.sliding) { preEntrySpeed = PBF.hsp(p); }
 			var cmd = (tick <= 15) ? { forward: 1, sprint: true } : { forward: 1, sprint: true, crouch: true };
-			if (!wasSliding && p._sliding) { entrySpeed = PBF.hsp(p); }
+			if (!wasSliding && p.sliding) { entrySpeed = PBF.hsp(p); }
 			if (entrySpeed >= 0 && oneTickLaterSpeed < 0 && wasSliding) { oneTickLaterSpeed = PBF.hsp(p); }
-			wasSliding = p._sliding;
+			wasSliding = p.sliding;
 			return cmd;
 		});
 		t.log('Sprint then crouch into a slide (slideBoost=' + boost + '). Expect: speed right at the slide-entry tick is measurably boosted above pre-entry speed (roughly x' + boost + ', modulo the same tick\'s own friction/slope decay) — not applied again on later ticks.');
