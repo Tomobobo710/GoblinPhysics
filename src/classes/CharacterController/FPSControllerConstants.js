@@ -124,6 +124,15 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
         snapDist: 0.8,         // per-tick eye jump (units) above which the interp snaps instead of sliding
     },
 
+    // ---- Mantle (ledge grab + pull-up arc) ----
+    mantle: {
+        height: 2.2,        // max rise (feet to ledge top) that can be mantled (pre-scale); above this = too tall
+        reach: 0.25,        // extra reach past the collider's half-width for the forward ledge probe (pre-scale)
+        duration: 0.35,     // total arc time in seconds (lift + vault)
+        liftFrac: 0.6,      // fraction of duration spent in the lift phase; remainder is the vault
+        speed: 6.0,         // drive speed for both lift and vault phases (pre-scale, units/sec)
+    },
+
     // ---- Misc identity defaults (not feel knobs, but kept here so nothing is scattered) ----
     misc: {
         color: "#cc4444",

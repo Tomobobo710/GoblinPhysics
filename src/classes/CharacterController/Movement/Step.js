@@ -68,13 +68,17 @@ proto.beginStep = function(command, dt) {
     this._wantCrouch = wantCrouch;
     this._hasMoveInput = hasInput;
 
+    // _updateMantle runs the ledge-grab arc — checked before the ladder so a ledge grab at the
+    // top of a ladder-tagged surface doesn't accidentally mount the ladder mid-arc.
+    var onMantleThisTick = this._updateMantle(cmd, moveYaw, dt);
+
     // _updateLadder mounts/dismounts and, while mounted, owns velocity fully — checked first since
     // it can override every other state this tick (a ladder grab works even mid-air or mid-slide).
-    var onLadderThisTick = this._updateLadder(cmd, moveYaw, movePitch, dt);
+    var onLadderThisTick = !onMantleThisTick && this._updateLadder(cmd, moveYaw, movePitch, dt);
 
     var vx, vz;
-    if (onLadderThisTick) {
-        // LADDER: _updateLadder already wrote gb.x/gb.z; velocity is fully its.
+    if (onLadderThisTick || onMantleThisTick) {
+        // LADDER / MANTLE: the hook already wrote gb.x/y/z; velocity is fully its.
         vx = gb.x;
         vz = gb.z;
     } else {
@@ -210,7 +214,7 @@ proto.beginStep = function(command, dt) {
         }
     }
 
-    if (!onLadderThisTick) {
+    if (!onLadderThisTick && !onMantleThisTick) {
         var cs = this._ceilingSlide(vx, gb.y, vz, dt);
         vx = cs.vx;
         vz = cs.vz;
@@ -227,8 +231,8 @@ proto.beginStep = function(command, dt) {
     // Platform base velocity: added in immediately before the swept move so a rider is carried
     // through the SAME collide-and-slide every other velocity goes through (real swept motion, not
     // a position teleport). Stays in gb.x/z afterward — see the constructor's comment for why.
-    var bvx = onLadderThisTick ? 0 : this._baseVelocity.x;
-    var bvz = onLadderThisTick ? 0 : this._baseVelocity.z;
+    var bvx = (onLadderThisTick || onMantleThisTick) ? 0 : this._baseVelocity.x;
+    var bvz = (onLadderThisTick || onMantleThisTick) ? 0 : this._baseVelocity.z;
 
     // Step-up/step-down are emergent: collide-and-slide ignores anything shorter than
     // stepHeight, and the ground clamp in endStep raises/lowers us onto it. _collideAndSlide reads
@@ -253,11 +257,9 @@ proto.beginStep = function(command, dt) {
 proto.endStep = function(dt) {
     var gb = this.body.linear_velocity;
 
-    // While mounted, _updateLadder owns vertical motion (including its own descent-blocks-on-ground
-    // check) — the clamp below would otherwise re-snap the character onto the floor near the ladder's
-    // base every tick even while actively climbing up, since this.grounded still reads whatever it
-    // was at mount time.
-    if (this._onLadder) {
+    // While mounted on a ladder or mid-mantle arc, skip the ground clamp — it would otherwise
+    // re-snap the character onto the floor every tick while being carried upward.
+    if (this._onLadder || this._mantleActive) {
         this.velocityY = gb.y;
         if (!this._resimulating || this._driveGhostDuringResim) { this._syncGhost(dt); }
         return;

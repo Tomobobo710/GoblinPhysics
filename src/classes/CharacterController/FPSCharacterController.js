@@ -94,7 +94,7 @@ Goblin.FPSCharacterController = function(world, options) {
     var D = Goblin.FPS_CONTROLLER_DEFAULTS;
     var dim = D.dimensions, mv = D.movement, jmp = D.jump, slp = D.slopes, sld = D.slide,
         gh = D.ghost, kb = D.knockback, net = D.netcode, vw = D.view, rnd = D.render, msc = D.misc,
-        lad = D.ladder;
+        lad = D.ladder, man = D.mantle;
 
     // Base (pre-scale) values.
     this._baseWidth = o.width !== undefined ? o.width : dim.width;
@@ -209,6 +209,26 @@ Goblin.FPSCharacterController = function(world, options) {
     this._onLadder = false;
     this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the character
 
+    // Mantle (ledge grab + pull-up arc, see _updateMantle / Movement/Mantle.js).
+    var man = D.mantle;
+    this._baseMantleHeight = o.mantleHeight !== undefined ? o.mantleHeight : man.height;
+    this._baseMantleReach = o.mantleReach !== undefined ? o.mantleReach : man.reach;
+    this._baseMantleSpeed = o.mantleSpeed !== undefined ? o.mantleSpeed : man.speed;
+    this.mantleDuration = o.mantleDuration !== undefined ? o.mantleDuration : man.duration;
+    this.mantleLiftFrac = o.mantleLiftFrac !== undefined ? o.mantleLiftFrac : man.liftFrac;
+    this._mantleActive = false;
+    this._mantleTimer = 0;
+    // Arc anchors: body-center start (X/Y/Z), body-center Y once feet clear the ledge top, and the
+    // XZ landing point past the ledge edge — all captured once at commit time (see _updateMantle's
+    // detection block) so the arc interpolates position directly instead of driving velocity
+    // through _collideAndSlide, which would treat the ledge face as a blocking wall.
+    this._mantleStartX = 0;
+    this._mantleStartY = 0;
+    this._mantleStartZ = 0;
+    this._mantleTopBodyY = 0;
+    this._mantleLandX = 0;
+    this._mantleLandZ = 0;
+
     // Moving platforms (see endStep's acquire + beginStep's apply). A body tagged isPlatform=true,
     // when it's what the ground probe is currently resting on, has its linear_velocity read into
     // this vector once per endStep. beginStep adds it into the horizontal move so collide-and-slide
@@ -314,6 +334,9 @@ proto._applyScale = function(scale) {
     this.ladderStrafeSpeed = this._baseLadderStrafeSpeed * scale;
     this.ladderMountReach = this._baseLadderMountReach * scale;
     this.ladderDismountPushSpeed = this._baseLadderDismountPushSpeed * scale;
+    this.mantleHeight = this._baseMantleHeight * scale;
+    this.mantleReach = this._baseMantleReach * scale;
+    this.mantleSpeed = this._baseMantleSpeed * scale;
     this._skin = this._baseSkin * scale; // contact tolerance
     this._groundTol = Goblin.FPSCharacterController.FPSC.GROUND_TOL * scale; // how close feet must be to count as grounded
     // Terminal fall speed. Also keeps per-step fall distance < ground-probe reach so

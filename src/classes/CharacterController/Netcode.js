@@ -73,6 +73,11 @@ proto.getState = function() {
         climb: this.climbSteepSlopes,
         onLadder: this._onLadder,
         lnx: this._ladderNormal.x, lnz: this._ladderNormal.z,
+        mantleActive: this._mantleActive,
+        mantleTimer: this._mantleTimer,
+        mantleSX: this._mantleStartX, mantleSY: this._mantleStartY, mantleSZ: this._mantleStartZ,
+        mantleTopY: this._mantleTopBodyY,
+        mantleLX: this._mantleLandX, mantleLZ: this._mantleLandZ,
         userData: this.userData
     };
 };
@@ -139,6 +144,17 @@ proto.setState = function(s) {
     if (s.climb !== undefined) { this.climbSteepSlopes = s.climb; }
     if (s.onLadder !== undefined) { this._onLadder = s.onLadder; }
     if (s.lnx !== undefined) { this._ladderNormal.set(s.lnx, 0, s.lnz); }
+    if (s.mantleActive !== undefined) { this._mantleActive = s.mantleActive; }
+    if (s.mantleTimer !== undefined) { this._mantleTimer = s.mantleTimer; }
+    if (s.mantleSX !== undefined) {
+        this._mantleStartX = s.mantleSX; this._mantleStartY = s.mantleSY; this._mantleStartZ = s.mantleSZ;
+    }
+    if (s.mantleTopY !== undefined) { this._mantleTopBodyY = s.mantleTopY; }
+    if (s.mantleLX !== undefined) { this._mantleLandX = s.mantleLX; this._mantleLandZ = s.mantleLZ; }
+    // Restore gravity if mantling — _updateMantle zeroes it on entry but setState re-adopts the
+    // arc mid-flight without re-running the entry code.
+    if (this._mantleActive) { this.body.setGravity(0, 0, 0); }
+    else { this.body.setGravity(this._gravityVec.x, this._gravityVec.y, this._gravityVec.z); }
     // Re-baseline the ghost LOCALLY (not from the snapshot — the ghost isn't serialized). Snap it onto
     // the just-adopted authoritative character, moving at the character's velocity, so every resim starts
     // from the same consistent ghost state and re-pushes objects identically each time.

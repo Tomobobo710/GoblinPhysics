@@ -41,6 +41,7 @@ const buildOrder = [
     'src/classes/CharacterController/Movement/Vertical.js',
     'src/classes/CharacterController/Movement/Slide.js',
     'src/classes/CharacterController/Movement/Ladder.js',
+    'src/classes/CharacterController/Movement/Mantle.js',
     'src/classes/CharacterController/Movement/Airborne.js',
     'src/classes/CharacterController/Movement/Step.js',
     'src/classes/CharacterController/View.js',

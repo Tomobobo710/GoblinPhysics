@@ -51,6 +51,11 @@ Goblin.FPSCharacterController.FPSC = {
     MOVE_WALK: 'walk',
     MOVE_SLIP: 'slip',
     MOVE_SLIDE: 'slide',
+    MOVE_MANTLE: 'mantle',
+
+    // Mantle: a grounded (flat-footed) mantle tap is only allowed up to this fraction of standHeight
+    // (roughly chest height) — anything taller needs a running jump first (see _updateMantle).
+    MANTLE_CHEST_HEIGHT_FRAC: 0.77,
 
     // Knockback gating (see _readGhostKnockback).
     KB_CLOSING_MIN: 0.5,      // object must close on the character faster than this (units/s) to knock back
