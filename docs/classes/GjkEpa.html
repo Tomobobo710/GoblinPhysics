@@ -144,18 +144,2076 @@
     <ul class="api-class-tabs">
         <li class="api-class-tab index"><a href="#index">Index</a></li>
 
+            <li class="api-class-tab methods"><a href="#methods">Methods</a></li>
+            <li class="api-class-tab properties"><a href="#properties">Properties</a></li>
     </ul>
 
     <div>
         <div id="index" class="api-class-tabpanel index">
             <h2 class="off-left">Item Index</h2>
 
+                <div class="index-section methods">
+                    <h3>Methods</h3>
 
+                    <ul class="index-list methods">
+                            <li class="index-item method private">
+                                <a href="#method__buildGhost">_buildGhost</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__canStand">_canStand</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__ceilingClearanceAt">_ceilingClearanceAt</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__climbableSlopeAhead">_climbableSlopeAhead</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__destroyGhost">_destroyGhost</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__findLadderAhead">_findLadderAhead</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__isSlipSurface">_isSlipSurface</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__probeCeiling">_probeCeiling</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__probeGroundCandidates">_probeGroundCandidates</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__raycastSkipPlatforms">_raycastSkipPlatforms</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__readGhostKnockback">_readGhostKnockback</a>
+
+                            </li>
+                            <li class="index-item method private">
+                                <a href="#method__syncGhost">_syncGhost</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_aim">aim</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_beginResim">beginResim</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_captureRenderState">captureRenderState</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_consumeViewDisplacementY">consumeViewDisplacementY</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_endResim">endResim</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getEyePosition">getEyePosition</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getForwardHorizontal">getForwardHorizontal</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getLiveAimDirection">getLiveAimDirection</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getLookDirection">getLookDirection</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getRightHorizontal">getRightHorizontal</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_getState">getState</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_look">look</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_peekViewDisplacementY">peekViewDisplacementY</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_renderEye">renderEye</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_setLook">setLook</a>
+
+                            </li>
+                            <li class="index-item method">
+                                <a href="#method_setState">setState</a>
+
+                            </li>
+                    </ul>
+                </div>
+
+                <div class="index-section properties">
+                    <h3>Properties</h3>
+
+                    <ul class="index-list properties">
+                            <li class="index-item property">
+                                <a href="#property_bodyId">bodyId</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_moveState">moveState</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_raycastIgnore">raycastIgnore</a>
+
+                            </li>
+                            <li class="index-item property">
+                                <a href="#property_sliding">sliding</a>
+
+                            </li>
+                    </ul>
+                </div>
 
 
         </div>
 
+            <div id="methods" class="api-class-tabpanel">
+                <h2 class="off-left">Methods</h2>
 
+<div id="method__buildGhost" class="method item private">
+    <h3 class="name"><code>_buildGhost</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>position</code>
+                </li>
+                <li class="arg">
+                        <code class="optional">[carriedVel]</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Ghost.js.html#l9"><code>src\classes\CharacterController\Ghost.js:9</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>GHOST: a solver-participating dynamic body that trails the kinematic character. The character's own
+body is excluded from solver contacts (collision_mask 1); the ghost is its stand-in for object
+contact. Control is one-way: character position -&gt; ghost target. The ghost's position never writes
+back to the character; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">position</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>the character body's current position.</li>
+</ul>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name optional">[carriedVel]</code>
+                        <span class="type">Object</span>
+                        <span class="flag optional" title="This parameter is optional.">optional</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>{x,y,z} velocity to seed the ghost with (carried over a rebuild).</li>
+</ul>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method__canStand" class="method item private">
+    <h3 class="name"><code>_canStand</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Boolean</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l122"><code>src\classes\CharacterController\Probes.js:122</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Is there room to stand up? (No ceiling within standHeight of the feet.)</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Boolean</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method__ceilingClearanceAt" class="method item private">
+    <h3 class="name"><code>_ceilingClearanceAt</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>cx</code>
+                </li>
+                <li class="arg">
+                        <code>cz</code>
+                </li>
+                <li class="arg">
+                        <code>feetY</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Number</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l190"><code>src\classes\CharacterController\Probes.js:190</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Lowest ceiling clearance over the footprint centered at (cx,cz). Infinity if nothing overhead.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">cx</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">cz</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">feetY</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Number</span>:
+                    <p>clearance in units above feetY, or Infinity.</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method__climbableSlopeAhead" class="method item private">
+    <h3 class="name"><code>_climbableSlopeAhead</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>start</code>
+                </li>
+                <li class="arg">
+                        <code>dx</code>
+                </li>
+                <li class="arg">
+                        <code>dz</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Boolean</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l161"><code>src\classes\CharacterController\Probes.js:161</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Is there a too-steep-but-climbable slope surface rising just ahead of the move? Used only when
+climbSteepSlopes is on. Casts down-rays a short distance ahead and looks for an upward-tilted,
+too-steep-to-stand hit that is still a real slope (not flat floor, not a vertical wall).</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">start</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">dx</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>unit-ish horizontal direction x</li>
+</ul>
+
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">dz</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>unit-ish horizontal direction z</li>
+</ul>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Boolean</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method__destroyGhost" class="method item private">
+    <h3 class="name"><code>_destroyGhost</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Ghost.js.html#l47"><code>src\classes\CharacterController\Ghost.js:47</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Remove and clear the ghost body, if any (called before every rebuild + on destroy()).</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__findLadderAhead" class="method item private">
+    <h3 class="name"><code>_findLadderAhead</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>dir</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Object | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l134"><code>src\classes\CharacterController\Probes.js:134</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Single ray probe for a ladder ahead, along <code>dir</code> (horizontal, need not be unit length). Placed
+halfway between the feet and stepHeight above them rather than the body center. Returns the raw
+hit <code>{object, point, normal, t}</code> with the normal flipped to point OUT of the face (toward the
+caller), or null.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">dir</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object | Null</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method__isSlipSurface" class="method item private">
+    <h3 class="name"><code>_isSlipSurface</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>normal</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Boolean</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l236"><code>src\classes\CharacterController\Probes.js:236</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>The &quot;too steep to stand on&quot; rule — a floor whose normal tilts below the standable limit gives no
+footing (MOVE_SLIP). climbSteepSlopes opts out.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">normal</code>
+                        <span class="type">Object</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>a surface normal (uses .y)</li>
+</ul>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Boolean</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method__probeCeiling" class="method item private">
+    <h3 class="name"><code>_probeCeiling</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>reachAboveFeet</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Object | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l58"><code>src\classes\CharacterController\Probes.js:58</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Multi-ray UP probe across the footprint. Returns the LOWEST ceiling (down-facing
+surface) within <code>reachAboveFeet</code> of the feet, or null. Mirror of _probeGround; covers
+sloped overhead geometry (e.g. a ramp underside) that forward rays can't see.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">reachAboveFeet</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>how far above the feet to scan.</li>
+</ul>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object | Null</span>:
+                    <p>the lowest down-facing hit within reach, or null.</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method__probeGroundCandidates" class="method item private">
+    <h3 class="name"><code>_probeGroundCandidates</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>maxSnap</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Object</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l8"><code>src\classes\CharacterController\Probes.js:8</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Multi-point ground probe (center + four edge midpoints). Returns ALL floor-like hits, highest
+first — NOT collapsed to a single &quot;best&quot; here, because the caller needs to fall back to a
+lower (but valid) hit when the highest one is rejected as too tall to step onto (e.g. one edge
+ray grazing a box pushed against the footprint, while the other four rays are still squarely
+over real floor). Collapsing to one hit here would throw the floor away before the caller ever
+gets a chance to prefer it.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">maxSnap</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>max downward reach (below the feet) to probe, before scale/skin margins.</li>
+</ul>
+
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object</span>:
+                    <p>floor-like raycast hits, sorted highest point.y first.</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method__raycastSkipPlatforms" class="method item private">
+    <h3 class="name"><code>_raycastSkipPlatforms</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>start</code>
+                </li>
+                <li class="arg">
+                        <code>end</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Object | Null</span>
+        </span>
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Probes.js.html#l90"><code>src\classes\CharacterController\Probes.js:90</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Same contract as the private _raycast helper (skips this._ignoreSelf by .name, returns the first
+remaining hit), but ALSO skips any hit body tagged isPlatform. A scripted moving platform is
+deliberately excluded from the solver's own contact resolution (see _baseVelocity's constructor
+comment / platform()'s collision_mask) so a rider is carried via scripted base-velocity, never a
+real physical shove — but a raw raycast doesn't consult collision_mask at all, so without this a
+fast-rising platform that catches back up to a character mid-jump gets misread as a solid ceiling
+overhead by _ceilingSlide, capping the jump's vertical velocity and killing it a few ticks after
+liftoff, even though no real contact manifold ever forms between the two bodies (the phantom
+ceiling is a pure raycast/collision_mask mismatch, not a real collision). Used ONLY by
+_probeCeiling — _probeGround intentionally still sees platforms (that's how riding one works at
+all), and ordinary walls/ramps/props aren't tagged isPlatform so they're unaffected.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">start</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">end</code>
+                        <span class="type">Goblin.Vector3</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Object | Null</span>:
+                    <p>the first non-self, non-platform hit, or null.</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method__readGhostKnockback" class="method item private">
+    <h3 class="name"><code>_readGhostKnockback</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Ghost.js.html#l121"><code>src\classes\CharacterController\Ghost.js:121</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Knockback speed = mass ratio (objectMass/(objectMass+playerMass)) x the object's closing speed
+onto the character, gated to only apply when the object is moving into the character above a small
+momentum floor. Horizontal only; never moves position, only velocity.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method__syncGhost" class="method item private">
+    <h3 class="name"><code>_syncGhost</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>dt</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+        <span class="flag private">private</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Ghost.js.html#l60"><code>src\classes\CharacterController\Ghost.js:60</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Drive the ghost toward the character each tick and read back contact-driven knockback. Called once
+per endStep, after the character's position is settled.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">dt</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_aim" class="method item">
+    <h3 class="name"><code>aim</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>yaw</code>
+                </li>
+                <li class="arg">
+                        <code>pitch</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l78"><code>src\classes\CharacterController\View.js:78</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Set the LIVE, caller-owned aim — call once per render frame from your mouse-look. Render-only:
+this NEVER enters the simulation (it doesn't touch yaw/pitch, the command, or movement), it just
+keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing the
+between-tick &quot;dangle&quot; in every mode.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">yaw</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">pitch</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_beginResim" class="method item">
+    <h3 class="name"><code>beginResim</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Netcode.js.html#l8"><code>src\classes\CharacterController\Netcode.js:8</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Reconciliation hooks (opt-in, called by the caller around a ROLLBACK-AND-RESIM of already-run
+commands — distinct from a game &quot;replay&quot;). During resim the controller re-derives already-
+perceived state, so its step/crouch snaps must NOT feed a render smoother (that double-counts
+every step until the resim catches back up). Live ticks are unaffected.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_captureRenderState" class="method item">
+    <h3 class="name"><code>captureRenderState</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l163"><code>src\classes\CharacterController\View.js:163</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Stash this fixed tick's eye for sub-tick render interpolation. Call ONCE per REAL fixed step,
+right after the step settles. A teleport-sized jump (respawn / kill-plane / hard resync) or an
+artificial step/crouch eye snap snaps the interpolation — prev := curr — so the eye doesn't
+smear across the discontinuity.</p>
+
+    </div>
+
+
+
+
+</div>
+<div id="method_consumeViewDisplacementY" class="method item">
+    <h3 class="name"><code>consumeViewDisplacementY</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Number</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l138"><code>src\classes\CharacterController\View.js:138</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Return the artificial vertical eye displacement accumulated since the last call (step/landing
+snaps + crouch/scale swaps) and reset it. A camera folds this into a decaying offset so it
+eases over those discontinuities. Call once per render frame. Render-only — does not affect sim.</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Number</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_endResim" class="method item">
+    <h3 class="name"><code>endResim</code></h3>
+
+        <span class="paren">()</span>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Netcode.js.html#l16"><code>src\classes\CharacterController\Netcode.js:16</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+
+
+
+</div>
+<div id="method_getEyePosition" class="method item">
+    <h3 class="name"><code>getEyePosition</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Goblin.Vector3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l128"><code>src\classes\CharacterController\View.js:128</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>World-space eye position (camera goes here).</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Goblin.Vector3</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_getForwardHorizontal" class="method item">
+    <h3 class="name"><code>getForwardHorizontal</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code class="optional">[yaw]</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Goblin.Vector3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l105"><code>src\classes\CharacterController\View.js:105</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Horizontal forward for a given yaw (defaults to current facing).</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name optional">[yaw]</code>
+                        <span class="type">Number</span>
+                        <span class="flag optional" title="This parameter is optional.">optional</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Goblin.Vector3</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_getLiveAimDirection" class="method item">
+    <h3 class="name"><code>getLiveAimDirection</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Goblin.Vector3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l94"><code>src\classes\CharacterController\View.js:94</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>The live aim's full 3D direction (render-only; from aim()). Falls back to the sim look.</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Goblin.Vector3</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_getLookDirection" class="method item">
+    <h3 class="name"><code>getLookDirection</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Goblin.Vector3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l68"><code>src\classes\CharacterController\View.js:68</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Full 3D look direction (includes pitch).</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Goblin.Vector3</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_getRightHorizontal" class="method item">
+    <h3 class="name"><code>getRightHorizontal</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code class="optional">[yaw]</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Goblin.Vector3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l116"><code>src\classes\CharacterController\View.js:116</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Horizontal right for a given yaw (defaults to current facing). Negated to match a
+left-handed view convention so DirRight strafes to the character's visual right.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name optional">[yaw]</code>
+                        <span class="type">Number</span>
+                        <span class="flag optional" title="This parameter is optional.">optional</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Goblin.Vector3</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_getState" class="method item">
+    <h3 class="name"><code>getState</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type"></span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Netcode.js.html#l21"><code>src\classes\CharacterController\Netcode.js:21</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Snapshot this controller's authoritative state for the network.</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type"></span>:
+                    <p>state.userData - opaque consumer payload, passed through unexamined.</p>
+<p>NB: the ghost (the body that pushes objects) is deliberately NOT serialized. It's a local
+follow-the-character construct; setState re-derives it locally by snapping it to the
+authoritative character. Serializing it added bandwidth for identical results.</p>
+
+            </div>
+        </div>
+
+
+</div>
+<div id="method_look" class="method item">
+    <h3 class="name"><code>look</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>deltaYaw</code>
+                </li>
+                <li class="arg">
+                        <code>deltaPitch</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l46"><code>src\classes\CharacterController\View.js:46</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">deltaYaw</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">deltaPitch</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_peekViewDisplacementY" class="method item">
+    <h3 class="name"><code>peekViewDisplacementY</code></h3>
+
+        <span class="paren">()</span>
+
+        <span class="returns-inline">
+            <span class="type">Number</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l151"><code>src\classes\CharacterController\View.js:151</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Peek at the pending vertical eye displacement WITHOUT consuming it. A render-side smoother
+consumes (consumeViewDisplacementY); a caller that only wants to DETECT a discontinuity this
+frame (e.g. to snap interpolation instead of sliding the eye) reads this and leaves the value
+for the smoother. Read-only — never mutates sim or render state.</p>
+
+    </div>
+
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Number</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_renderEye" class="method item">
+    <h3 class="name"><code>renderEye</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>alpha</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+        <span class="returns-inline">
+            <span class="type">Goblin.Vector3</span>
+        </span>
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l183"><code>src\classes\CharacterController\View.js:183</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>The render-only eye position: the last two captured fixed-tick eyes lerped by the sub-tick factor
+<code>alpha</code> (0..1, the fraction into the current fixed step the renderer hands the draw call). Falls
+back to the live physics eye until two ticks have been captured.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">alpha</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+        <div class="returns">
+            <h4>Returns:</h4>
+
+            <div class="returns-description">
+                        <span class="type">Goblin.Vector3</span>:
+            </div>
+        </div>
+
+
+</div>
+<div id="method_setLook" class="method item">
+    <h3 class="name"><code>setLook</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>yaw</code>
+                </li>
+                <li class="arg">
+                        <code>pitch</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l58"><code>src\classes\CharacterController\View.js:58</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">yaw</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+                <li class="param">
+                        <code class="param-name">pitch</code>
+                        <span class="type">Number</span>
+
+
+                    <div class="param-description">
+                         
+                    </div>
+
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+<div id="method_setState" class="method item">
+    <h3 class="name"><code>setState</code></h3>
+
+        <div class="args">
+            <span class="paren">(</span><ul class="args-list inline commas">
+                <li class="arg">
+                        <code>s</code>
+                </li>
+            </ul><span class="paren">)</span>
+        </div>
+
+
+
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_Netcode.js.html#l80"><code>src\classes\CharacterController\Netcode.js:80</code></a>
+        </p>
+
+
+
+    </div>
+
+    <div class="description">
+        <p>Apply an authoritative state (from a snapshot). Sets position, velocity and grounded; does not
+touch yaw/pitch. Used for reconciliation before replaying already-run commands.</p>
+
+    </div>
+
+        <div class="params">
+            <h4>Parameters:</h4>
+
+            <ul class="params-list">
+                <li class="param">
+                        <code class="param-name">s</code>
+                        <span class="type">Object</span>
+
+
+                    <div class="param-description">
+                        <ul>
+<li>a snapshot as produced by getState.</li>
+</ul>
+
+                    </div>
+
+                        <ul class="params-list">
+                            <li class="param">
+                                    <code class="param-name">x</code>
+                                    <span class="type">Number</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name">y</code>
+                                    <span class="type">Number</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name">z</code>
+                                    <span class="type">Number</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name">vx</code>
+                                    <span class="type">Number</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name">vy</code>
+                                    <span class="type">Number</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name">vz</code>
+                                    <span class="type">Number</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[grounded]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[h]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    <ul>
+<li>collider height; a mismatch vs the current height rebuilds the collider
+(and re-derives crouching) before position is adopted.</li>
+</ul>
+
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[moveState]</code>
+                                    <span class="type">String</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[gs]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[ct]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[jb]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[gnx]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[gny]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[gnz]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[climb]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[onLadder]</code>
+                                    <span class="type">Boolean</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[lnx]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[lnz]</code>
+                                    <span class="type">Number</span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                            <li class="param">
+                                    <code class="param-name optional">[userData]</code>
+                                    <span class="type"></span>
+                                    <span class="flag optional" title="This parameter is optional.">optional</span>
+
+                                <div class="param-description">
+                                    
+                                </div>
+
+                            </li>
+                        </ul>
+                </li>
+            </ul>
+        </div>
+
+
+
+</div>
+            </div>
+
+            <div id="properties" class="api-class-tabpanel">
+                <h2 class="off-left">Properties</h2>
+
+<div id="property_bodyId" class="property item">
+    <h3 class="name"><code>bodyId</code></h3>
+    <span class="type">String</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l27"><code>src\classes\CharacterController\View.js:27</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>This controller's physics-body name (the value raycasts exclude to avoid self-hits).</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_moveState" class="property item">
+    <h3 class="name"><code>moveState</code></h3>
+    <span class="type">String</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l16"><code>src\classes\CharacterController\View.js:16</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>This tick's movement state: one of FPSC.MOVE_LADDER / MOVE_AIRBORNE / MOVE_WALK / MOVE_SLIP /
+MOVE_SLIDE. Set exactly once per tick, by endStep, from a fresh ground probe — beginStep (which
+runs BEFORE endStep, on the state endStep decided last tick) only ever READS this, never
+re-derives it. See the &quot;Movement state machine&quot; comment above endStep for the full design.</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_raycastIgnore" class="property item">
+    <h3 class="name"><code>raycastIgnore</code></h3>
+    <span class="type">String</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l35"><code>src\classes\CharacterController\View.js:35</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>The body-name list this controller's own probes ignore — pass to a game's own raycasts
+(weapons, line-of-sight) so a shooter's cast doesn't hit itself.</p>
+
+    </div>
+
+
+
+</div>
+<div id="property_sliding" class="property item">
+    <h3 class="name"><code>sliding</code></h3>
+    <span class="type">Boolean</span>
+
+
+
+
+
+    <div class="meta">
+                <p>
+                Defined in
+        <a href="../files/src_classes_CharacterController_View.js.html#l7"><code>src\classes\CharacterController\View.js:7</code></a>
+        </p>
+
+
+    </div>
+
+    <div class="description">
+        <p>True while a slide is active this tick. Reads the single authoritative _moveState field that
+endStep sets — see the &quot;Movement state machine&quot; comment above endStep (Movement/Step.js).</p>
+
+    </div>
+
+
+
+</div>
+            </div>
 
 
     </div>

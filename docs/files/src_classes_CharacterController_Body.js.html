@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>FPS_CONTROLLER_DEFAULTS - goblinphysics</title>
+    <title>src\classes\CharacterController\Body.js - goblinphysics</title>
     <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
     <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
     <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
@@ -121,50 +121,92 @@
             <div class="apidocs">
                 <div id="docs-main">
                     <div class="content">
-<h1>FPS_CONTROLLER_DEFAULTS Class</h1>
-<div class="box meta">
+<h1 class="file-heading">File: src\classes\CharacterController\Body.js</h1>
 
+<div class="file">
+    <pre class="code prettyprint linenums">
+// Character body lifecycle: creates/recreates the kinematic box collider the character controller
+// drives (see _buildBody), and the shared material-application helper used by both the character
+// body and its ghost (see Ghost.js).
+var proto = Goblin.FPSCharacterController.prototype;
 
-        <div class="foundat">
-            Defined in: <a href="../files/src_classes_CharacterController_FPSControllerConstants.js.html#l1"><code>src\classes\CharacterController\FPSControllerConstants.js:1</code></a>
-        </div>
+/**
+ * Apply this controller&#x27;s material/behavior defaults + explicit overrides to a freshly created body.
+ * Shared by the character&#x27;s own body (Body.js) and its ghost (Ghost.js).
+ *
+ * @method _applyMaterial
+ * @private
+ * @static
+ * @param {Goblin.RigidBody} body
+ * @param {Object} [opts]
+ * @param {Number} [opts.friction=3.0]
+ * @param {Number} [opts.restitution=0.33]
+ * @param {Number} [opts.linearDamping=0.1]
+ * @param {Number} [opts.angularDamping=0.9]
+ * @param {Goblin.Vector3} [opts.gravity] - if set, overrides the body&#x27;s gravity via setGravity.
+ */
+Goblin.FPSCharacterController._applyMaterial = function(body, opts) {
+    opts = opts || {};
+    body.friction = opts.friction !== undefined ? opts.friction : 3.0;
+    body.restitution = opts.restitution !== undefined ? opts.restitution : 0.33;
+    body.linear_damping = opts.linearDamping !== undefined ? opts.linearDamping : 0.1;
+    body.angular_damping = opts.angularDamping !== undefined ? opts.angularDamping : 0.9;
+    if (opts.gravity) { body.setGravity(opts.gravity.x, opts.gravity.y, opts.gravity.z); }
+};
 
-            Module: <a href="../modules/Goblin.html">Goblin</a>
+/**
+ * (Re)create the box body at a position, preserving look + velocity where possible.
+ * @method _buildBody
+ * @private
+ * @param {Goblin.Vector3} position
+ */
+proto._buildBody = function(position) {
+    var carriedVel = null;
+    if (this.body) {
+        var v = this.body.linear_velocity;
+        carriedVel = { x: v.x, y: v.y, z: v.z };
+        this.world.removeRigidBody(this.body);
+    }
+    this._destroyGhost();
 
-</div>
+    var shape = new Goblin.BoxShape(this.width / 2, this.height / 2, this.depth / 2);
+    this.body = new Goblin.RigidBody(shape, this.mass);
+    Goblin.FPSCharacterController._applyMaterial(this.body, {});
+    this.body.position.copy(position);
+    this.body.updateDerived();
+    // &#x60;object&#x60; is the lightweight cosmetic handle a consumer (renderer) can use to decide whether/how
+    // to draw the collider. This controller never renders anything itself.
+    this.object = { body: this.body, isVisible: this._visible };
 
+    // Never tip; resting/slopes/walls handled by the solver (gravity + friction).
+    this.body.angular_factor.set(0, 0, 0);
+    this.body.friction = this.friction;
+    this.body.restitution = 0;
+    this.body.linear_damping = 0;
+    this.body.angular_damping = 0;
 
-<div class="box intro">
-    <p>Every tunable default for FPSCharacterController, in ONE place, grouped by subsystem. The
-controller reads each default from here (constructor: <code>o.walkSpeed !== undefined ? o.walkSpeed : Goblin.FPS_CONTROLLER_DEFAULTS.movement.walkSpeed</code>), so a caller can still
-override any single value per-instance via the options object — this is only the fallback.</p>
-<p>What is NOT here (on purpose): algorithm-internal epsilons/thresholds inside the collision +
-slope math (1e-4 guards, normal.y classifications, sub-step fractions) — those are
-implementation details, not feel knobs, and stay at their use site in
-CharacterController/Constants.js (the FPSC object).</p>
+    // Tag our physics body so raycasts can ignore ourselves. Also ignore the ghost&#x27;s name so the
+    // kinematic body&#x27;s own probing raycasts never treat its own trailing ghost as a wall.
+    this.body.name = this._bodyName;
+    this._ignoreSelf = [this._bodyName, this._bodyName + &quot;_ghost&quot;];
+    // Mark this as a kinematic character body so OTHER characters&#x27; receive-push pass skips it
+    // (character-vs-character is already handled by collide-and-slide treating each other as walls;
+    // the body-push coupling is only meant for free dynamic objects).
+    this.body.isKinematicCharacter = true;
 
-</div>
+    // Exclude the character from ALL solver contacts (mask bit 1 = only collide with bodies sharing a
+    // matching group; world geometry is group 0). The body still integrates and is still
+    // raycast-queryable. Collision is done entirely via raycasts (ground clamp + collide-and-slide),
+    // so the solver can never fight the control loop.
+    this.body.collision_mask = 1;
 
+    if (carriedVel) { this.body.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z); }
 
-<div id="classdocs" class="tabview">
-    <ul class="api-class-tabs">
-        <li class="api-class-tab index"><a href="#index">Index</a></li>
+    this.world.addRigidBody(this.body);
+    this._buildGhost(position, carriedVel);
+};
 
-    </ul>
-
-    <div>
-        <div id="index" class="api-class-tabpanel index">
-            <h2 class="off-left">Item Index</h2>
-
-
-
-
-        </div>
-
-
-
-
-    </div>
+    </pre>
 </div>
                     </div>
                 </div>

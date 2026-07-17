@@ -25,6 +25,108 @@
             "fors": {},
             "namespaces": {}
         },
+        "src\\classes\\CharacterController\\Movement\\Airborne.js": {
+            "name": "src\\classes\\CharacterController\\Movement\\Airborne.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Movement\\Ladder.js": {
+            "name": "src\\classes\\CharacterController\\Movement\\Ladder.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Movement\\Slide.js": {
+            "name": "src\\classes\\CharacterController\\Movement\\Slide.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Movement\\Step.js": {
+            "name": "src\\classes\\CharacterController\\Movement\\Step.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Movement\\Vertical.js": {
+            "name": "src\\classes\\CharacterController\\Movement\\Vertical.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Body.js": {
+            "name": "src\\classes\\CharacterController\\Body.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Collision.js": {
+            "name": "src\\classes\\CharacterController\\Collision.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Constants.js": {
+            "name": "src\\classes\\CharacterController\\Constants.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\FPSCharacterController.js": {
+            "name": "src\\classes\\CharacterController\\FPSCharacterController.js",
+            "modules": {},
+            "classes": {
+                "FPSCharacterController": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\FPSControllerConstants.js": {
+            "name": "src\\classes\\CharacterController\\FPSControllerConstants.js",
+            "modules": {},
+            "classes": {
+                "FPS_CONTROLLER_DEFAULTS": 1
+            },
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Ghost.js": {
+            "name": "src\\classes\\CharacterController\\Ghost.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Netcode.js": {
+            "name": "src\\classes\\CharacterController\\Netcode.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\Probes.js": {
+            "name": "src\\classes\\CharacterController\\Probes.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
+        "src\\classes\\CharacterController\\View.js": {
+            "name": "src\\classes\\CharacterController\\View.js",
+            "modules": {},
+            "classes": {},
+            "fors": {},
+            "namespaces": {}
+        },
         "src\\classes\\Collision\\GjkEpa.js": {
             "name": "src\\classes\\Collision\\GjkEpa.js",
             "modules": {},
@@ -314,24 +416,6 @@
             "fors": {},
             "namespaces": {}
         },
-        "src\\classes\\FPSCharacterController.js": {
-            "name": "src\\classes\\FPSCharacterController.js",
-            "modules": {},
-            "classes": {
-                "FPSCharacterController": 1
-            },
-            "fors": {},
-            "namespaces": {}
-        },
-        "src\\classes\\FPSControllerConstants.js": {
-            "name": "src\\classes\\FPSControllerConstants.js",
-            "modules": {},
-            "classes": {
-                "FPS_CONTROLLER_DEFAULTS": 1
-            },
-            "fors": {},
-            "namespaces": {}
-        },
         "src\\classes\\ForceGenerator.js": {
             "name": "src\\classes\\ForceGenerator.js",
             "modules": {},
@@ -405,6 +489,8 @@
                 "BasicBroadphase": 1,
                 "SAPMarker": 1,
                 "SAPBroadphase": 1,
+                "FPSCharacterController": 1,
+                "FPS_CONTROLLER_DEFAULTS": 1,
                 "GjkEpa": 1,
                 "SupportPoint": 1,
                 "Constraint": 1,
@@ -439,8 +525,6 @@
                 "ContactDetails": 1,
                 "ContactManifold": 1,
                 "ContactManifoldList": 1,
-                "FPSCharacterController": 1,
-                "FPS_CONTROLLER_DEFAULTS": 1,
                 "ForceGenerator": 1,
                 "IterativeSolver": 1,
                 "NarrowPhase": 1,
@@ -516,6 +600,301 @@
             "line": 28,
             "description": "Sweep and Prune broadphase",
             "is_constructor": 1
+        },
+        "FPSCharacterController": {
+            "name": "FPSCharacterController",
+            "shortname": "FPSCharacterController",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\CharacterController\\FPSCharacterController.js",
+            "line": 1,
+            "description": "Engine-agnostic, reusable first-person character controller built directly on Goblin\n(NOT `Goblin.CharacterController` — that's a separate, spring-based capsule controller; this\none is a kinematic box mover with its own ground/wall/slope/ghost handling). Uses a BOX\ncollider that is angular-locked so it can never tip. Grounding, slopes, walls and resting are\nhandled by hand-written raycast/sweep probes each tick, not by the physics solver — the\ncontroller does NOT hard-teleport the body to the ground every frame (that fights the solver\nand jitters). It only:\n  - sets HORIZONTAL velocity from input each step (snappy, no momentum fighting),\n  - projects that velocity along the ground plane (no sliding on slopes) and off walls\n    (smooth move-and-slide, so we never ram the solver), and\n  - applies targeted raycast assists for STEP-UP and STEP-DOWN, which the solver can't\n    do with a box collider.\nVertical motion (gravity, landing) is left to the solver; only jump / jetpack thrust write\nthe vertical velocity directly.\n\nAlso handles two further movement states parallel to ground/air: climbing a body tagged\nisLadder (see _updateLadder), and riding a body tagged isPlatform via base-velocity inheritance\n(see _baseVelocity in the constructor, and beginStep/endStep/_updateVertical) — jumping off a\nrising platform adds its velocity into the jump.\n\nDESIGN SEAMS:\n  The controller never reads input directly. Gameplay samples an input command (pure data, so\n  any caller can run remote characters' commands through the exact same path) and feeds it in,\n  bracketing a single Goblin world step:\n      const cmd = mySampleInput(input);       // input mapping is policy, lives outside this class\n      controller.beginStep(cmd, dt);           // pre-physics: velocity + assists\n      world.step(dt);                          // ONE world step (all bodies)\n      controller.endStep(dt);                  // post-physics: grounded + step-down\n\nEXTENSIBILITY:\n  This base IS the default \"kit\" (instantiate it directly). A game adds an alternate kit by\n  subclassing and overriding `_updateVertical` (jump/gravity) and/or `_getMoveSpeed` without\n  touching ground/step/wall logic.\n\nUnits: METERS (gravity -9.81 by default); defaults are in meters (a ~1.8m human ≈ 1.8 units\ntall). Use `scale` to resize the whole character.",
+            "is_constructor": 1,
+            "params": [
+                {
+                    "name": "world",
+                    "description": "- The physics world this controller's body/ghost live in.",
+                    "type": "Goblin.World"
+                },
+                {
+                    "name": "options",
+                    "description": "- See FPS_CONTROLLER_DEFAULTS (FPSControllerConstants.js) for every\n  tunable default and its meaning; each `options.X` below overrides that default per-instance.",
+                    "type": "Object",
+                    "optional": true,
+                    "props": [
+                        {
+                            "name": "position",
+                            "description": "- Spawn position (body center). Default (0,20,0).",
+                            "type": "Goblin.Vector3",
+                            "optional": true
+                        },
+                        {
+                            "name": "scale",
+                            "description": "- Uniform size multiplier for the whole character.",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "1"
+                        },
+                        {
+                            "name": "width",
+                            "description": "- Collider width (x) before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "depth",
+                            "description": "- Collider depth (z) before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "height",
+                            "description": "- Collider height (y) before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "mass",
+                            "description": "- Body mass before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "eyeHeight",
+                            "description": "- Eye offset above body CENTER before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "walkSpeed",
+                            "description": "- Held-walk gait speed before scale (slower than run).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "moveSpeed",
+                            "description": "- RUN speed (the default no-modifier gait) before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "sprintSpeed",
+                            "description": "- Sprint move speed before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "crouchSpeedMult",
+                            "description": "- Multiplier on the active gait while crouched.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "sprintDecay",
+                            "description": "- Rate (units/sec) the sprint boost fades after release.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "groundStopDecel",
+                            "description": "- Deceleration (units/sec) on releasing all move keys.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "airControl",
+                            "description": "- 0..1 horizontal steering authority per step while airborne.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "jumpSpeed",
+                            "description": "- Jump velocity before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "friction",
+                            "description": "- Body friction (0 keeps wall-slides clean; kinematic\n  grounding holds slopes without relying on solver friction).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "stepHeight",
+                            "description": "- Max step-UP height before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "stepDownDist",
+                            "description": "- Max step-DOWN snap before scale.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "coyoteTime",
+                            "description": "- Seconds after leaving a ledge you can still jump (0=off).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "jumpBuffer",
+                            "description": "- Seconds before landing a jump press is remembered (0=off).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideEnabled",
+                            "description": "- Enable crouch-at-speed sliding.",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "true"
+                        },
+                        {
+                            "name": "slideRequiresMoveInput",
+                            "description": "- Require a movement key held to START a slide (exit never requires it).",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "true"
+                        },
+                        {
+                            "name": "slideAllowLandingWithoutInput",
+                            "description": "- Waive the movement-key requirement on the landing frame, so an impact-slide can start from crouch + speed alone.",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "true"
+                        },
+                        {
+                            "name": "slideMinSpeed",
+                            "description": "- Min along-ground speed (pre-scale) to start a slide.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideEndSpeed",
+                            "description": "- Flat slide ends below this speed (pre-scale).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideFriction",
+                            "description": "- Speed bled per second on flat ground (pre-scale).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideBoost",
+                            "description": "- Launch speed multiplier at slide entry.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideControl",
+                            "description": "- 0..1 carve authority while sliding (speed-preserving).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideSlopeAccel",
+                            "description": "- Gravity-along-slope multiplier while sliding.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideSlopeMin",
+                            "description": "- Min slope (sin of angle) that sustains a slide via gravity.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideSlopeFriction",
+                            "description": "- Cross-slope bleed per second on a sustaining slope.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "slideReversalBrakeMult",
+                            "description": "- Multiplier on slideSlopeFriction for how hard a\n  deliberate on-slope reversal (wish opposing current slide direction) brakes before the carve\n  steering picks the new heading back up.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "receivePush",
+                            "description": "- Enable object-to-character knockback via the ghost body.",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "true"
+                        },
+                        {
+                            "name": "receiveMaxSpeed",
+                            "description": "- Cap on how fast a single object hit can knock the character.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "receiveKnockbackFraction",
+                            "description": "- Fraction of the ghost's contact velocity transferred.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "ghostMaxSpeed",
+                            "description": "- Cap on the ghost's follow/shove speed (units/sec).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "ghostDamping",
+                            "description": "- Fraction of the ghost's current velocity damped each tick (0..1).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "maxSlopeAngle",
+                            "description": "- Max standable slope in degrees (90+ disables the limit).",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "visible",
+                            "description": "- Whether a consumer should treat the collider as drawable\n  (this controller does no rendering itself — see `object.isVisible`).",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "false"
+                        },
+                        {
+                            "name": "color",
+                            "description": "- Cosmetic color tag, opaque to this class.",
+                            "type": "String",
+                            "optional": true
+                        },
+                        {
+                            "name": "skin",
+                            "description": "- Contact/sweep tolerance override (see FPSC.SKIN).",
+                            "type": "Number",
+                            "optional": true
+                        }
+                    ]
+                }
+            ]
+        },
+        "FPS_CONTROLLER_DEFAULTS": {
+            "name": "FPS_CONTROLLER_DEFAULTS",
+            "shortname": "FPS_CONTROLLER_DEFAULTS",
+            "classitems": [],
+            "plugins": [],
+            "extensions": [],
+            "plugin_for": [],
+            "extension_for": [],
+            "module": "Goblin",
+            "file": "src\\classes\\CharacterController\\FPSControllerConstants.js",
+            "line": 1,
+            "description": "Every tunable default for FPSCharacterController, in ONE place, grouped by subsystem. The\ncontroller reads each default from here (constructor: `o.walkSpeed !== undefined ?\no.walkSpeed : Goblin.FPS_CONTROLLER_DEFAULTS.movement.walkSpeed`), so a caller can still\noverride any single value per-instance via the options object — this is only the fallback.\n\nWhat is NOT here (on purpose): algorithm-internal epsilons/thresholds inside the collision +\nslope math (1e-4 guards, normal.y classifications, sub-step fractions) — those are\nimplementation details, not feel knobs, and stay at their use site in\nCharacterController/Constants.js (the FPSC object).",
+            "static": 1
         },
         "GjkEpa": {
             "name": "GjkEpa",
@@ -1336,294 +1715,6 @@
             "description": "List/Manager of ContactManifolds",
             "is_constructor": 1
         },
-        "FPSCharacterController": {
-            "name": "FPSCharacterController",
-            "shortname": "FPSCharacterController",
-            "classitems": [],
-            "plugins": [],
-            "extensions": [],
-            "plugin_for": [],
-            "extension_for": [],
-            "module": "Goblin",
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1,
-            "description": "Engine-agnostic, reusable first-person character controller built directly on Goblin\n(NOT `Goblin.CharacterController` — that's a separate, spring-based capsule controller; this\none is a kinematic box mover with its own ground/wall/slope/ghost handling). Uses a BOX\ncollider that is angular-locked so it can never tip. Grounding, slopes, walls and resting are\nhandled by hand-written raycast/sweep probes each tick, not by the physics solver — the\ncontroller does NOT hard-teleport the body to the ground every frame (that fights the solver\nand jitters). It only:\n  - sets HORIZONTAL velocity from input each step (snappy, no momentum fighting),\n  - projects that velocity along the ground plane (no sliding on slopes) and off walls\n    (smooth move-and-slide, so we never ram the solver), and\n  - applies targeted raycast assists for STEP-UP and STEP-DOWN, which the solver can't\n    do with a box collider.\nVertical motion (gravity, landing) is left to the solver; only jump / jetpack thrust write\nthe vertical velocity directly.\n\nAlso handles two further movement states parallel to ground/air: climbing a body tagged\nisLadder (see _updateLadder), and riding a body tagged isPlatform via base-velocity inheritance\n(see _baseVelocity in the constructor, and beginStep/endStep/_updateVertical) — jumping off a\nrising platform adds its velocity into the jump.\n\nDESIGN SEAMS:\n  The controller never reads input directly. Gameplay samples an input command (pure data, so\n  a host can run remote players' commands through the exact same path) and feeds it in,\n  bracketing a single Goblin world step:\n      const cmd = mySampleInput(input);       // input mapping is policy, lives outside this class\n      controller.beginStep(cmd, dt);           // pre-physics: velocity + assists\n      world.step(dt);                          // ONE world step (all bodies)\n      controller.endStep(dt);                  // post-physics: grounded + step-down\n\nEXTENSIBILITY:\n  This base IS the default \"kit\" (instantiate it directly). A game adds an alternate kit by\n  subclassing and overriding `_updateVertical` (jump/gravity) and/or `_getMoveSpeed` without\n  touching ground/step/wall logic.\n\nUnits: METERS (gravity -9.81 by default); defaults are in meters (a ~1.8m human ≈ 1.8 units\ntall). Use `scale` to resize the whole character.",
-            "is_constructor": 1,
-            "params": [
-                {
-                    "name": "world",
-                    "description": "- The physics world this controller's body/ghost live in.",
-                    "type": "Goblin.World"
-                },
-                {
-                    "name": "options",
-                    "description": "- See FPS_CONTROLLER_DEFAULTS (FPSControllerConstants.js) for every\n  tunable default and its meaning; each `options.X` below overrides that default per-instance.",
-                    "type": "Object",
-                    "optional": true,
-                    "props": [
-                        {
-                            "name": "position",
-                            "description": "- Spawn position (body center). Default (0,20,0).",
-                            "type": "Goblin.Vector3",
-                            "optional": true
-                        },
-                        {
-                            "name": "scale",
-                            "description": "- Uniform size multiplier for the whole character.",
-                            "type": "Number",
-                            "optional": true,
-                            "optdefault": "1"
-                        },
-                        {
-                            "name": "width",
-                            "description": "- Collider width (x) before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "depth",
-                            "description": "- Collider depth (z) before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "height",
-                            "description": "- Collider height (y) before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "mass",
-                            "description": "- Body mass before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "eyeHeight",
-                            "description": "- Eye offset above body CENTER before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "walkSpeed",
-                            "description": "- Held-walk gait speed before scale (slower than run).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "moveSpeed",
-                            "description": "- RUN speed (the default no-modifier gait) before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "sprintSpeed",
-                            "description": "- Sprint move speed before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "crouchSpeedMult",
-                            "description": "- Multiplier on the active gait while crouched.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "sprintDecay",
-                            "description": "- Rate (units/sec) the sprint boost fades after release.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "groundStopDecel",
-                            "description": "- Deceleration (units/sec) on releasing all move keys.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "airControl",
-                            "description": "- 0..1 horizontal steering authority per step while airborne.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "jumpSpeed",
-                            "description": "- Jump velocity before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "friction",
-                            "description": "- Body friction (0 keeps wall-slides clean; kinematic\n  grounding holds slopes without relying on solver friction).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "stepHeight",
-                            "description": "- Max step-UP height before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "stepDownDist",
-                            "description": "- Max step-DOWN snap before scale.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "coyoteTime",
-                            "description": "- Seconds after leaving a ledge you can still jump (0=off).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "jumpBuffer",
-                            "description": "- Seconds before landing a jump press is remembered (0=off).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideEnabled",
-                            "description": "- Enable crouch-at-speed sliding.",
-                            "type": "Boolean",
-                            "optional": true,
-                            "optdefault": "true"
-                        },
-                        {
-                            "name": "slideRequiresMoveInput",
-                            "description": "- Require a movement key held to slide.",
-                            "type": "Boolean",
-                            "optional": true,
-                            "optdefault": "false"
-                        },
-                        {
-                            "name": "slideMinSpeed",
-                            "description": "- Min along-ground speed (pre-scale) to start a slide.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideEndSpeed",
-                            "description": "- Flat slide ends below this speed (pre-scale).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideFriction",
-                            "description": "- Speed bled per second on flat ground (pre-scale).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideBoost",
-                            "description": "- Launch speed multiplier at slide entry.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideControl",
-                            "description": "- 0..1 carve authority while sliding (speed-preserving).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideSlopeAccel",
-                            "description": "- Gravity-along-slope multiplier while sliding.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideSlopeMin",
-                            "description": "- Min slope (sin of angle) that sustains a slide via gravity.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideSlopeFriction",
-                            "description": "- Cross-slope bleed per second on a sustaining slope.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "slideCoyoteFrames",
-                            "description": "- Frames after dropping below slide speed a crouch still slides.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "receivePush",
-                            "description": "- Enable object-to-player knockback via the ghost body.",
-                            "type": "Boolean",
-                            "optional": true,
-                            "optdefault": "true"
-                        },
-                        {
-                            "name": "receiveMaxSpeed",
-                            "description": "- Cap on how fast a single object hit can knock the player.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "receiveKnockbackFraction",
-                            "description": "- Fraction of the ghost's contact velocity transferred.",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "ghostMaxSpeed",
-                            "description": "- Cap on the ghost's follow/shove speed (units/sec).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "ghostDamping",
-                            "description": "- Fraction of the ghost's current velocity damped each tick (0..1).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "maxSlopeAngle",
-                            "description": "- Max standable slope in degrees (90+ disables the limit).",
-                            "type": "Number",
-                            "optional": true
-                        },
-                        {
-                            "name": "visible",
-                            "description": "- Whether a consumer should treat the collider as drawable\n  (this controller does no rendering itself — see `object.isVisible`).",
-                            "type": "Boolean",
-                            "optional": true,
-                            "optdefault": "false"
-                        },
-                        {
-                            "name": "color",
-                            "description": "- Cosmetic color tag, opaque to this class.",
-                            "type": "String",
-                            "optional": true
-                        },
-                        {
-                            "name": "skin",
-                            "description": "- Contact/sweep tolerance override (see FPSC.SKIN).",
-                            "type": "Number",
-                            "optional": true
-                        }
-                    ]
-                }
-            ]
-        },
-        "FPS_CONTROLLER_DEFAULTS": {
-            "name": "FPS_CONTROLLER_DEFAULTS",
-            "shortname": "FPS_CONTROLLER_DEFAULTS",
-            "classitems": [],
-            "plugins": [],
-            "extensions": [],
-            "plugin_for": [],
-            "extension_for": [],
-            "module": "Goblin",
-            "file": "src\\classes\\FPSControllerConstants.js",
-            "line": 1,
-            "description": "Every tunable default for FPSCharacterController, in ONE place, grouped by subsystem. The\ncontroller reads each default from here (constructor: `o.walkSpeed !== undefined ?\no.walkSpeed : Goblin.FPS_CONTROLLER_DEFAULTS.movement.walkSpeed`), so a caller can still\noverride any single value per-instance via the options object — this is only the fallback.\n\nWhat is NOT here (on purpose): algorithm-internal epsilons/thresholds inside the collision +\nslope math (1e-4 guards, normal.y classifications, sub-step fractions) — those are\nimplementation details, not feel knobs, and stay at their use site inside\nFPSCharacterController.js (the FPSC object).",
-            "static": 1
-        },
         "ForceGenerator": {
             "name": "ForceGenerator",
             "shortname": "ForceGenerator",
@@ -1935,6 +2026,1135 @@
                 "type": "Array<RayIntersection>"
             },
             "class": "SAPBroadphase"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Airborne.js",
+            "line": 7,
+            "description": "Deflect velocity along an overhead surface we're about to contact, instead of capping the\nrise to zero — a hard cap leaves no velocity to escape and glues us to ceilings, flat AND\nsloped. Projects out the into-surface component using the ceiling's own normal: v -= (v.n) n.\nA flat underside (n straight down) zeroes only the vertical, so horizontal motion survives; a\nsloped underside redirects the upward motion down-and-along the slope, sliding us out. Only\nacts when actually rising toward a ceiling within this tick's reach.",
+            "itemtype": "method",
+            "name": "_ceilingSlide",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "vx",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "vy",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "vz",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "result.vz",
+                "type": "Number"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Airborne.js",
+            "line": 44,
+            "description": "Treat insufficient headroom as a virtual wall: gate on ceiling clearance ahead (rather than\nsurface normal, which a near-horizontal ramp underside can't provide) and slide along the\nhorizontal gradient of increasing clearance.",
+            "itemtype": "method",
+            "name": "_headroomGate",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "vx",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "vz",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "result.z - gated horizontal velocity, z.",
+                "type": "Number"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Ladder.js",
+            "line": 6,
+            "description": "Ladder state transitions + climb velocity. A fourth movement state alongside grounded /\nnoTraction / airborne, resolved once per beginStep before that branch runs. The ladder body is\nnever excluded from collision — _collideAndSlide still runs afterward on whatever velocity this\nwrites, so ordinary contact resolution is what holds the character against the face tick over tick.\n\nMount requires movement intent toward the ladder (wishdir), not mere proximity — probing along\nthe current input direction rather than scanning all directions means jumping away from a ladder\nand holding the opposite key back toward it, or passing a ladder mid-air, can't remount it a\nframe later while disconnected from it.\n\nForward/back and strafe contributions to climb velocity are summed independently, without\nnormalizing the combined wish vector — holding both diagonally into the face climbs strictly\nfaster than either alone. Look pitch steers climb direction: the forward axis is the full\npitched look direction, not flattened, so holding forward while looking down descends.\n\nJump dismounts with a purely horizontal shove away from the face — no vertical component.",
+            "itemtype": "method",
+            "name": "_updateLadder",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "cmd",
+                    "description": "",
+                    "type": "Object"
+                },
+                {
+                    "name": "moveYaw",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "movePitch",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "true if this tick's velocity is fully owned by the ladder branch",
+                "type": "Boolean"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Slide.js",
+            "line": 7,
+            "description": "Slide velocity EVOLVER — advances one tick of the slide's surface-tracking model (slope accel,\nfriction, steering). Pure: only called from beginStep's MOVE_SLIDE branch, which is only reached\nwhen endStep has ALREADY decided this tick is a slide (see the \"MOVEMENT STATE DECISION\" block\nin endStep) and has already written the correct starting tangential velocity into gb — including\nthe one-time entry boost (slideBoost), applied there rather than here so it lands on the exact\ntick the state transition itself is observable, not one tick later. This function does not\ndecide whether to slide — it has no entry gate, no exit gate, no stored flag. It reads gb (this\ntick's starting velocity, already tangent to groundNormal), advances it one tick, and returns\nthe result.",
+            "itemtype": "method",
+            "name": "_updateSlide",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "cmd",
+                    "description": "",
+                    "type": "Object"
+                },
+                {
+                    "name": "wishX",
+                    "description": "- desired horizontal velocity x from input (unsteered).",
+                    "type": "Number"
+                },
+                {
+                    "name": "wishZ",
+                    "description": "- desired horizontal velocity z from input (unsteered).",
+                    "type": "Number"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "result.vz - this tick's slide velocity, z.",
+                "type": "Number"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Step.js",
+            "line": 8,
+            "description": "PRE-physics: set this tick's horizontal velocity (slope/wall projected) + assists.\n\nAim/sim separation: the movement basis comes from the COMMAND's yaw (`cmd.yaw`) — a per-tick\ninput — not from any persistent \"live aim\". The live aim belongs to the caller (a camera reads\nit, never the sim), so replaying commands during reconciliation can't drag the view backward.\nWe record the commanded yaw/pitch as this entity's facing (for getState/avatars) only when the\ncommand carries them; a caller that never sets yaw keeps driving facing via look() instead.\n\nAlso applies platform base velocity into the horizontal move (see the constructor's\n_baseVelocity comment) immediately before collide-and-slide, so a rider is carried through real\nswept motion rather than a position teleport.",
+            "itemtype": "method",
+            "name": "beginStep",
+            "params": [
+                {
+                    "name": "command",
+                    "description": "- pure-data input command struct; any field may be absent",
+                    "type": "Object"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Step.js",
+            "line": 246,
+            "description": "POST-physics: decide grounded and clamp the feet to the ground surface. Also acquires this\ntick's platform base velocity (see the constructor's _baseVelocity comment) from whatever\nisPlatform-tagged body the ground probe lands on, read fresh every tick.",
+            "itemtype": "method",
+            "name": "endStep",
+            "params": [
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Vertical.js",
+            "line": 10,
+            "description": "Gait selection: sprint > walk > run, scaled by crouch. Override to change gait rules without\ntouching ground/step/wall logic.",
+            "itemtype": "method",
+            "name": "_getMoveSpeed",
+            "access": "protected",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "cmd",
+                    "description": "",
+                    "type": "Object"
+                }
+            ],
+            "return": {
+                "description": "target horizontal speed for this tick.",
+                "type": "Number"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Movement\\Vertical.js",
+            "line": 24,
+            "description": "Vertical hook. Base = grounded jump only (gravity/landing handled by the solver). A jump adds\nplatform base velocity's Y component additively, not an overwrite — jumping off a rising\nplatform flings the character higher than jumpSpeed alone would.",
+            "itemtype": "method",
+            "name": "_updateVertical",
+            "access": "protected",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "cmd",
+                    "description": "",
+                    "type": "Object"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Body.js",
+            "line": 6,
+            "description": "Apply this controller's material/behavior defaults + explicit overrides to a freshly created body.\nShared by the character's own body (Body.js) and its ghost (Ghost.js).",
+            "itemtype": "method",
+            "name": "_applyMaterial",
+            "access": "private",
+            "tagname": "",
+            "static": 1,
+            "params": [
+                {
+                    "name": "body",
+                    "description": "",
+                    "type": "Goblin.RigidBody"
+                },
+                {
+                    "name": "opts",
+                    "description": "",
+                    "type": "Object",
+                    "optional": true,
+                    "props": [
+                        {
+                            "name": "friction",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "3.0"
+                        },
+                        {
+                            "name": "restitution",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "0.33"
+                        },
+                        {
+                            "name": "linearDamping",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "0.1"
+                        },
+                        {
+                            "name": "angularDamping",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "0.9"
+                        },
+                        {
+                            "name": "gravity",
+                            "description": "- if set, overrides the body's gravity via setGravity.",
+                            "type": "Goblin.Vector3",
+                            "optional": true
+                        }
+                    ]
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Body.js",
+            "line": 30,
+            "description": "(Re)create the box body at a position, preserving look + velocity where possible.",
+            "itemtype": "method",
+            "name": "_buildBody",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "position",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Collision.js",
+            "line": 8,
+            "description": "Kinematic collide-and-slide. The character is excluded from the solver, so we stop\nourselves at walls and slide along them here. For the current horizontal velocity\nwe cast a fan of rays (across the footprint width, at a few heights) in the move\ndirection; if a vertical wall is within the box's reach this step we remove the\ninto-wall velocity component and re-test, so corners stop on both walls. Floors and\nramps (normal.y >= 0.5) are ignored — those are handled by the ground clamp.",
+            "itemtype": "method",
+            "name": "_collideAndSlide",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "vx",
+                    "description": "- incoming horizontal velocity, x.",
+                    "type": "Number"
+                },
+                {
+                    "name": "vz",
+                    "description": "- incoming horizontal velocity, z.",
+                    "type": "Number"
+                },
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "result.z - clipped horizontal velocity, z.",
+                "type": "Number"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Collision.js",
+            "line": 51,
+            "description": "Sweeps an inset box along a horizontal velocity and clips it against blocking contacts,\nsub-stepped so long sweeps can't return a wrong-axis normal. Shared by the character body\nand its ghost so both get identical wall/mass-yield behavior from one implementation.",
+            "itemtype": "method",
+            "name": "_sweptCollideAndSlide",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "opts",
+                    "description": "",
+                    "type": "Object",
+                    "props": [
+                        {
+                            "name": "position",
+                            "description": "- Sweep origin (box center).",
+                            "type": "Goblin.Vector3"
+                        },
+                        {
+                            "name": "width",
+                            "description": "- Box width (x), pre-inset.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "depth",
+                            "description": "- Box depth (z), pre-inset.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "height",
+                            "description": "- Box height (y), pre-inset.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "skin",
+                            "description": "- Contact/sweep tolerance subtracted from each half-extent.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "mass",
+                            "description": "- Sweeping body's mass, used for the push mass-yield ratio.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "stepHeight",
+                            "description": "- Step-up height; 0 disables step-up entirely.",
+                            "type": "Number",
+                            "optional": true,
+                            "optdefault": "0"
+                        },
+                        {
+                            "name": "selfBody",
+                            "description": "- Body to exclude from its own sweep hits.",
+                            "type": "Goblin.RigidBody"
+                        },
+                        {
+                            "name": "otherSelfBody",
+                            "description": "- A second body to exclude (e.g. the character\n  excludes its ghost, and vice versa).",
+                            "type": "Goblin.RigidBody",
+                            "optional": true
+                        },
+                        {
+                            "name": "climbSteepSlopes",
+                            "description": "- Exempt too-steep floor-like faces that have a\n  climbable slope ahead from the wall-block rule.",
+                            "type": "Boolean",
+                            "optional": true,
+                            "optdefault": "false"
+                        },
+                        {
+                            "name": "vx",
+                            "description": "- Incoming horizontal velocity, x.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "vz",
+                            "description": "- Incoming horizontal velocity, z.",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "dt",
+                            "description": "- Tick duration in seconds.",
+                            "type": "Number"
+                        }
+                    ]
+                }
+            ],
+            "return": {
+                "description": "result.depenZ - Position correction out of a penetrated wall, z (0 if none).",
+                "type": "Number"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Constants.js",
+            "line": 84,
+            "description": "Cast a ray from start to end in the physics world, kept private since nothing outside the\nCharacterController subsystem needs it. Returns the first valid hit (nearest first, skipping\nanything named in `ignoreObjects`), or null.",
+            "itemtype": "method",
+            "name": "_raycast",
+            "access": "private",
+            "tagname": "",
+            "static": 1,
+            "params": [
+                {
+                    "name": "world",
+                    "description": "",
+                    "type": "Goblin.World"
+                },
+                {
+                    "name": "start",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                },
+                {
+                    "name": "end",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                },
+                {
+                    "name": "ignoreObjects",
+                    "description": "- body `.name` values to skip",
+                    "type": "String[]",
+                    "optional": true
+                }
+            ],
+            "return": {
+                "description": "{ object, point:Vector3, normal:Vector3, t:Number } or null",
+                "type": "Object|null"
+            },
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\FPSCharacterController.js",
+            "line": 339,
+            "description": "Resize the whole character at runtime (rebuilds the collider, feet planted).",
+            "itemtype": "method",
+            "name": "setScale",
+            "params": [
+                {
+                    "name": "scale",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\FPSCharacterController.js",
+            "line": 365,
+            "description": "Add a velocity impulse and force the character airborne (explosions / knockback / rocket-jumping).",
+            "itemtype": "method",
+            "name": "applyKnockback",
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\FPSCharacterController.js",
+            "line": 382,
+            "itemtype": "method",
+            "name": "setPosition",
+            "params": [
+                {
+                    "name": "pos",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                }
+            ],
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\FPSCharacterController.js",
+            "line": 399,
+            "itemtype": "method",
+            "name": "destroy",
+            "class": "FPSCharacterController"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Ghost.js",
+            "line": 9,
+            "description": "GHOST: a solver-participating dynamic body that trails the kinematic character. The character's own\nbody is excluded from solver contacts (collision_mask 1); the ghost is its stand-in for object\ncontact. Control is one-way: character position -> ghost target. The ghost's position never writes\nback to the character; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.",
+            "itemtype": "method",
+            "name": "_buildGhost",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "position",
+                    "description": "- the character body's current position.",
+                    "type": "Goblin.Vector3"
+                },
+                {
+                    "name": "carriedVel",
+                    "description": "- {x,y,z} velocity to seed the ghost with (carried over a rebuild).",
+                    "type": "Object",
+                    "optional": true
+                }
+            ],
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Ghost.js",
+            "line": 47,
+            "description": "Remove and clear the ghost body, if any (called before every rebuild + on destroy()).",
+            "itemtype": "method",
+            "name": "_destroyGhost",
+            "access": "private",
+            "tagname": "",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Ghost.js",
+            "line": 60,
+            "description": "Drive the ghost toward the character each tick and read back contact-driven knockback. Called once\nper endStep, after the character's position is settled.",
+            "itemtype": "method",
+            "name": "_syncGhost",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "dt",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Ghost.js",
+            "line": 121,
+            "description": "Knockback speed = mass ratio (objectMass/(objectMass+playerMass)) x the object's closing speed\nonto the character, gated to only apply when the object is moving into the character above a small\nmomentum floor. Horizontal only; never moves position, only velocity.",
+            "itemtype": "method",
+            "name": "_readGhostKnockback",
+            "access": "private",
+            "tagname": "",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Netcode.js",
+            "line": 8,
+            "description": "Reconciliation hooks (opt-in, called by the caller around a ROLLBACK-AND-RESIM of already-run\ncommands — distinct from a game \"replay\"). During resim the controller re-derives already-\nperceived state, so its step/crouch snaps must NOT feed a render smoother (that double-counts\nevery step until the resim catches back up). Live ticks are unaffected.",
+            "itemtype": "method",
+            "name": "beginResim",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Netcode.js",
+            "line": 16,
+            "itemtype": "method",
+            "name": "endResim",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Netcode.js",
+            "line": 21,
+            "description": "Snapshot this controller's authoritative state for the network.",
+            "itemtype": "method",
+            "name": "getState",
+            "return": {
+                "description": "state.userData - opaque consumer payload, passed through unexamined.\n\nNB: the ghost (the body that pushes objects) is deliberately NOT serialized. It's a local\nfollow-the-character construct; setState re-derives it locally by snapping it to the\nauthoritative character. Serializing it added bandwidth for identical results.",
+                "type": "*"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Netcode.js",
+            "line": 80,
+            "description": "Apply an authoritative state (from a snapshot). Sets position, velocity and grounded; does not\ntouch yaw/pitch. Used for reconciliation before replaying already-run commands.",
+            "itemtype": "method",
+            "name": "setState",
+            "params": [
+                {
+                    "name": "s",
+                    "description": "- a snapshot as produced by getState.",
+                    "type": "Object",
+                    "props": [
+                        {
+                            "name": "x",
+                            "description": "",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "y",
+                            "description": "",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "z",
+                            "description": "",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "vx",
+                            "description": "",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "vy",
+                            "description": "",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "vz",
+                            "description": "",
+                            "type": "Number"
+                        },
+                        {
+                            "name": "grounded",
+                            "description": "",
+                            "type": "Boolean",
+                            "optional": true
+                        },
+                        {
+                            "name": "h",
+                            "description": "- collider height; a mismatch vs the current height rebuilds the collider\n  (and re-derives crouching) before position is adopted.",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "moveState",
+                            "description": "",
+                            "type": "String",
+                            "optional": true
+                        },
+                        {
+                            "name": "gs",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "ct",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "jb",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "gnx",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "gny",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "gnz",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "climb",
+                            "description": "",
+                            "type": "Boolean",
+                            "optional": true
+                        },
+                        {
+                            "name": "onLadder",
+                            "description": "",
+                            "type": "Boolean",
+                            "optional": true
+                        },
+                        {
+                            "name": "lnx",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "lnz",
+                            "description": "",
+                            "type": "Number",
+                            "optional": true
+                        },
+                        {
+                            "name": "userData",
+                            "description": "",
+                            "type": "*",
+                            "optional": true
+                        }
+                    ]
+                }
+            ],
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 8,
+            "description": "Multi-point ground probe (center + four edge midpoints). Returns ALL floor-like hits, highest\nfirst — NOT collapsed to a single \"best\" here, because the caller needs to fall back to a\nlower (but valid) hit when the highest one is rejected as too tall to step onto (e.g. one edge\nray grazing a box pushed against the footprint, while the other four rays are still squarely\nover real floor). Collapsing to one hit here would throw the floor away before the caller ever\ngets a chance to prefer it.",
+            "itemtype": "method",
+            "name": "_probeGroundCandidates",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "maxSnap",
+                    "description": "- max downward reach (below the feet) to probe, before scale/skin margins.",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "floor-like raycast hits, sorted highest point.y first.",
+                "type": "Object[]"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 58,
+            "description": "Multi-ray UP probe across the footprint. Returns the LOWEST ceiling (down-facing\nsurface) within `reachAboveFeet` of the feet, or null. Mirror of _probeGround; covers\nsloped overhead geometry (e.g. a ramp underside) that forward rays can't see.",
+            "itemtype": "method",
+            "name": "_probeCeiling",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "reachAboveFeet",
+                    "description": "- how far above the feet to scan.",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "the lowest down-facing hit within reach, or null.",
+                "type": "Object|null"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 90,
+            "description": "Same contract as the private _raycast helper (skips this._ignoreSelf by .name, returns the first\nremaining hit), but ALSO skips any hit body tagged isPlatform. A scripted moving platform is\ndeliberately excluded from the solver's own contact resolution (see _baseVelocity's constructor\ncomment / platform()'s collision_mask) so a rider is carried via scripted base-velocity, never a\nreal physical shove — but a raw raycast doesn't consult collision_mask at all, so without this a\nfast-rising platform that catches back up to a character mid-jump gets misread as a solid ceiling\noverhead by _ceilingSlide, capping the jump's vertical velocity and killing it a few ticks after\nliftoff, even though no real contact manifold ever forms between the two bodies (the phantom\nceiling is a pure raycast/collision_mask mismatch, not a real collision). Used ONLY by\n_probeCeiling — _probeGround intentionally still sees platforms (that's how riding one works at\nall), and ordinary walls/ramps/props aren't tagged isPlatform so they're unaffected.",
+            "itemtype": "method",
+            "name": "_raycastSkipPlatforms",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "start",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                },
+                {
+                    "name": "end",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                }
+            ],
+            "return": {
+                "description": "the first non-self, non-platform hit, or null.",
+                "type": "Object|null"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 122,
+            "description": "Is there room to stand up? (No ceiling within standHeight of the feet.)",
+            "itemtype": "method",
+            "name": "_canStand",
+            "access": "private",
+            "tagname": "",
+            "return": {
+                "description": "",
+                "type": "Boolean"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 134,
+            "description": "Single ray probe for a ladder ahead, along `dir` (horizontal, need not be unit length). Placed\nhalfway between the feet and stepHeight above them rather than the body center. Returns the raw\nhit `{object, point, normal, t}` with the normal flipped to point OUT of the face (toward the\ncaller), or null.",
+            "itemtype": "method",
+            "name": "_findLadderAhead",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "dir",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Object|null"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 161,
+            "description": "Is there a too-steep-but-climbable slope surface rising just ahead of the move? Used only when\nclimbSteepSlopes is on. Casts down-rays a short distance ahead and looks for an upward-tilted,\ntoo-steep-to-stand hit that is still a real slope (not flat floor, not a vertical wall).",
+            "itemtype": "method",
+            "name": "_climbableSlopeAhead",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "start",
+                    "description": "",
+                    "type": "Goblin.Vector3"
+                },
+                {
+                    "name": "dx",
+                    "description": "- unit-ish horizontal direction x",
+                    "type": "Number"
+                },
+                {
+                    "name": "dz",
+                    "description": "- unit-ish horizontal direction z",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Boolean"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 190,
+            "description": "Lowest ceiling clearance over the footprint centered at (cx,cz). Infinity if nothing overhead.",
+            "itemtype": "method",
+            "name": "_ceilingClearanceAt",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "cx",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "cz",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "feetY",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "clearance in units above feetY, or Infinity.",
+                "type": "Number"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\Probes.js",
+            "line": 236,
+            "description": "The \"too steep to stand on\" rule — a floor whose normal tilts below the standable limit gives no\nfooting (MOVE_SLIP). climbSteepSlopes opts out.",
+            "itemtype": "method",
+            "name": "_isSlipSurface",
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "normal",
+                    "description": "- a surface normal (uses .y)",
+                    "type": "Object"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Boolean"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 7,
+            "description": "True while a slide is active this tick. Reads the single authoritative _moveState field that\nendStep sets — see the \"Movement state machine\" comment above endStep (Movement/Step.js).",
+            "itemtype": "property",
+            "name": "sliding",
+            "type": "{Boolean}",
+            "readonly": "",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 16,
+            "description": "This tick's movement state: one of FPSC.MOVE_LADDER / MOVE_AIRBORNE / MOVE_WALK / MOVE_SLIP /\nMOVE_SLIDE. Set exactly once per tick, by endStep, from a fresh ground probe — beginStep (which\nruns BEFORE endStep, on the state endStep decided last tick) only ever READS this, never\nre-derives it. See the \"Movement state machine\" comment above endStep for the full design.",
+            "itemtype": "property",
+            "name": "moveState",
+            "type": "{String}",
+            "readonly": "",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 27,
+            "description": "This controller's physics-body name (the value raycasts exclude to avoid self-hits).",
+            "itemtype": "property",
+            "name": "bodyId",
+            "type": "{String}",
+            "readonly": "",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 35,
+            "description": "The body-name list this controller's own probes ignore — pass to a game's own raycasts\n(weapons, line-of-sight) so a shooter's cast doesn't hit itself.",
+            "itemtype": "property",
+            "name": "raycastIgnore",
+            "type": "{String[]}",
+            "readonly": "",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 46,
+            "itemtype": "method",
+            "name": "look",
+            "params": [
+                {
+                    "name": "deltaYaw",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "deltaPitch",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 58,
+            "itemtype": "method",
+            "name": "setLook",
+            "params": [
+                {
+                    "name": "yaw",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "pitch",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 68,
+            "description": "Full 3D look direction (includes pitch).",
+            "itemtype": "method",
+            "name": "getLookDirection",
+            "return": {
+                "description": "",
+                "type": "Goblin.Vector3"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 78,
+            "description": "Set the LIVE, caller-owned aim — call once per render frame from your mouse-look. Render-only:\nthis NEVER enters the simulation (it doesn't touch yaw/pitch, the command, or movement), it just\nkeeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing the\nbetween-tick \"dangle\" in every mode.",
+            "itemtype": "method",
+            "name": "aim",
+            "params": [
+                {
+                    "name": "yaw",
+                    "description": "",
+                    "type": "Number"
+                },
+                {
+                    "name": "pitch",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 94,
+            "description": "The live aim's full 3D direction (render-only; from aim()). Falls back to the sim look.",
+            "itemtype": "method",
+            "name": "getLiveAimDirection",
+            "return": {
+                "description": "",
+                "type": "Goblin.Vector3"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 105,
+            "description": "Horizontal forward for a given yaw (defaults to current facing).",
+            "itemtype": "method",
+            "name": "getForwardHorizontal",
+            "params": [
+                {
+                    "name": "yaw",
+                    "description": "",
+                    "type": "Number",
+                    "optional": true
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Goblin.Vector3"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 116,
+            "description": "Horizontal right for a given yaw (defaults to current facing). Negated to match a\nleft-handed view convention so DirRight strafes to the character's visual right.",
+            "itemtype": "method",
+            "name": "getRightHorizontal",
+            "params": [
+                {
+                    "name": "yaw",
+                    "description": "",
+                    "type": "Number",
+                    "optional": true
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Goblin.Vector3"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 128,
+            "description": "World-space eye position (camera goes here).",
+            "itemtype": "method",
+            "name": "getEyePosition",
+            "return": {
+                "description": "",
+                "type": "Goblin.Vector3"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 138,
+            "description": "Return the artificial vertical eye displacement accumulated since the last call (step/landing\nsnaps + crouch/scale swaps) and reset it. A camera folds this into a decaying offset so it\neases over those discontinuities. Call once per render frame. Render-only — does not affect sim.",
+            "itemtype": "method",
+            "name": "consumeViewDisplacementY",
+            "return": {
+                "description": "",
+                "type": "Number"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 151,
+            "description": "Peek at the pending vertical eye displacement WITHOUT consuming it. A render-side smoother\nconsumes (consumeViewDisplacementY); a caller that only wants to DETECT a discontinuity this\nframe (e.g. to snap interpolation instead of sliding the eye) reads this and leaves the value\nfor the smoother. Read-only — never mutates sim or render state.",
+            "itemtype": "method",
+            "name": "peekViewDisplacementY",
+            "return": {
+                "description": "",
+                "type": "Number"
+            },
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 163,
+            "description": "Stash this fixed tick's eye for sub-tick render interpolation. Call ONCE per REAL fixed step,\nright after the step settles. A teleport-sized jump (respawn / kill-plane / hard resync) or an\nartificial step/crouch eye snap snaps the interpolation — prev := curr — so the eye doesn't\nsmear across the discontinuity.",
+            "itemtype": "method",
+            "name": "captureRenderState",
+            "class": "GjkEpa"
+        },
+        {
+            "file": "src\\classes\\CharacterController\\View.js",
+            "line": 183,
+            "description": "The render-only eye position: the last two captured fixed-tick eyes lerped by the sub-tick factor\n`alpha` (0..1, the fraction into the current fixed step the renderer hands the draw call). Falls\nback to the live physics eye until two ticks have been captured.",
+            "itemtype": "method",
+            "name": "renderEye",
+            "params": [
+                {
+                    "name": "alpha",
+                    "description": "",
+                    "type": "Number"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Goblin.Vector3"
+            },
+            "class": "GjkEpa"
         },
         {
             "file": "src\\classes\\Collision\\GjkEpa.js",
@@ -3900,504 +5120,6 @@
                 "type": "ContactManifold"
             },
             "class": "ContactManifoldList"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 145,
-            "description": "Cast a ray from start to end in the physics world, kept private since nothing outside this file\nneeds it. Returns the first valid hit (nearest first, skipping anything named in\n`ignoreObjects`), or null.",
-            "itemtype": "method",
-            "name": "raycast",
-            "access": "private",
-            "tagname": "",
-            "params": [
-                {
-                    "name": "world",
-                    "description": "",
-                    "type": "Goblin.World"
-                },
-                {
-                    "name": "start",
-                    "description": "",
-                    "type": "Goblin.Vector3"
-                },
-                {
-                    "name": "end",
-                    "description": "",
-                    "type": "Goblin.Vector3"
-                },
-                {
-                    "name": "ignoreObjects",
-                    "description": "- body `.name` values to skip",
-                    "type": "String[]",
-                    "optional": true
-                }
-            ],
-            "return": {
-                "description": "{ object, point:Vector3, normal:Vector3, t:Number } or null",
-                "type": "Object|null"
-            },
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 453,
-            "description": "GHOST: a solver-participating dynamic body that trails the kinematic player. The player's own\nbody is excluded from solver contacts (collision_mask 1); the ghost is its stand-in for object\ncontact. Control is one-way: player position -> ghost target. The ghost's position never writes\nback to the player; only contact-derived knockback flows back (_syncGhost), as a velocity nudge.",
-            "itemtype": "method",
-            "name": "_buildGhost",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 497,
-            "description": "Drive the ghost toward the player each tick and read back contact-driven knockback. Called once\nper endStep, after the player's position is settled.",
-            "itemtype": "method",
-            "name": "_syncGhost",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 557,
-            "description": "Knockback speed = mass ratio (objectMass/(objectMass+playerMass)) x the object's closing speed\nonto the player, gated to only apply when the object is moving into the player above a small\nmomentum floor. Horizontal only; never moves position, only velocity.",
-            "itemtype": "method",
-            "name": "_readGhostKnockback",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 624,
-            "description": "Resize the whole character at runtime (rebuilds the collider, feet planted).",
-            "itemtype": "method",
-            "name": "setScale",
-            "params": [
-                {
-                    "name": "scale",
-                    "description": "",
-                    "type": "Number"
-                }
-            ],
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 650,
-            "description": "Multi-ray UP probe across the footprint. Returns the LOWEST ceiling (down-facing\nsurface) within `reachAboveFeet` of the feet, or null. Mirror of _probeGround; covers\nsloped overhead geometry (e.g. a ramp underside) that forward rays can't see.",
-            "itemtype": "method",
-            "name": "_probeCeiling",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 680,
-            "description": "Deflect velocity along an overhead surface we're about to contact, instead of capping the\nrise to zero — a hard cap leaves no velocity to escape and glues us to ceilings, flat AND\nsloped. Projects out the into-surface component using the ceiling's own normal: v -= (v.n) n.\nA flat underside (n straight down) zeroes only the vertical, so horizontal motion survives; a\nsloped underside redirects the upward motion down-and-along the slope, sliding us out. Only\nacts when actually rising toward a ceiling within this tick's reach.",
-            "itemtype": "method",
-            "name": "_ceilingSlide",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 709,
-            "description": "Is there room to stand up? (No ceiling within standHeight of the feet.)",
-            "itemtype": "method",
-            "name": "_canStand",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 720,
-            "description": "Single ray probe for a ladder ahead, along `dir` (horizontal, need not be unit length). Placed\nhalfway between the feet and stepHeight above them rather than the body center. Returns the raw\nhit `{object, point, normal, t}` with the normal flipped to point OUT of the face (toward the\ncaller), or null.",
-            "itemtype": "method",
-            "name": "_findLadderAhead",
-            "access": "private",
-            "tagname": "",
-            "params": [
-                {
-                    "name": "dir",
-                    "description": "",
-                    "type": "Goblin.Vector3"
-                }
-            ],
-            "return": {
-                "description": "",
-                "type": "Object|null"
-            },
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 747,
-            "description": "Ladder state transitions + climb velocity. A fourth movement state alongside grounded /\nnoTraction / airborne, resolved once per beginStep before that branch runs. The ladder body is\nnever excluded from collision — _collideAndSlide still runs afterward on whatever velocity this\nwrites, so ordinary contact resolution is what holds the player against the face tick over tick.\n\nMount requires movement intent toward the ladder (wishdir), not mere proximity — probing along\nthe current input direction rather than scanning all directions means jumping away from a ladder\nand holding the opposite key back toward it, or passing a ladder mid-air, can't remount it a\nframe later while disconnected from it.\n\nForward/back and strafe contributions to climb velocity are summed independently, without\nnormalizing the combined wish vector — holding both diagonally into the face climbs strictly\nfaster than either alone. Look pitch steers climb direction: the forward axis is the full\npitched look direction, not flattened, so holding forward while looking down descends.\n\nJump dismounts with a purely horizontal shove away from the face — no vertical component.",
-            "itemtype": "method",
-            "name": "_updateLadder",
-            "access": "private",
-            "tagname": "",
-            "params": [
-                {
-                    "name": "cmd",
-                    "description": "",
-                    "type": "Object"
-                },
-                {
-                    "name": "moveYaw",
-                    "description": "",
-                    "type": "Number"
-                },
-                {
-                    "name": "movePitch",
-                    "description": "",
-                    "type": "Number"
-                },
-                {
-                    "name": "dt",
-                    "description": "",
-                    "type": "Number"
-                }
-            ],
-            "return": {
-                "description": "true if this tick's velocity is fully owned by the ladder branch",
-                "type": "Boolean"
-            },
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 872,
-            "description": "Full 3D look direction (includes pitch).",
-            "itemtype": "method",
-            "name": "getLookDirection",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 881,
-            "description": "Set the LIVE, client-owned aim — call once per render frame from your mouse-look. Render-only:\nthis NEVER enters the simulation (it doesn't touch yaw/pitch, the command, movement, or netcode),\nit just keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing\nthe between-tick \"dangle\" in every mode.",
-            "itemtype": "method",
-            "name": "aim",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 895,
-            "description": "The live aim's full 3D direction (render-only; from aim()). Falls back to the sim look.",
-            "itemtype": "method",
-            "name": "getLiveAimDirection",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 905,
-            "description": "Horizontal forward for a given yaw (defaults to current facing).",
-            "itemtype": "method",
-            "name": "getForwardHorizontal",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 914,
-            "description": "Horizontal right for a given yaw (defaults to current facing). Negated to match a\nleft-handed view convention so DirRight strafes to the player's visual right.",
-            "itemtype": "method",
-            "name": "getRightHorizontal",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 924,
-            "description": "World-space eye position (camera goes here).",
-            "itemtype": "method",
-            "name": "getEyePosition",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 933,
-            "description": "Return the artificial vertical eye displacement accumulated since the last call (step/landing\nsnaps + crouch/scale swaps) and reset it. A camera folds this into a decaying offset so it\neases over those discontinuities. Call once per render frame. Render-only — does not affect sim.",
-            "itemtype": "method",
-            "name": "consumeViewDisplacementY",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 945,
-            "description": "Peek at the pending vertical eye displacement WITHOUT consuming it. A render-side smoother\nconsumes (consumeViewDisplacementY); a caller that only wants to DETECT a discontinuity this\nframe (e.g. to snap interpolation instead of sliding the eye) reads this and leaves the value\nfor the smoother. Read-only — never mutates sim or render state.",
-            "itemtype": "method",
-            "name": "peekViewDisplacementY",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 956,
-            "description": "Stash this fixed tick's eye for sub-tick render interpolation. Call ONCE per REAL fixed step,\nright after the step settles. A teleport-sized jump (respawn / kill-plane / hard resync) or an\nartificial step/crouch eye snap snaps the interpolation — prev := curr — so the eye doesn't\nsmear across the discontinuity.",
-            "itemtype": "method",
-            "name": "captureRenderState",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 976,
-            "description": "The render-only eye position: the last two captured fixed-tick eyes lerped by the sub-tick factor\n`alpha` (0..1, the fraction into the current fixed step the renderer hands the draw call). Falls\nback to the live physics eye until two ticks have been captured.",
-            "itemtype": "method",
-            "name": "renderEye",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 992,
-            "description": "True while a slide is active this tick (stateless predicate; see _updateSlide).",
-            "itemtype": "property",
-            "name": "sliding",
-            "type": "{Boolean}",
-            "readonly": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1000,
-            "description": "This controller's physics-body name (the value raycasts exclude to avoid self-hits).",
-            "itemtype": "property",
-            "name": "bodyId",
-            "type": "{String}",
-            "readonly": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1008,
-            "description": "The body-name list this controller's own probes ignore — pass to a game's own raycasts\n(weapons, line-of-sight) so a shooter's cast doesn't hit itself.",
-            "itemtype": "property",
-            "name": "raycastIgnore",
-            "type": "{String[]}",
-            "readonly": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1017,
-            "description": "Netcode reconciliation hooks (opt-in, called by a netcode layer around the un-acked-command\nRESIMULATION — rollback-and-resim, distinct from a game \"replay\"). During resim the controller\nre-derives already-perceived state, so its step/crouch snaps must NOT feed a render smoother\n(that double-counts every step until the command acks). Live ticks are unaffected.",
-            "itemtype": "method",
-            "name": "beginResim",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1025,
-            "itemtype": "method",
-            "name": "endResim",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1032,
-            "description": "PRE-physics: set this tick's horizontal velocity (slope/wall projected) + assists.\n\nAim/sim separation (netcode cornerstone): the movement basis comes from the COMMAND's yaw\n(`cmd.yaw`) — a per-tick input — not from any persistent \"live aim\". The live aim is owned by\nthe client (camera reads it, never the sim), so replaying commands during reconciliation can't\ndrag the view backward. We record the commanded yaw/pitch as this entity's facing (for\ngetState/avatars) only when the command carries them; single-player passes no yaw and keeps\ndriving facing via look().\n\nAlso applies platform base velocity into the horizontal move (see the constructor's\n_baseVelocity comment) immediately before collide-and-slide, so a rider is carried through real\nswept motion rather than a position teleport.",
-            "itemtype": "method",
-            "name": "beginStep",
-            "params": [
-                {
-                    "name": "command",
-                    "description": "- pure-data input command struct; any field may be absent",
-                    "type": "Object"
-                },
-                {
-                    "name": "dt",
-                    "description": "",
-                    "type": "Number"
-                }
-            ],
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1255,
-            "description": "POST-physics: decide grounded and clamp the feet to the ground surface. Also acquires this\ntick's platform base velocity (see the constructor's _baseVelocity comment) from whatever\nisPlatform-tagged body the ground probe lands on, read fresh every tick.",
-            "itemtype": "method",
-            "name": "endStep",
-            "params": [
-                {
-                    "name": "dt",
-                    "description": "",
-                    "type": "Number"
-                }
-            ],
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1402,
-            "description": "TEMP DEBUG: begin capturing per-tick movement state (see endStep). `seconds` sizes the ring\nbuffer (default 20s at 60Hz). Console-driven: _debugStart(20), reproduce, _debugDump().",
-            "itemtype": "method",
-            "name": "_debugStart",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1409,
-            "description": "TEMP DEBUG: label the NEXT captured tick (e.g. the start of one of your sub-tests).",
-            "itemtype": "method",
-            "name": "_debugMark",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1415,
-            "description": "TEMP DEBUG: stop + return the captured ticks as a compact table string (markers inline).",
-            "itemtype": "method",
-            "name": "_debugDump",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1442,
-            "description": "Slide model (opt-in via slideEnabled). Stateless: sliding iff crouching + grounded + moving at\nslide speed, recomputed every tick from inputs and the body's own velocity — no stored slide\nflag or entry edge. Momentum is preserved while sliding (low effective friction on flat, gravity\naccel on slopes) and steered weakly (slideControl).",
-            "itemtype": "method",
-            "name": "_updateSlide",
-            "access": "private",
-            "tagname": "",
-            "return": {
-                "description": "{mx,mz} slide velocity this tick, or null when not sliding.",
-                "type": "Object|null"
-            },
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1537,
-            "description": "Vertical hook. Base = grounded jump only (gravity/landing handled by the solver). A jump adds\nplatform base velocity's Y component additively, not an overwrite — jumping off a rising\nplatform flings the player higher than jumpSpeed alone would.",
-            "itemtype": "method",
-            "name": "_updateVertical",
-            "access": "protected",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1563,
-            "description": "Is there a too-steep-but-climbable slope surface rising just ahead of the move? Used only when\nclimbSteepSlopes is on. Casts down-rays a short distance ahead and looks for an upward-tilted,\ntoo-steep-to-stand hit that is still a real slope (not flat floor, not a vertical wall).",
-            "itemtype": "method",
-            "name": "_climbableSlopeAhead",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1588,
-            "description": "Multi-point ground probe (center + four edge midpoints). Returns ALL floor-like hits, highest\nfirst — NOT collapsed to a single \"best\" here, because the caller needs to fall back to a\nlower (but valid) hit when the highest one is rejected as too tall to step onto (e.g. one edge\nray grazing a box pushed against the footprint, while the other four rays are still squarely\nover real floor). Collapsing to one hit here would throw the floor away before the caller ever\ngets a chance to prefer it.",
-            "itemtype": "method",
-            "name": "_probeGroundCandidates",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1636,
-            "description": "Back-compat single-hit wrapper: highest floor-like candidate, or null.",
-            "itemtype": "method",
-            "name": "_probeGround",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1646,
-            "description": "Kinematic collide-and-slide. The player is excluded from the solver, so we stop\nourselves at walls and slide along them here. For the current horizontal velocity\nwe cast a fan of rays (across the footprint width, at a few heights) in the move\ndirection; if a vertical wall is within the box's reach this step we remove the\ninto-wall velocity component and re-test, so corners stop on both walls. Floors and\nramps (normal.y >= 0.5) are ignored — those are handled by the ground clamp.",
-            "itemtype": "method",
-            "name": "_collideAndSlide",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1675,
-            "description": "Core swept-move collide-and-slide, parameterized so any caller (player body, ghost body) can\napply the same wall/mass-yield rule.\n\n`opts`: { position, width, depth, height, skin, mass, stepHeight, selfBody, otherSelfBody,\n          climbSteepSlopes, vx, vz, dt }. `otherSelfBody` is excluded from hits. Step-up/climb\nare opt-in via stepHeight/climbSteepSlopes; pass stepHeight=0 and climbSteepSlopes=false to skip\nthat logic. Returns { x, z, depenX, depenZ }.",
-            "itemtype": "method",
-            "name": "_sweptCollideAndSlide",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1843,
-            "description": "Lowest ceiling clearance over the footprint centered at (cx,cz). Infinity if nothing overhead.",
-            "itemtype": "method",
-            "name": "_ceilingClearanceAt",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1885,
-            "description": "Treat insufficient headroom as a virtual wall: gate on ceiling clearance ahead (rather than\nsurface normal, which a near-horizontal ramp underside can't provide) and slide along the\nhorizontal gradient of increasing clearance.",
-            "itemtype": "method",
-            "name": "_headroomGate",
-            "access": "private",
-            "tagname": "",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1941,
-            "description": "Snapshot this controller's authoritative state for the network.",
-            "itemtype": "method",
-            "name": "getState",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 1977,
-            "description": "Apply an authoritative state (from a host snapshot). Sets position, velocity and grounded;\ndoes not touch yaw/pitch. Used for client-side reconciliation before replaying un-acked inputs.",
-            "itemtype": "method",
-            "name": "setState",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 2030,
-            "description": "Add a velocity impulse and force the character airborne (explosions / knockback / rocket-jumping).",
-            "itemtype": "method",
-            "name": "applyKnockback",
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 2046,
-            "itemtype": "method",
-            "name": "setPosition",
-            "params": [
-                {
-                    "name": "pos",
-                    "description": "",
-                    "type": "Goblin.Vector3"
-                }
-            ],
-            "class": "FPSCharacterController"
-        },
-        {
-            "file": "src\\classes\\FPSCharacterController.js",
-            "line": 2062,
-            "itemtype": "method",
-            "name": "destroy",
-            "class": "FPSCharacterController"
         },
         {
             "file": "src\\classes\\ForceGenerator.js",

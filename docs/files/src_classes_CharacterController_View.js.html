@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>FPS_CONTROLLER_DEFAULTS - goblinphysics</title>
+    <title>src\classes\CharacterController\View.js - goblinphysics</title>
     <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
     <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
     <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
@@ -121,50 +121,211 @@
             <div class="apidocs">
                 <div id="docs-main">
                     <div class="content">
-<h1>FPS_CONTROLLER_DEFAULTS Class</h1>
-<div class="box meta">
+<h1 class="file-heading">File: src\classes\CharacterController\View.js</h1>
 
+<div class="file">
+    <pre class="code prettyprint linenums">
+// View/aim/render-interpolation surface, plus the small read-only state accessors a caller polls
+// every frame (sliding, moveState, bodyId, raycastIgnore). None of this touches simulation state
+// except look()/setLook()/aim(), which are the caller&#x27;s own facing/aim writes.
+var proto = Goblin.FPSCharacterController.prototype;
+var FPSC = Goblin.FPSCharacterController.FPSC;
 
-        <div class="foundat">
-            Defined in: <a href="../files/src_classes_CharacterController_FPSControllerConstants.js.html#l1"><code>src\classes\CharacterController\FPSControllerConstants.js:1</code></a>
-        </div>
+/**
+ * True while a slide is active this tick. Reads the single authoritative _moveState field that
+ * endStep sets — see the &quot;Movement state machine&quot; comment above endStep (Movement/Step.js).
+ * @property sliding
+ * @type {Boolean}
+ * @readOnly
+ */
+Object.defineProperty(proto, &#x27;sliding&#x27;, { get: function() { return this._moveState === FPSC.MOVE_SLIDE; } });
 
-            Module: <a href="../modules/Goblin.html">Goblin</a>
+/**
+ * This tick&#x27;s movement state: one of FPSC.MOVE_LADDER / MOVE_AIRBORNE / MOVE_WALK / MOVE_SLIP /
+ * MOVE_SLIDE. Set exactly once per tick, by endStep, from a fresh ground probe — beginStep (which
+ * runs BEFORE endStep, on the state endStep decided last tick) only ever READS this, never
+ * re-derives it. See the &quot;Movement state machine&quot; comment above endStep for the full design.
+ * @property moveState
+ * @type {String}
+ * @readOnly
+ */
+Object.defineProperty(proto, &#x27;moveState&#x27;, { get: function() { return this._moveState; } });
 
-</div>
+/**
+ * This controller&#x27;s physics-body name (the value raycasts exclude to avoid self-hits).
+ * @property bodyId
+ * @type {String}
+ * @readOnly
+ */
+Object.defineProperty(proto, &#x27;bodyId&#x27;, { get: function() { return this._bodyName; } });
 
+/**
+ * The body-name list this controller&#x27;s own probes ignore — pass to a game&#x27;s own raycasts
+ * (weapons, line-of-sight) so a shooter&#x27;s cast doesn&#x27;t hit itself.
+ * @property raycastIgnore
+ * @type {String[]}
+ * @readOnly
+ */
+Object.defineProperty(proto, &#x27;raycastIgnore&#x27;, { get: function() { return this._ignoreSelf; } });
 
-<div class="box intro">
-    <p>Every tunable default for FPSCharacterController, in ONE place, grouped by subsystem. The
-controller reads each default from here (constructor: <code>o.walkSpeed !== undefined ? o.walkSpeed : Goblin.FPS_CONTROLLER_DEFAULTS.movement.walkSpeed</code>), so a caller can still
-override any single value per-instance via the options object — this is only the fallback.</p>
-<p>What is NOT here (on purpose): algorithm-internal epsilons/thresholds inside the collision +
-slope math (1e-4 guards, normal.y classifications, sub-step fractions) — those are
-implementation details, not feel knobs, and stay at their use site in
-CharacterController/Constants.js (the FPSC object).</p>
+// ---- Look --------------------------------------------------------------
 
-</div>
+/**
+ * @method look
+ * @param {Number} deltaYaw
+ * @param {Number} deltaPitch
+ */
+proto.look = function(deltaYaw, deltaPitch) {
+    this.yaw += deltaYaw;
+    this.pitch += deltaPitch;
+    if (this.pitch &gt; this.maxPitch) { this.pitch = this.maxPitch; }
+    if (this.pitch &lt; -this.maxPitch) { this.pitch = -this.maxPitch; }
+};
 
+/**
+ * @method setLook
+ * @param {Number} yaw
+ * @param {Number} pitch
+ */
+proto.setLook = function(yaw, pitch) {
+    this.yaw = yaw;
+    this.pitch = pitch;
+};
 
-<div id="classdocs" class="tabview">
-    <ul class="api-class-tabs">
-        <li class="api-class-tab index"><a href="#index">Index</a></li>
+/**
+ * Full 3D look direction (includes pitch).
+ * @method getLookDirection
+ * @return {Goblin.Vector3}
+ */
+proto.getLookDirection = function() {
+    var cp = Math.cos(this.pitch);
+    return new Goblin.Vector3(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp);
+};
 
-    </ul>
+/**
+ * Set the LIVE, caller-owned aim — call once per render frame from your mouse-look. Render-only:
+ * this NEVER enters the simulation (it doesn&#x27;t touch yaw/pitch, the command, or movement), it just
+ * keeps a viewmodel/camera glued to the present view instead of the 60Hz sim yaw — fixing the
+ * between-tick &quot;dangle&quot; in every mode.
+ *
+ * @method aim
+ * @param {Number} yaw
+ * @param {Number} pitch
+ */
+proto.aim = function(yaw, pitch) {
+    this._liveYaw = yaw;
+    this._livePitch = pitch;
+    this._liveAimSet = true;
+};
 
-    <div>
-        <div id="index" class="api-class-tabpanel index">
-            <h2 class="off-left">Item Index</h2>
+/**
+ * The live aim&#x27;s full 3D direction (render-only; from aim()). Falls back to the sim look.
+ * @method getLiveAimDirection
+ * @return {Goblin.Vector3}
+ */
+proto.getLiveAimDirection = function() {
+    if (!this._liveAimSet) { return this.getLookDirection(); }
+    var cp = Math.cos(this._livePitch);
+    return new Goblin.Vector3(Math.sin(this._liveYaw) * cp, Math.sin(this._livePitch), Math.cos(this._liveYaw) * cp);
+};
 
+/**
+ * Horizontal forward for a given yaw (defaults to current facing).
+ * @method getForwardHorizontal
+ * @param {Number} [yaw]
+ * @return {Goblin.Vector3}
+ */
+proto.getForwardHorizontal = function(yaw) {
+    if (yaw === undefined) { yaw = this.yaw; }
+    return new Goblin.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+};
 
+/**
+ * Horizontal right for a given yaw (defaults to current facing). Negated to match a
+ * left-handed view convention so DirRight strafes to the character&#x27;s visual right.
+ * @method getRightHorizontal
+ * @param {Number} [yaw]
+ * @return {Goblin.Vector3}
+ */
+proto.getRightHorizontal = function(yaw) {
+    if (yaw === undefined) { yaw = this.yaw; }
+    return new Goblin.Vector3(-Math.cos(yaw), 0, Math.sin(yaw));
+};
 
+/**
+ * World-space eye position (camera goes here).
+ * @method getEyePosition
+ * @return {Goblin.Vector3}
+ */
+proto.getEyePosition = function() {
+    var p = this.body.position;
+    return new Goblin.Vector3(p.x, p.y + this.eyeHeight, p.z);
+};
 
-        </div>
+/**
+ * Return the artificial vertical eye displacement accumulated since the last call (step/landing
+ * snaps + crouch/scale swaps) and reset it. A camera folds this into a decaying offset so it
+ * eases over those discontinuities. Call once per render frame. Render-only — does not affect sim.
+ * @method consumeViewDisplacementY
+ * @return {Number}
+ */
+proto.consumeViewDisplacementY = function() {
+    var d = this._viewDisplacementY;
+    this._viewDisplacementY = 0;
+    return d;
+};
 
+/**
+ * Peek at the pending vertical eye displacement WITHOUT consuming it. A render-side smoother
+ * consumes (consumeViewDisplacementY); a caller that only wants to DETECT a discontinuity this
+ * frame (e.g. to snap interpolation instead of sliding the eye) reads this and leaves the value
+ * for the smoother. Read-only — never mutates sim or render state.
+ * @method peekViewDisplacementY
+ * @return {Number}
+ */
+proto.peekViewDisplacementY = function() {
+    return this._viewDisplacementY;
+};
 
+/**
+ * Stash this fixed tick&#x27;s eye for sub-tick render interpolation. Call ONCE per REAL fixed step,
+ * right after the step settles. A teleport-sized jump (respawn / kill-plane / hard resync) or an
+ * artificial step/crouch eye snap snaps the interpolation — prev := curr — so the eye doesn&#x27;t
+ * smear across the discontinuity.
+ *
+ * @method captureRenderState
+ */
+proto.captureRenderState = function() {
+    var e = this.getEyePosition();
+    var snap = !this._currEye;
+    if (this._currEye) {
+        var dx = e.x - this._currEye.x, dy = e.y - this._currEye.y, dz = e.z - this._currEye.z;
+        if (dx * dx + dy * dy + dz * dz &gt; this._renderSnapDist2) { snap = true; } // teleport-sized
+    }
+    if (Math.abs(this.peekViewDisplacementY()) &gt; FPSC.VIEW_DISP_SNAP) { snap = true; }
+    this._prevEye = snap ? e : this._currEye;
+    this._currEye = e;
+};
 
+/**
+ * The render-only eye position: the last two captured fixed-tick eyes lerped by the sub-tick factor
+ * &#x60;alpha&#x60; (0..1, the fraction into the current fixed step the renderer hands the draw call). Falls
+ * back to the live physics eye until two ticks have been captured.
+ *
+ * @method renderEye
+ * @param {Number} alpha
+ * @return {Goblin.Vector3}
+ */
+proto.renderEye = function(alpha) {
+    if (!this._prevEye || !this._currEye) { return this.getEyePosition(); }
+    var a = alpha &lt; 0 ? 0 : alpha &gt; 1 ? 1 : alpha;
+    var ex = this._prevEye.x + (this._currEye.x - this._prevEye.x) * a;
+    var ey = this._prevEye.y + (this._currEye.y - this._prevEye.y) * a;
+    var ez = this._prevEye.z + (this._currEye.z - this._prevEye.z) * a;
+    return new Goblin.Vector3(ex, ey, ez);
+};
 
-    </div>
+    </pre>
 </div>
                     </div>
                 </div>

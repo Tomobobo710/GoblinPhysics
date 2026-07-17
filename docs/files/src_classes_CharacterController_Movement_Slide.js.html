@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>src\classes\FPSControllerConstants.js - goblinphysics</title>
+    <title>src\classes\CharacterController\Movement\Slide.js - goblinphysics</title>
     <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
     <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
     <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
@@ -121,143 +121,136 @@
             <div class="apidocs">
                 <div id="docs-main">
                     <div class="content">
-<h1 class="file-heading">File: src\classes\FPSControllerConstants.js</h1>
+<h1 class="file-heading">File: src\classes\CharacterController\Movement\Slide.js</h1>
 
 <div class="file">
     <pre class="code prettyprint linenums">
+// Crouch-at-speed slide: the per-tick velocity evolver for an active slide (slope acceleration,
+// friction, steering). Entry/exit decisions themselves live in endStep&#x27;s &quot;MOVEMENT STATE DECISION&quot;
+// block (Movement/Step.js) — this file only advances an already-active slide by one tick.
+var proto = Goblin.FPSCharacterController.prototype;
+var FPSC = Goblin.FPSCharacterController.FPSC;
+
 /**
- * Every tunable default for FPSCharacterController, in ONE place, grouped by subsystem. The
- * controller reads each default from here (constructor: &#x60;o.walkSpeed !== undefined ?
- * o.walkSpeed : Goblin.FPS_CONTROLLER_DEFAULTS.movement.walkSpeed&#x60;), so a caller can still
- * override any single value per-instance via the options object — this is only the fallback.
+ * Slide velocity EVOLVER — advances one tick of the slide&#x27;s surface-tracking model (slope accel,
+ * friction, steering). Pure: only called from beginStep&#x27;s MOVE_SLIDE branch, which is only reached
+ * when endStep has ALREADY decided this tick is a slide (see the &quot;MOVEMENT STATE DECISION&quot; block
+ * in endStep) and has already written the correct starting tangential velocity into gb — including
+ * the one-time entry boost (slideBoost), applied there rather than here so it lands on the exact
+ * tick the state transition itself is observable, not one tick later. This function does not
+ * decide whether to slide — it has no entry gate, no exit gate, no stored flag. It reads gb (this
+ * tick&#x27;s starting velocity, already tangent to groundNormal), advances it one tick, and returns
+ * the result.
  *
- * What is NOT here (on purpose): algorithm-internal epsilons/thresholds inside the collision +
- * slope math (1e-4 guards, normal.y classifications, sub-step fractions) — those are
- * implementation details, not feel knobs, and stay at their use site inside
- * FPSCharacterController.js (the FPSC object).
- *
- * @class FPS_CONTROLLER_DEFAULTS
- * @static
+ * @method _updateSlide
+ * @private
+ * @param {Object} cmd
+ * @param {Number} wishX - desired horizontal velocity x from input (unsteered).
+ * @param {Number} wishZ - desired horizontal velocity z from input (unsteered).
+ * @param {Number} dt
+ * @return {Object} result
+ * @return {Number} result.vx - this tick&#x27;s slide velocity, x.
+ * @return {Number} result.vy - this tick&#x27;s slide velocity, y (surface-follow component).
+ * @return {Number} result.vz - this tick&#x27;s slide velocity, z.
  */
-Goblin.FPS_CONTROLLER_DEFAULTS = {
-    // ---- Collider dimensions + mass (pre-scale &quot;base&quot; values; _applyScale multiplies at runtime) ----
-    dimensions: {
-        width: 0.6,
-        depth: 0.6,
-        height: 1.8,
-        mass: 10,
-        eyeHeightRatio: 0.42, // eyeHeight default = height * this (overridable directly via o.eyeHeight)
-        crouchRatio: 0.55,    // crouched collider height as a fraction of standing height
-    },
+proto._updateSlide = function(cmd, wishX, wishZ, dt) {
+    // _ownVelocityX/Z, NOT gb.x/z — gb carries the platform&#x27;s base velocity baked in (see the
+    // constructor&#x27;s _baseVelocity comment). Evolving the raw gb value would re-seed the slide&#x27;s own
+    // momentum with the platform&#x27;s speed already added, which then compounds every tick instead of
+    // properly decaying (the platform reads as if its own speed were the character&#x27;s own build-up —
+    // a &quot;boost pad&quot; while sliding on a moving platform).
+    var vx = this._ownVelocityX;
+    var vz = this._ownVelocityZ;
+    var sp = Math.sqrt(vx * vx + vz * vz);
 
-    // ---- Ground movement. Three gaits: walk (held modifier) &lt; move/run (default) &lt; sprint. ----
-    movement: {
-        walkSpeed: 3.8,        // deliberate slow gait (held walk modifier)
-        moveSpeed: 7,          // RUN speed — the no-modifier default
-        sprintSpeed: 11.5,     // top gait
-        crouchSpeedMult: 0.5,  // multiplies whichever gait is active while crouched (unitless)
-        sprintDecay: 10,       // units/sec bleed of excess speed after releasing sprint (Infinity = instant)
-        groundStopDecel: 80,   // units/sec decel when all move keys released (idle stop)
-        airControl: 0.12,      // steering authority while airborne (0..1)
-        friction: 0,           // body friction (0 keeps wall-slides clean; kinematic grounding holds slopes)
-    },
+    var n = this.groundNormal;
+    var slopeMag = Math.sqrt(n.x * n.x + n.z * n.z);
+    var gy = this._gravityVec.y;
+    var onSlope = slopeMag &gt;= this.slideSlopeMin;
+    // Downhill fall-line unit vector, used both by the slope-accel step below and by the reversal
+    // brake&#x27;s uphill test further down. Only meaningful when onSlope; 0 otherwise (unused there).
+    var dx = onSlope ? n.x / slopeMag : 0;
+    var dz = onSlope ? n.z / slopeMag : 0;
 
-    // ---- Jump + forgiveness windows ----
-    jump: {
-        jumpSpeed: 4.6,
-        stepHeight: 0.4,       // max ledge height the mover steps up onto (base/1x; scales linearly with player scale)
-        stepDownDist: 0.5,     // max drop the mover snaps down to keep grounded
-        coyoteTime: 0.1,       // sec after leaving a ledge a jump still registers
-        jumpBuffer: 0.12,      // sec before landing a jump press is remembered and fires on touchdown
-    },
+    if (onSlope) {
+        // Gravity accelerates the fall-line (downhill) component; the cross-slope (sideways)
+        // part bleeds lightly. Returned as full 3D so the grounded branch doesn&#x27;t re-project it.
+        var along = vx * dx + vz * dz;
+        var crossX = vx - along * dx;
+        var crossZ = vz - along * dz;
+        // Along-slope gravitational accel is g*sin(theta) — slopeMag alone (sin of the tilt from
+        // horizontal). An extra n.y (cos theta) factor here would be wrong: sin(theta)*cos(theta)
+        // PEAKS at 45° and falls back off toward vertical, so a 55°+ face would decelerate barely
+        // harder than a 20° one, and a near-vertical wall almost not at all — backwards from real
+        // physics, where steeper always means more deceleration, up to g at 90°.
+        along += -gy * slopeMag * this.slideSlopeAccel * dt;
+        var cs = Math.sqrt(crossX * crossX + crossZ * crossZ);
+        var cn = Math.max(0, cs - this.slideSlopeFriction * dt);
+        var cf = cs &gt; FPSC.EPS_DIR ? cn / cs : 0;
+        crossX *= cf;
+        crossZ *= cf;
+        vx = along * dx + crossX;
+        vz = along * dz + crossZ;
+        sp = Math.sqrt(vx * vx + vz * vz);
+    } else {
+        var next = Math.max(0, sp - this.slideFriction * dt);
+        var f = sp &gt; FPSC.EPS_DIR ? next / sp : 0;
+        vx *= f;
+        vz *= f;
+        sp = next;
+    }
 
-    // ---- Slopes ----
-    slopes: {
-        maxSlopeAngle: 45.57,  // max standable slope, degrees (&gt;=90 disables the limit)
-        climbSteepSlopes: false, // can the player ascend a too-steep slope by walking into it
-    },
+    // Rotate the slide heading toward input without adding speed (renormalize to sp).
+    var wl = Math.sqrt(wishX * wishX + wishZ * wishZ);
+    if (this.slideControl &gt; 0 &amp;&amp; wl &gt; FPSC.EPS_DIR &amp;&amp; sp &gt; FPSC.EPS_DIR) {
+        var wnx = wishX / wl, wnz = wishZ / wl;
+        // Wish opposing current motion (e.g. holding backward mid-slide) is a deliberate reversal,
+        // not a carve — the ordinary partial blend below would slowly rotate the heading through an
+        // arc instead of braking straight back. Detect that case (wish nearly opposite current
+        // velocity) and brake toward zero along the CURRENT heading instead of blending toward
+        // wish; once speed has bled down, the same blend below is what picks the (now-reversed)
+        // heading back up, so the reversal itself still ends up sliding in the wish direction — it
+        // just brakes-then-goes instead of curving through it. Applies on flat ground too: without
+        // this, flat sliding&#x27;s own friction decay would bleed speed down to the slideEndSpeed exit
+        // threshold WHILE the un-braked blend was arcing the heading toward wish, so a backward
+        // hold curved through a U-turn on its way out instead of braking straight.
+        var brakeRate = onSlope ? this.slideSlopeFriction * this.slideReversalBrakeMult
+            : this.slideFriction * this.slideReversalBrakeMult;
+        var vnx = vx / sp, vnz = vz / sp;
+        var facing = wnx * vnx + wnz * vnz; // 1 = same direction, -1 = dead opposite
+        // ANGLE-BLIND: on ANY slope, gravity always wins the fall-line — you can&#x27;t carve a slide uphill
+        // against it, only brake. A wish with any uphill component (against the downhill fall-line
+        // dx/dz) must BRAKE toward a stop, not carve; otherwise the carve below redirects the blocked
+        // uphill momentum into a cross-slope skid off the side. On flat there&#x27;s no fall-line to fight,
+        // so only a near-opposite wish counts as a reversal there (unchanged).
+        var uphillOnSlope = onSlope &amp;&amp; (wnx * dx + wnz * dz) &lt; 0;
+        if (uphillOnSlope || facing &lt; FPSC.SLIDE_REVERSAL_DOT) {
+            var braked = Math.max(0, sp - brakeRate * dt);
+            var bf = sp &gt; FPSC.EPS_DIR ? braked / sp : 0;
+            vx *= bf;
+            vz *= bf;
+        } else {
+            var tx = vx + (wnx * sp - vx) * this.slideControl;
+            var tz = vz + (wnz * sp - vz) * this.slideControl;
+            var tl = Math.sqrt(tx * tx + tz * tz) || 1;
+            vx = (tx / tl) * sp;
+            vz = (tz / tl) * sp;
+        }
+    }
 
-    // ---- Slide (crouch-at-speed) ----
-    slide: {
-        enabled: true,
-        requiresMoveInput: false, // also require a movement key held (not crouch alone)
-        minSpeed: 7.8,         // speed at/above which a crouch launches a slide
-        endSpeed: 1,           // slide ends when speed bleeds below this
-        friction: 6,           // flat-ground slide friction
-        boost: 1.3,            // launch speed multiplier
-        control: 0.14,         // steering authority while sliding (0..1)
-        slopeAccel: 1.5,       // downhill acceleration factor while sliding
-        slopeMin: 0.2,         // sin(angle) at/above which the slide is gravity-governed (Infinity disables)
-        slopeFriction: 1.5,    // cross-slope friction while gravity-sliding
-        coyoteFrames: 5,       // frames after dropping below slide speed a crouch still launches a slide
-    },
-
-    // ---- Ladders (see _updateLadder) ----
-    ladder: {
-        climbSpeed: 2.5,        // vertical speed while climbing (pre-scale)
-        strafeSpeed: 2.5,       // lateral speed along the ladder&#x27;s face while climbing (pre-scale)
-        // Forward/back and strafe contributions are summed WITHOUT normalizing the combined wish
-        // vector, unlike ground movement — holding both diagonally into a ladder climbs strictly
-        // faster than either alone. Intentional.
-        mountReach: 0.2,        // reach (pre-scale) past the collider&#x27;s own half-width for the mount probe
-        dismountPushSpeed: 7.0, // horizontal shove speed away from the face on a jump-off dismount (pre-scale)
-    },
-
-    // ---- Ghost: the solver body that trails the player and pushes objects (see _syncGhost) ----
-    // maxSpeed / maxDampSpeed default to sprintSpeed * this multiplier (kept as a ratio so they scale with
-    // the character&#x27;s speed tuning); override with an absolute units/sec value via options if desired.
-    ghost: {
-        maxSpeedSprintMult: 1.3,     // ghost chase-speed cap = sprintSpeed * this
-        maxDampSpeedSprintMult: 1.3, // damping-term cap = sprintSpeed * this
-        damping: 1.0,          // fraction of the ghost&#x27;s velocity opposed each tick (0..1)
-        stiffness: 0.9,        // 0..1 blend toward the gap-closing velocity each tick
-        pushMassBaseMult: 35,  // objects heavier than mass * this block like a wall; lighter yield proportionally
-        // Physics material of the ghost body itself (not the chase behavior above). Zero friction/
-        // restitution/linearDamping so the chase-drive velocity is never fought by the solver; high
-        // angularDamping keeps contact torque from spinning it up while it shoves objects.
-        material: {
-            friction: 0,
-            restitution: 0,
-            linearDamping: 0,
-            angularDamping: 0.9,
-        },
-    },
-
-    // ---- Knockback: how the player RECEIVES a push from an object (see _readGhostKnockback) ----
-    knockback: {
-        receivePush: true,        // gate the whole knockback path
-        maxSpeed: 16,             // cap on received knockback speed
-        knockbackFraction: 1.0,   // scale received knockback
-        selfPush: false,          // false = only an object with its OWN inbound momentum knocks you (no self-push
-                                  //         oscillation); true = legacy relative-closing gate (oscillates)
-    },
-
-    // ---- Netcode / prediction behavior for the ghost (both default ON; false reverts to older behavior) ----
-    netcode: {
-        driveGhostDuringResim: true,    // run the ghost drive during rollback resim (off = objects rubber-band)
-        hardsnapGhostOnReconcile: true, // snap ghost onto authority on setState (off = objects oscillate)
-    },
-
-    // ---- View / aim ----
-    view: {
-        yaw: 0,
-        pitch: 0,
-        maxPitch: 1.5,         // clamp, radians
-    },
-
-    // ---- Render (sub-tick eye interpolation) ----
-    render: {
-        snapDist: 0.8,         // per-tick eye jump (units) above which the interp snaps instead of sliding
-    },
-
-    // ---- Misc identity defaults (not feel knobs, but kept here so nothing is scattered) ----
-    misc: {
-        color: &quot;#cc4444&quot;,
-        visible: false,        // the collider body is invisible by default (a model/render layer draws the player)
-        bodyName: &quot;fpsControllerBody&quot;,
-        scale: 1,              // 1 = no scaling
-        spawn: { x: 0, y: 2, z: 0 }, // fallback spawn when no position is passed
-    },
+    var vy = 0;
+    if (onSlope) {
+        var inv2 = 1 / slopeMag;
+        var alongOut = vx * (n.x * inv2) + vz * (n.z * inv2);
+        vy = -alongOut * slopeMag / Math.max(n.y, 0.1);
+        // The velocity returned here is already tangent to the surface — including on a TOO-STEEP slope.
+        // The too-steep-can&#x27;t-move-up rules don&#x27;t re-clip it: an active slide is exempt everywhere they
+        // apply (see _collideAndSlide&#x27;s climbSteepSlopes opt) — the slide IS the climb.
+    }
+    // Flat ground (!onSlope): groundNormal.y is ~1, so gb.y should stay ~0 — the caller (beginStep&#x27;s
+    // ground clamp path, same as WALK) doesn&#x27;t need a nonzero vy to track a surface that&#x27;s already
+    // level. vy=0 here is that &quot;no vertical correction needed&quot; case, not a special flat-only shape.
+    return { vx: vx, vy: vy, vz: vz };
 };
 
     </pre>

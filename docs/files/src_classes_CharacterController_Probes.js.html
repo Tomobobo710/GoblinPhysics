@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>src\classes\CharacterController\Probes.js - goblinphysics</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
+    <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
+    <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
+    <link rel="icon" href="../assets/favicon.ico">
+    <script src="http://yui.yahooapis.com/combo?3.9.1/build/yui/yui-min.js"></script>
+</head>
+<body class="yui3-skin-sam">
+
+<div id="doc">
+    <div id="hd" class="yui3-g header">
+        <div class="yui3-u-3-4">
+                <h1><img src="../assets/css/logo.png" title="goblinphysics" width="117" height="52"></h1>
+        </div>
+        <div class="yui3-u-1-4 version">
+            <em>API Docs for: 0.10.0</em>
+        </div>
+    </div>
+    <div id="bd" class="yui3-g">
+
+        <div class="yui3-u-1-4">
+            <div id="docs-sidebar" class="sidebar apidocs">
+                <div id="api-list">
+                    <h2 class="off-left">APIs</h2>
+                    <div id="api-tabview" class="tabview">
+                        <ul class="tabs">
+                            <li><a href="#api-classes">Classes</a></li>
+                            <li><a href="#api-modules">Modules</a></li>
+                        </ul>
+                
+                        <div id="api-tabview-filter">
+                            <input type="search" id="api-filter" placeholder="Type to filter APIs">
+                        </div>
+                
+                        <div id="api-tabview-panel">
+                            <ul id="api-classes" class="apis classes">
+                                <li><a href="../classes/AABB.html">AABB</a></li>
+                                <li><a href="../classes/AAC.html">AAC</a></li>
+                                <li><a href="../classes/BasicBroadphase.html">BasicBroadphase</a></li>
+                                <li><a href="../classes/BoxShape.html">BoxShape</a></li>
+                                <li><a href="../classes/BVH.html">BVH</a></li>
+                                <li><a href="../classes/BVHNode.html">BVHNode</a></li>
+                                <li><a href="../classes/CapsuleShape.html">CapsuleShape</a></li>
+                                <li><a href="../classes/CharacterController.html">CharacterController</a></li>
+                                <li><a href="../classes/CompoundShape.html">CompoundShape</a></li>
+                                <li><a href="../classes/CompoundShapeChild.html">CompoundShapeChild</a></li>
+                                <li><a href="../classes/ConeShape.html">ConeShape</a></li>
+                                <li><a href="../classes/Constraint.html">Constraint</a></li>
+                                <li><a href="../classes/ConstraintLimit.html">ConstraintLimit</a></li>
+                                <li><a href="../classes/ConstraintMotor.html">ConstraintMotor</a></li>
+                                <li><a href="../classes/ConstraintRow.html">ConstraintRow</a></li>
+                                <li><a href="../classes/ContactConstraint.html">ContactConstraint</a></li>
+                                <li><a href="../classes/ContactDetails.html">ContactDetails</a></li>
+                                <li><a href="../classes/ContactManifold.html">ContactManifold</a></li>
+                                <li><a href="../classes/ContactManifoldList.html">ContactManifoldList</a></li>
+                                <li><a href="../classes/ConvexShape.html">ConvexShape</a></li>
+                                <li><a href="../classes/CylinderShape.html">CylinderShape</a></li>
+                                <li><a href="../classes/DragForce.html">DragForce</a></li>
+                                <li><a href="../classes/ForceGenerator.html">ForceGenerator</a></li>
+                                <li><a href="../classes/FPS_CONTROLLER_DEFAULTS.html">FPS_CONTROLLER_DEFAULTS</a></li>
+                                <li><a href="../classes/FPSCharacterController.html">FPSCharacterController</a></li>
+                                <li><a href="../classes/FrictionConstraint.html">FrictionConstraint</a></li>
+                                <li><a href="../classes/GeometryMethods.html">GeometryMethods</a></li>
+                                <li><a href="../classes/GjkEpa.html">GjkEpa</a></li>
+                                <li><a href="../classes/HingeConstraint.html">HingeConstraint</a></li>
+                                <li><a href="../classes/IterativeSolver.html">IterativeSolver</a></li>
+                                <li><a href="../classes/LineSweptShape.html">LineSweptShape</a></li>
+                                <li><a href="../classes/MeshShape.html">MeshShape</a></li>
+                                <li><a href="../classes/NarrowPhase.html">NarrowPhase</a></li>
+                                <li><a href="../classes/ObjectPool.html">ObjectPool</a></li>
+                                <li><a href="../classes/PlaneShape.html">PlaneShape</a></li>
+                                <li><a href="../classes/PointConstraint.html">PointConstraint</a></li>
+                                <li><a href="../classes/RigidBody.html">RigidBody</a></li>
+                                <li><a href="../classes/SAPBroadphase.html">SAPBroadphase</a></li>
+                                <li><a href="../classes/SAPMarker.html">SAPMarker</a></li>
+                                <li><a href="../classes/SliderConstraint.html">SliderConstraint</a></li>
+                                <li><a href="../classes/SphereShape.html">SphereShape</a></li>
+                                <li><a href="../classes/SupportPoint.html">SupportPoint</a></li>
+                                <li><a href="../classes/TriangleShape.html">TriangleShape</a></li>
+                                <li><a href="../classes/WeldConstraint.html">WeldConstraint</a></li>
+                                <li><a href="../classes/World.html">World</a></li>
+                            </ul>
+                
+                
+                            <ul id="api-modules" class="apis modules">
+                                <li><a href="../modules/Goblin.html">Goblin</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="yui3-u-3-4">
+                <div id="api-options">
+                    Show:
+                    <label for="api-show-inherited">
+                        <input type="checkbox" id="api-show-inherited" checked>
+                        Inherited
+                    </label>
+            
+                    <label for="api-show-protected">
+                        <input type="checkbox" id="api-show-protected">
+                        Protected
+                    </label>
+            
+                    <label for="api-show-private">
+                        <input type="checkbox" id="api-show-private">
+                        Private
+                    </label>
+                    <label for="api-show-deprecated">
+                        <input type="checkbox" id="api-show-deprecated">
+                        Deprecated
+                    </label>
+            
+                </div>
+            
+            <div class="apidocs">
+                <div id="docs-main">
+                    <div class="content">
+<h1 class="file-heading">File: src\classes\CharacterController\Probes.js</h1>
+
+<div class="file">
+    <pre class="code prettyprint linenums">
+// Ground/ceiling/ladder raycast probes: the hand-written spatial queries beginStep/endStep read each
+// tick to decide grounding, standable-slope classification, headroom, and ladder mounting. No probe
+// here writes any sim state itself — each one just reports what&#x27;s in the world.
+var proto = Goblin.FPSCharacterController.prototype;
+var FPSC = Goblin.FPSCharacterController.FPSC;
+var raycast = Goblin.FPSCharacterController._raycast;
+
+/**
+ * Multi-point ground probe (center + four edge midpoints). Returns ALL floor-like hits, highest
+ * first — NOT collapsed to a single &quot;best&quot; here, because the caller needs to fall back to a
+ * lower (but valid) hit when the highest one is rejected as too tall to step onto (e.g. one edge
+ * ray grazing a box pushed against the footprint, while the other four rays are still squarely
+ * over real floor). Collapsing to one hit here would throw the floor away before the caller ever
+ * gets a chance to prefer it.
+ * @method _probeGroundCandidates
+ * @private
+ * @param {Number} maxSnap - max downward reach (below the feet) to probe, before scale/skin margins.
+ * @return {Object[]} floor-like raycast hits, sorted highest point.y first.
+ */
+proto._probeGroundCandidates = function(maxSnap) {
+    var half = this.height / 2;
+    var p = this.body.position;
+    // Cast from the higher of this tick&#x27;s start position and the current position, so a fast
+    // descent that penetrated the floor this tick doesn&#x27;t miss it.
+    var topY = Math.max(this._prevY !== undefined ? this._prevY : p.y, p.y) + this._skin;
+    var bottomY = p.y - (half + maxSnap + this._skin);
+    var ix = this.width / 2 - this._skin;
+    var iz = this.depth / 2 - this._skin;
+    var offsets = [[0, 0], [ix, 0], [-ix, 0], [0, iz], [0, -iz]];
+
+    var candidates = [];
+    for (var i = 0; i &lt; offsets.length; i++) {
+        var ox = offsets[i][0];
+        var oz = offsets[i][1];
+        var start = new Goblin.Vector3(p.x + ox, topY, p.z + oz);
+        var end = new Goblin.Vector3(p.x + ox, bottomY, p.z + oz);
+        var hit = raycast(this.world, start, end, this._ignoreSelf);
+        if (!hit || hit.normal.y &lt; FPSC.NY_FLOORLIKE) { continue; }
+        // Exclude a pushable object as ground only when walking INTO its side (pushing it), not
+        // when it&#x27;s roughly under our own center (standing on it).
+        var gm = hit.object &amp;&amp; hit.object._mass;
+        var isPushable = gm !== undefined &amp;&amp; gm !== Infinity &amp;&amp; gm &gt; 0 &amp;&amp; isFinite(gm) &amp;&amp; gm &lt;= this._pushMassLimit;
+        if (isPushable) {
+            var gv = this.body.linear_velocity;
+            var toHitX = hit.point.x - p.x, toHitZ = hit.point.z - p.z;
+            var towardLen = Math.sqrt(toHitX * toHitX + toHitZ * toHitZ);
+            var movingIntoIt = towardLen &gt; FPSC.EPS_LEN &amp;&amp;
+                (gv.x * toHitX + gv.z * toHitZ) / towardLen &gt; FPSC.PUSH_INTO_MIN;
+            var nearCenter = towardLen &lt; this.width * FPSC.NEAR_CENTER_FRAC;
+            if (movingIntoIt &amp;&amp; !nearCenter) { continue; }
+        }
+        candidates.push(hit);
+    }
+    candidates.sort(function(a, b) { return b.point.y - a.point.y; });
+    return candidates;
+};
+
+/**
+ * Multi-ray UP probe across the footprint. Returns the LOWEST ceiling (down-facing
+ * surface) within &#x60;reachAboveFeet&#x60; of the feet, or null. Mirror of _probeGround; covers
+ * sloped overhead geometry (e.g. a ramp underside) that forward rays can&#x27;t see.
+ *
+ * @method _probeCeiling
+ * @private
+ * @param {Number} reachAboveFeet - how far above the feet to scan.
+ * @return {Object|null} the lowest down-facing hit within reach, or null.
+ */
+proto._probeCeiling = function(reachAboveFeet) {
+    var p = this.body.position;
+    var feetY = p.y - this.height / 2;
+    var startY = feetY + this._skin;
+    var endY = feetY + reachAboveFeet + this._skin;
+    var ix = this.width / 2 - this._skin;
+    var iz = this.depth / 2 - this._skin;
+    var offsets = [[0, 0], [ix, 0], [-ix, 0], [0, iz], [0, -iz]];
+    var best = null;
+    for (var i = 0; i &lt; offsets.length; i++) {
+        var ox = offsets[i][0];
+        var oz = offsets[i][1];
+        var hit = this._raycastSkipPlatforms(
+            new Goblin.Vector3(p.x + ox, startY, p.z + oz),
+            new Goblin.Vector3(p.x + ox, endY, p.z + oz)
+        );
+        if (!hit || hit.normal.y &gt; FPSC.NY_CEILING) { continue; } // not a ceiling (must face downward)
+        if (!best || hit.point.y &lt; best.point.y) { best = hit; }
+    }
+    return best;
+};
+
+/**
+ * Same contract as the private _raycast helper (skips this._ignoreSelf by .name, returns the first
+ * remaining hit), but ALSO skips any hit body tagged isPlatform. A scripted moving platform is
+ * deliberately excluded from the solver&#x27;s own contact resolution (see _baseVelocity&#x27;s constructor
+ * comment / platform()&#x27;s collision_mask) so a rider is carried via scripted base-velocity, never a
+ * real physical shove — but a raw raycast doesn&#x27;t consult collision_mask at all, so without this a
+ * fast-rising platform that catches back up to a character mid-jump gets misread as a solid ceiling
+ * overhead by _ceilingSlide, capping the jump&#x27;s vertical velocity and killing it a few ticks after
+ * liftoff, even though no real contact manifold ever forms between the two bodies (the phantom
+ * ceiling is a pure raycast/collision_mask mismatch, not a real collision). Used ONLY by
+ * _probeCeiling — _probeGround intentionally still sees platforms (that&#x27;s how riding one works at
+ * all), and ordinary walls/ramps/props aren&#x27;t tagged isPlatform so they&#x27;re unaffected.
+ * @method _raycastSkipPlatforms
+ * @private
+ * @param {Goblin.Vector3} start
+ * @param {Goblin.Vector3} end
+ * @return {Object|null} the first non-self, non-platform hit, or null.
+ */
+proto._raycastSkipPlatforms = function(start, end) {
+    var hits = this.world.rayIntersect(start, end);
+    if (!hits || hits.length === 0) { return null; }
+    for (var i = 0; i &lt; hits.length; i++) {
+        var hit = hits[i];
+        if (hit.object) {
+            if (hit.object.isPlatform) { continue; }
+            if (hit.object.name &amp;&amp; this._ignoreSelf &amp;&amp; this._ignoreSelf.indexOf(hit.object.name) !== -1) { continue; }
+        }
+        return hit;
+    }
+    return null;
+};
+
+/**
+ * Is there room to stand up? (No ceiling within standHeight of the feet.)
+ * @method _canStand
+ * @private
+ * @return {Boolean}
+ */
+proto._canStand = function() {
+    var feetY = this.body.position.y - this.height / 2;
+    var ceil = this._probeCeiling(this.standHeight);
+    return !ceil || ceil.point.y - feetY &gt;= this.standHeight - this._skin;
+};
+
+/**
+ * Single ray probe for a ladder ahead, along &#x60;dir&#x60; (horizontal, need not be unit length). Placed
+ * halfway between the feet and stepHeight above them rather than the body center. Returns the raw
+ * hit &#x60;{object, point, normal, t}&#x60; with the normal flipped to point OUT of the face (toward the
+ * caller), or null.
+ *
+ * @method _findLadderAhead
+ * @private
+ * @param {Goblin.Vector3} dir
+ * @return {Object|null}
+ */
+proto._findLadderAhead = function(dir) {
+    var p = this.body.position;
+    var dlen = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+    if (dlen &lt; FPSC.EPS_LEN) { return null; }
+    var dx = dir.x / dlen, dz = dir.z / dlen;
+    var reach = this.width / 2 + this.ladderMountReach;
+    var feetY = p.y - this.height / 2;
+    var probeY = feetY + this.stepHeight / 2;
+    var hit = raycast(this.world,
+        new Goblin.Vector3(p.x, probeY, p.z),
+        new Goblin.Vector3(p.x + dx * reach, probeY, p.z + dz * reach),
+        this._ignoreSelf);
+    if (!hit || !hit.object || !hit.object.isLadder) { return null; }
+    return hit;
+};
+
+/**
+ * Is there a too-steep-but-climbable slope surface rising just ahead of the move? Used only when
+ * climbSteepSlopes is on. Casts down-rays a short distance ahead and looks for an upward-tilted,
+ * too-steep-to-stand hit that is still a real slope (not flat floor, not a vertical wall).
+ * @method _climbableSlopeAhead
+ * @private
+ * @param {Goblin.Vector3} start
+ * @param {Number} dx - unit-ish horizontal direction x
+ * @param {Number} dz - unit-ish horizontal direction z
+ * @return {Boolean}
+ */
+proto._climbableSlopeAhead = function(start, dx, dz) {
+    if (dx === 0 &amp;&amp; dz === 0) { return false; }
+    var feetY = this.body.position.y - this.height / 2;
+    var base = this.depth / 2 + this._skin; // footprint edge (both scale with the character)
+    for (var mi = 0; mi &lt; FPSC.CLIMB_PROBE_DEPTH_MULTS.length; mi++) {
+        var m = FPSC.CLIMB_PROBE_DEPTH_MULTS[mi];
+        var ahead = base + m * this.depth; // reach past the footprint in units of depth (scale-invariant)
+        var ax = start.x + dx * ahead;
+        var az = start.z + dz * ahead;
+        var hit = raycast(this.world,
+            new Goblin.Vector3(ax, feetY + this.stepHeight + this._skin, az),
+            new Goblin.Vector3(ax, feetY - this.stepHeight, az),
+            this._ignoreSelf);
+        if (hit &amp;&amp; hit.normal.y &gt; FPSC.NY_STEEP_MIN &amp;&amp; hit.normal.y &lt; this._minStandableNormalY) { return true; }
+    }
+    return false;
+};
+
+/**
+ * Lowest ceiling clearance over the footprint centered at (cx,cz). Infinity if nothing overhead.
+ * @method _ceilingClearanceAt
+ * @private
+ * @param {Number} cx
+ * @param {Number} cz
+ * @param {Number} feetY
+ * @return {Number} clearance in units above feetY, or Infinity.
+ */
+proto._ceilingClearanceAt = function(cx, cz, feetY) {
+    // Start above step-up height so a steppable obstacle (stair/low box) doesn&#x27;t register as a
+    // low ceiling; anything below feet+stepHeight is the ground clamp&#x27;s job, not the gate&#x27;s.
+    var startY = feetY + this.stepHeight + this._skin;
+    var endY = feetY + this.standHeight + this._skin;
+    var ix = this.width / 2 - this._skin;
+    var iz = this.depth / 2 - this._skin;
+    var offsets = [[0, 0], [ix, 0], [-ix, 0], [0, iz], [0, -iz]];
+    var lowest = Infinity;
+    for (var i = 0; i &lt; offsets.length; i++) {
+        var ox = offsets[i][0];
+        var oz = offsets[i][1];
+        var hit = raycast(this.world,
+            new Goblin.Vector3(cx + ox, startY, cz + oz),
+            new Goblin.Vector3(cx + ox, endY, cz + oz),
+            this._ignoreSelf);
+        if (!hit || hit.normal.y &gt; FPSC.NY_CEILING) { continue; } // not a ceiling (must face downward)
+        // A dynamic/pushable object is never a &quot;ceiling&quot; — it&#x27;s something the swept mover + push handle,
+        // not the headroom gate. Without this, an object being actively shoved forward can wobble a few
+        // degrees off-axis from contact torque, and its top face intermittently pokes above the
+        // stepHeight cutoff below on some ticks but not others, flickering the character&#x27;s forward
+        // velocity to zero and back as the box jitters. Only STATIC geometry (mass===Infinity) counts
+        // as an overhang.
+        if (hit.object &amp;&amp; hit.object._mass !== Infinity) { continue; }
+        var clr = hit.point.y - feetY;
+        // A &quot;ceiling&quot; clearance at or below step height is NOT an overhang — it&#x27;s a low obstacle at
+        // shin/waist level that the swept mover + push handle, not the headroom gate. Without this, a
+        // low stepHeight drops the ray start (feetY+stepHeight) INTO a waist-high object ahead, and the
+        // ray reports a bogus ~stepHeight-clearance &quot;ceiling&quot;, so the gate walls the character in open
+        // space in front of a pushable box (worse the lower stepHeight is). Only count genuine overhangs
+        // — clearance meaningfully above the step line — as ceilings.
+        if (clr &lt;= this.stepHeight + this._skin) { continue; }
+        if (clr &lt; lowest) { lowest = clr; }
+    }
+    return lowest;
+};
+
+/**
+ * The &quot;too steep to stand on&quot; rule — a floor whose normal tilts below the standable limit gives no
+ * footing (MOVE_SLIP). climbSteepSlopes opts out.
+ * @method _isSlipSurface
+ * @private
+ * @param {Object} normal - a surface normal (uses .y)
+ * @return {Boolean}
+ */
+proto._isSlipSurface = function(normal) {
+    return !this.climbSteepSlopes &amp;&amp; normal.y &lt; this._minStandableNormalY;
+};
+
+    </pre>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="../assets/vendor/prettify/prettify-min.js"></script>
+<script>prettyPrint();</script>
+<script src="../assets/js/yui-prettify.js"></script>
+<script src="../assets/../api.js"></script>
+<script src="../assets/js/api-filter.js"></script>
+<script src="../assets/js/api-list.js"></script>
+<script src="../assets/js/api-search.js"></script>
+<script src="../assets/js/apidocs.js"></script>
+</body>
+</html>
