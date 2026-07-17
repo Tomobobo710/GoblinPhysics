@@ -218,6 +218,22 @@ function FPSCharacterController(world, options) {
     // for a specific character without touching the shared engine default.
     this._baseSkin = o.skin !== undefined ? o.skin : FPSC.SKIN;
 
+    // Jump-off-a-platform base-velocity behavior — see _updateVertical. Two independent axes, opposite
+    // defaults: VERTICAL fling (jumping off a rising elevator flings you higher) defaults ON — it's the
+    // established, expected platforming feel and existing tests (PL3) depend on it. HORIZONTAL carry
+    // (jumping off a moving/rotating platform keeps its sideways speed) defaults OFF — carrying a fast
+    // platform's horizontal speed into a jump (especially a spinning platform's tangential speed) reads
+    // as an unwanted "fling" rather than a clean jump; a project that wants the classic
+    // conveyor-belt-momentum feel can opt back in per-instance.
+    this._jumpKeepsVerticalBaseVelocity = o.jumpKeepsVerticalBaseVelocity !== undefined ? o.jumpKeepsVerticalBaseVelocity !== false : true;
+    this._jumpKeepsHorizontalBaseVelocity = o.jumpKeepsHorizontalBaseVelocity === true;
+    // A jump is the player's WISH to leave the surface — that wish should only ever be HELPED by the
+    // platform's current vertical motion, never fought. Default true (opt-out): a platform descending
+    // at jump time contributes nothing negative to the launch, only a rising one still flings higher
+    // (via jumpKeepsVerticalBaseVelocity above). Scoped to the jump moment only — normal ground-follow
+    // on a descending platform when NOT jumping is unaffected, still correctly rides it down.
+    this._jumpIgnoresDescendingBaseVelocity = o.jumpIgnoresDescendingBaseVelocity !== undefined ? o.jumpIgnoresDescendingBaseVelocity !== false : true;
+
     // Object interaction (push and be pushed) runs through the ghost body (see _buildGhost / _readGhostKnockback).
     this._receivePush = o.receivePush !== undefined ? o.receivePush !== false : kb.receivePush;
     // Speed-like (a velocity cap), so it must scale with character size the same way sprintSpeed
@@ -311,6 +327,7 @@ function FPSCharacterController(world, options) {
     var g = world.gravity || { y: -9.81 };
     this._gravityVec = new Goblin.Vector3(0, g.y, 0);
     this._groundSuppress = 0;
+    this._jumpRising = false; // see _updateVertical's jump branch + endStep's `suppressed`
     this._prevTopCandidateY = null; // last tick's highest ground candidate — see the slide-launch gate in endStep
     this._slideLaunched = false; // latched true the tick a slide apex launch fires; see endStep
 
@@ -702,14 +719,44 @@ proto._probeCeiling = function(reachAboveFeet) {
     for (var i = 0; i < offsets.length; i++) {
         var ox = offsets[i][0];
         var oz = offsets[i][1];
-        var hit = raycast(this.world,
+        var hit = this._raycastSkipPlatforms(
             new Goblin.Vector3(p.x + ox, startY, p.z + oz),
-            new Goblin.Vector3(p.x + ox, endY, p.z + oz),
-            this._ignoreSelf);
+            new Goblin.Vector3(p.x + ox, endY, p.z + oz)
+        );
         if (!hit || hit.normal.y > FPSC.NY_CEILING) { continue; } // not a ceiling (must face downward)
         if (!best || hit.point.y < best.point.y) { best = hit; }
     }
     return best;
+};
+
+/**
+ * Same contract as the module-level raycast() helper (skips this._ignoreSelf by .name, returns the
+ * first remaining hit), but ALSO skips any hit body tagged isPlatform. A scripted moving platform is
+ * deliberately excluded from the solver's own contact resolution (see _baseVelocity's constructor
+ * comment / platform()'s collision_mask) so a rider is carried via scripted base-velocity, never a
+ * real physical shove — but a raw raycast doesn't consult collision_mask at all, so without this a
+ * fast-rising platform that catches back up to a character mid-jump gets misread as a solid ceiling
+ * overhead by _ceilingSlide, capping the jump's vertical velocity and killing it a few ticks after
+ * liftoff (caught live: jumping off a platform climbing faster than jumpSpeed always got the jump
+ * "eaten" this way — verified directly that NO real contact manifold ever forms between the two
+ * bodies, so the phantom ceiling was the actual cause, not a real collision). Used ONLY by
+ * _probeCeiling — _probeGround intentionally still sees platforms (that's how riding one works at
+ * all), and ordinary walls/ramps/props aren't tagged isPlatform so they're unaffected.
+ * @method _raycastSkipPlatforms
+ * @private
+ */
+proto._raycastSkipPlatforms = function(start, end) {
+    var hits = this.world.rayIntersect(start, end);
+    if (!hits || hits.length === 0) { return null; }
+    for (var i = 0; i < hits.length; i++) {
+        var hit = hits[i];
+        if (hit.object) {
+            if (hit.object.isPlatform) { continue; }
+            if (hit.object.name && this._ignoreSelf && this._ignoreSelf.indexOf(hit.object.name) !== -1) { continue; }
+        }
+        return hit;
+    }
+    return null;
 };
 
 /**
@@ -1360,7 +1407,13 @@ proto.endStep = function(dt) {
 
     if (this._groundSuppress > 0) { this._groundSuppress--; }
     // Only suppress grounding while rising (just jumped/thrust); while falling the ground
-    // catch must stay live or the body tunnels through the floor.
+    // catch must stay live or the body tunnels through the floor. _jumpRising extends this past the
+    // fixed countdown for as long as the character is STILL genuinely ascending — see its own
+    // comment at the jump site for why a flat tick count alone isn't enough (a still-rising surface
+    // underfoot, platform or ramp, can re-enter snap range before the countdown's fixed window would
+    // ever expect it to). Cleared the moment gb.y decays past the threshold, so this can't suppress
+    // indefinitely — ordinary gravity decay is what ends it.
+    if (this._jumpRising && gb.y <= 1) { this._jumpRising = false; }
     var suppressed = this._groundSuppress > 0 && gb.y > 1;
 
     var half = this.height / 2;
@@ -1431,16 +1484,58 @@ proto.endStep = function(dt) {
         this.body.position.set(p.x, clampedY, p.z);
         this.body.updateDerived();
 
-        // Acquire base velocity from whatever we're now resting on BEFORE splitting gb into
-        // own-vs-base components below — every own-velocity computation this tick (tangentX/Z,
-        // _ownVelocityX/Z) must subtract THIS tick's platform speed, not last tick's. Read fresh
-        // every tick so stepping off a platform onto solid ground (or vice versa) updates
-        // immediately, and so landing on a moving platform doesn't misread one tick of its speed
-        // as newly-acquired character momentum.
+        // Save the OUTGOING base velocity before overwriting it below — gb (about to be split into
+        // own-vs-base components further down) was built by LAST tick's beginStep using THIS old
+        // value, not the new one we're about to acquire. Splitting gb against the NEW value instead
+        // manufactures a one-tick phantom "own velocity" spike whenever the platform's velocity
+        // changes abruptly between ticks (a reversing elevator/shuttle, or — worst case, since it
+        // happens continuously — a rotating platform changing direction each tick): gb still reflects
+        // the old speed, so subtracting the new speed leaves a large bogus residual that then has to
+        // visibly bleed off via the idle ground-stop decay below (observed live as a "shuffle"/wobble
+        // right when a platform reverses). Using the OLD value here keeps the split correct for the
+        // tick gb was actually built on; the NEW value (acquired below) still lands in
+        // this._baseVelocity for beginStep to pick up fresh next tick, same as always.
+        var outgoingBaseVelocityX = this._baseVelocity.x, outgoingBaseVelocityZ = this._baseVelocity.z;
         var standingOn = probe.object;
         if (standingOn && standingOn.isPlatform) {
             var pv = standingOn.linear_velocity;
-            this._baseVelocity.set(pv.x, pv.y, pv.z);
+            var bvx = pv.x, bvy = pv.y, bvz = pv.z;
+            // Rotating platform: carry the character along the platform's own EXACT arc this tick,
+            // Y-axis spin only (the only axis a standable platform can usefully spin on). Recomputed
+            // fresh every tick from the CURRENT offset (not cached), so as the character walks
+            // toward/away from the pivot the imparted speed tracks the true radius, and so it decays
+            // to zero at the pivot itself.
+            //
+            // NOT a naive omega x r tangential velocity: that's only the arc's INSTANTANEOUS tangent,
+            // and applying it as a straight line for a full tick always overshoots the true curve —
+            // every tick's move ends up very slightly outside the circle, and next tick's tangent is
+            // computed from that already-drifted position, so the error compounds tick over tick into
+            // an outward spiral. Negligible at slow spin (small angle per tick), but at 8x rate this
+            // measured a rider drifting from radius 7.0 out to 8.9 over one revolution — a real,
+            // visible "flung off the platform" bug, not just numerical noise. Fix: compute the CHORD
+            // velocity instead — the constant velocity that carries the rider from its current offset
+            // to the offset EXACTLY rotated by theta=omegaY*dt, i.e. (rotated - current) / dt. This
+            // reproduces the platform's real circular motion exactly regardless of angular speed,
+            // instead of approximating it.
+            if (standingOn.isRotatingPlatform && standingOn.angular_velocity) {
+                var omegaY = standingOn.angular_velocity.y;
+                if (omegaY && dt > 0) {
+                    var center = standingOn.position;
+                    var rx = this.body.position.x - center.x;
+                    var rz = this.body.position.z - center.z;
+                    var theta = omegaY * dt;
+                    var cosT = Math.cos(theta), sinT = Math.sin(theta);
+                    // Matches Goblin's own rotation convention (verified against RigidBody's quaternion
+                    // integration directly, not assumed): for omegaY > 0, the rotated offset is
+                    // (rx*cos+rz*sin, rz*cos-rx*sin) — the same sense that produced the correct
+                    // (omegaY*rz, -omegaY*rx) instantaneous tangent this replaces.
+                    var rxRot = rx * cosT + rz * sinT;
+                    var rzRot = rz * cosT - rx * sinT;
+                    bvx += (rxRot - rx) / dt;
+                    bvz += (rzRot - rz) / dt;
+                }
+            }
+            this._baseVelocity.set(bvx, bvy, bvz);
         } else {
             this._baseVelocity.set(0, 0, 0);
         }
@@ -1544,8 +1639,10 @@ proto.endStep = function(dt) {
             gb.z = tangentZ;
             gb.y = 0;
         }
-        this._ownVelocityX = gb.x - this._baseVelocity.x;
-        this._ownVelocityZ = gb.z - this._baseVelocity.z;
+        // Split against the OUTGOING (pre-acquire) base velocity, not the freshly-acquired one — see
+        // the comment above outgoingBaseVelocityX/Z's declaration for why.
+        this._ownVelocityX = gb.x - outgoingBaseVelocityX;
+        this._ownVelocityZ = gb.z - outgoingBaseVelocityZ;
 
         // Idle ground-stop: WALK only. Bleeds horizontal speed toward zero at groundStopDecel.
         // Reads/writes _ownVelocityX/Z (the character's OWN component), NOT gb.x/z directly — gb
@@ -1748,15 +1845,60 @@ proto._updateVertical = function(cmd, dt) {
     var canJump = this.grounded || this._coyoteTimer > 0;
     var wantJump = cmd.jumpPressed || this._jumpBufferTimer > 0;
     if (canJump && wantJump) {
-        // Additive, not a bare overwrite: jumping off a platform that's currently rising carries
-        // its vertical base velocity into the jump (a "fling"), on top of whatever base velocity
-        // the character already had that tick.
-        this.body.linear_velocity.y = this.jumpSpeed + this._baseVelocity.y;
+        // VERTICAL: additive, not a bare overwrite — jumping off a platform that's currently rising
+        // carries its vertical base velocity into the jump (a "fling"), on top of whatever base
+        // velocity the character already had that tick. Gated by _jumpKeepsVerticalBaseVelocity
+        // (default true — the established, expected platforming feel; PL3 depends on it).
+        var vBase = this._jumpKeepsVerticalBaseVelocity ? this._baseVelocity.y : 0;
+        // The player's jump is a WISH to leave the surface — that wish should only ever be helped by
+        // the platform's current motion, never fought. A platform still RISING adds free height (the
+        // fling above, working as intended); a platform DESCENDING must not subtract from the jump —
+        // ignore negative vBase at the moment of jumping (default on; a project that wants a
+        // descending platform to actively suppress a jump can opt out). This is deliberately scoped to
+        // the JUMP MOMENT only, not standing/riding in general — normal ground-follow on a descending
+        // platform (not jumping) is unaffected and still correctly rides it down; only the instant the
+        // player presses jump does their intent take priority over the platform's own motion.
+        if (this._jumpIgnoresDescendingBaseVelocity && vBase < 0) { vBase = 0; }
+        this.body.linear_velocity.y = this.jumpSpeed + vBase;
+        // HORIZONTAL: gated by _jumpKeepsHorizontalBaseVelocity (default FALSE — opposite default from
+        // vertical). Applies to ANY platform's horizontal base velocity, linear or rotating alike —
+        // left alone, a jump off a fast-moving/spinning platform launches the rider sideways at
+        // whatever speed the platform was imparting, since nothing decays it once airborne. Needs BOTH
+        // zeroed when opted out, not just one:
+        //   - this.body.linear_velocity.x/z (= gb, a live alias set up earlier in beginStep): the
+        //     AIRBORNE movement-state dispatch that runs right after this call reads gb.x/z DIRECTLY as
+        //     its base velocity (`var cur = gb`) when there's no move input — zeroing only
+        //     _baseVelocity below does nothing for that path, gb itself must be clean.
+        //   - this._baseVelocity.x/z: also read a few lines later in the SAME beginStep call (the
+        //     dispatch's own bvx/bvz, added into the swept move regardless of movement state) — leaving
+        //     it non-zero re-adds the platform's speed right back even after gb is cleared above.
+        if (!this._jumpKeepsHorizontalBaseVelocity) {
+            this.body.linear_velocity.x = this._ownVelocityX;
+            this.body.linear_velocity.z = this._ownVelocityZ;
+            this._baseVelocity.x = 0;
+            this._baseVelocity.z = 0;
+        }
         this.grounded = false;
         // beginStep's movement-state dispatch runs right after this call, on the SAME tick — must
         // see AIRBORNE now, not whatever grounded sub-state was true a moment ago.
         this._moveState = FPSC.MOVE_AIRBORNE;
         this._groundSuppress = FPSC.GROUND_SUPPRESS_JUMP;
+        // See endStep's `suppressed` — a FIXED tick count alone isn't enough here: it doesn't know
+        // how far the character actually needs to climb to clear the surface they jumped off. A
+        // still-rising surface underfoot (a platform still climbing, or a ramp whose OWN surface
+        // keeps rising ahead of a character sprinting up it — a jump off either can have gb.y still
+        // healthily positive well past GROUND_SUPPRESS_JUMP's fixed window) gets back in ground-clamp
+        // snap range the instant the countdown lapses and re-catches the jump before it ever really
+        // left, even though the character is demonstrably still ascending. Verified live: jumping off
+        // a rising elevator (climbing slower than jumpSpeed) AND jumping while sprinting up a 30°
+        // ramp (whose surface rises under a sprinting character faster than a walking one) both got
+        // re-caught the instant the flat 8-tick countdown hit 0, with several units/sec of upward
+        // velocity still unspent. This flag extends suppression for as long as gb.y stays genuinely
+        // positive (checked in endStep), on top of (not instead of) the fixed countdown — so a jump
+        // still can't suppress forever if something keeps gb.y positive indefinitely (a runaway
+        // edge case), but a normal jump's natural gravity decay is what ends it, not an arbitrary
+        // tick count picked for a flat floor.
+        this._jumpRising = true;
         this._coyoteTimer = 0;
         this._jumpBufferTimer = 0;
     } else if (cmd.jumpPressed) {

@@ -367,7 +367,13 @@
 		var p = S.feetSpawn(w, 0, 0, {});
 		PBF.renderables(t, p);
 		var boxFront = boxZ - bs / 2;
-		var jumpGap = S.sc(0.9);
+		// jumpGap tuned by direct sweep (0.1-unit steps, 0.2-3.0 range, all 3 scales) against the fixed
+		// jump-suppression behavior (see FPSCharacterController's _jumpRising) — the ORIGINAL 0.9 value
+		// silently landed via a sideways step-up grab, not a real ballistic fall (the test was green for
+		// the wrong reason). 1.0 is a robust value common to the working range at all three scales
+		// (0.5's range: 0.3-1.2 and 2.1-2.9; 1's range: 0.5-1.7; 2's range: 0.8-2.6) — comfortably inside
+		// all three, unlike a value near either edge.
+		var jumpGap = S.sc(1.0);
 		var jumped = false, jumpTick = -1, boxStart = null, boxLateSpeed = 0, tick0 = 0;
 		PBF.drive(t, p, function (tick) {
 			tick0 = tick;

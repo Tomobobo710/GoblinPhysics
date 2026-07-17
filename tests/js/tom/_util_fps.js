@@ -146,6 +146,33 @@
 		return b;
 	}
 
+	// A stationary-center rotating platform (helicopter-blade style): a static-footprint dynamic box
+	// spinning in place about its own Y axis, tagged isPlatform + isRotatingPlatform (the latter is what
+	// FPSCharacterController's endStep reads to add omega x r tangential velocity on top of linear_velocity
+	// — see endStep's acquire). Unlike platform() above, angular_factor.y stays 1 (spin must actually
+	// integrate); gravity off and collision_mask=1 for the same reasons platform() uses them (no falling,
+	// out of the solver's contact resolution so nothing fights the scripted spin). radPerSec > 0 = CCW
+	// looking down +Y (right-hand rule); negative = CW. Returns the body; call .tick(dt) each frame BEFORE
+	// world.step(), same bracket as platform()'s movers.
+	function rotatingPlatform(w, hx, hy, hz, center, radPerSec, color) {
+		var b = new Goblin.RigidBody(new Goblin.BoxShape(hx, hy, hz), 10);
+		applyMat(b, { friction: 0, restitution: 0 });
+		b._color = color || '#4a7ab0';
+		b.isPlatform = true;
+		b.isRotatingPlatform = true;
+		b.setGravity(0, 0, 0);
+		b.angular_factor.set(0, 1, 0);
+		b.collision_mask = 1;
+		b.position.set(center.x, center.y, center.z);
+		b.updateDerived();
+		w.addRigidBody(b);
+
+		b.tick = function (dt) {
+			b.angular_velocity.set(0, radPerSec, 0);
+		};
+		return b;
+	}
+
 	// Register the renderable bodies for the viewer. render.js's captureSetup snapshots ctx.bodies ONCE
 	// at t=0 (see runner.js: it's a plain array, not re-scanned per frame) — so the only correct source
 	// of "everything visible" is the WORLD's actual contents at setup time: the floor, every wall/ramp/
@@ -286,6 +313,14 @@
 				var b = { x: pointB.x * SC, y: pointB.y * SC, z: pointB.z * SC };
 				return platform(w, side / 2, thick / 2, side / 2, a, b, baseSpeed * SC, color, options);
 			},
+			// scale-proportional rotating platform: a long footprint (baseLen along X, baseWidth along Z,
+			// baseThick tall, all scale-1, FULL size) spinning about a SCALED center. radPerSec is a
+			// world-unit angular rate (NOT distance-scaled — an angle isn't a length).
+			srotplatform: function (w, baseLen, baseWidth, baseThick, center, radPerSec, color) {
+				var len = baseLen * SC, wid = baseWidth * SC, thick = baseThick * SC;
+				var c = { x: center.x * SC, y: center.y * SC, z: center.z * SC };
+				return rotatingPlatform(w, len / 2, thick / 2, wid / 2, c, radPerSec, color);
+			},
 			// drop a box onto the character's ACTUAL head from `above` units over it (head-relative, so
 			// impact speed is the same at every scale). side/mass default to 0.8/2.
 			dropOnHead: function (w, p, above, side, mass, mat) {
@@ -334,7 +369,7 @@
 
 	return {
 		DT: DT, SCALES: SCALES,
-		flatWorld: flatWorld, makeWorld: makeWorld, object: object, staticBox: staticBox, ladder: ladder, platform: platform, spawn: spawn,
+		flatWorld: flatWorld, makeWorld: makeWorld, object: object, staticBox: staticBox, ladder: ladder, platform: platform, rotatingPlatform: rotatingPlatform, spawn: spawn,
 		renderables: renderables, drive: drive, sequentialBlocks: sequentialBlocks,
 		scaleHelpers: scaleHelpers, scaleTest: scaleTest,
 		axisAngleQuat: axisAngleQuat,
