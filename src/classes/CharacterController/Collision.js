@@ -129,7 +129,10 @@ proto._sweptCollideAndSlide = function(opts) {
         for (var hi = 0; hi < hits.length; hi++) {
             var h = hits[hi];
             var b0 = h.object;
-            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) { continue; }
+            // A raw kinematic character body is never a wall (no mass to yield against — its ghost
+            // is the real solver stand-in for it). A ghost belonging to ANOTHER controller, though,
+            // is a genuine mass and should block/yield like any pushable object.
+            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter && !b0.isCharacterGhost)) { continue; }
             var n = h.normal;
             if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) { continue; }
             var nlen = Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
@@ -151,9 +154,10 @@ proto._sweptCollideAndSlide = function(opts) {
             if (into <= 0) { continue; }
             var keep = 0;
             var b = h.object;
-            // Platforms never yield like a pushable object — they're scripted geometry.
-            if (b && !b.isPlatform && b._mass !== Infinity && b._mass > 0 && isFinite(b._mass) &&
-                b._mass <= self_._pushMassLimit && !b.isKinematicCharacter) {
+            // Platforms never yield like a pushable object — they're scripted geometry. Another
+            // player's ghost is a full body-block too — a player is a wall, not a pushable box.
+            if (b && !b.isPlatform && !b.isCharacterGhost && b._mass !== Infinity && b._mass > 0 && isFinite(b._mass) &&
+                b._mass <= self_._pushMassLimit) {
                 keep = mass / (mass + b._mass);
             }
             return { n: n, pen: h.penetration || 0, keep: keep };
@@ -168,7 +172,7 @@ proto._sweptCollideAndSlide = function(opts) {
         for (var hi = 0; hi < hits.length; hi++) {
             var h = hits[hi];
             var b0 = h.object;
-            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) { continue; }
+            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter && !b0.isCharacterGhost)) { continue; }
             var n = h.normal;
             if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) { continue; }
             if (Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z) < FPSC.N_DEGENERATE) { continue; }

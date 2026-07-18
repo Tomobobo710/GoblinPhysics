@@ -39,6 +39,10 @@ proto._buildGhost = function(position, carriedVel) {
     this._ghost.name = this._bodyName + "_ghost";
     this._ghost.angular_factor.set(0, 0, 0);
     this._ghost.isKinematicCharacter = true;
+    // Distinguishes this body from a real character body for OTHER controllers' sweeps: their own
+    // kinematic body is never a wall (it has no mass to yield against), but this ghost IS a real
+    // solver-participating mass and should block/get pushed like any other object.
+    this._ghost.isCharacterGhost = true;
     this._ghostGroundInset = groundInset;
     if (carriedVel) { this._ghost.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z); }
     this.world.addRigidBody(this._ghost);
@@ -141,6 +145,7 @@ proto._readGhostKnockback = function() {
         var other =
             manifold.object_a === ghostBody ? manifold.object_b :
             manifold.object_b === ghostBody ? manifold.object_a : null;
+        // A player is a wall, not a pushable object — no knockback from another player's ghost.
         if (other && other._mass !== Infinity && other._mass > 0 && !other.isKinematicCharacter) {
             var mB = other._mass;
             var ov = other.linear_velocity;

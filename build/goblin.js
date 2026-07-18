@@ -8029,6 +8029,10 @@ proto._buildGhost = function(position, carriedVel) {
     this._ghost.name = this._bodyName + "_ghost";
     this._ghost.angular_factor.set(0, 0, 0);
     this._ghost.isKinematicCharacter = true;
+    // Distinguishes this body from a real character body for OTHER controllers' sweeps: their own
+    // kinematic body is never a wall (it has no mass to yield against), but this ghost IS a real
+    // solver-participating mass and should block/get pushed like any other object.
+    this._ghost.isCharacterGhost = true;
     this._ghostGroundInset = groundInset;
     if (carriedVel) { this._ghost.linear_velocity.set(carriedVel.x, carriedVel.y, carriedVel.z); }
     this.world.addRigidBody(this._ghost);
@@ -8131,6 +8135,7 @@ proto._readGhostKnockback = function() {
         var other =
             manifold.object_a === ghostBody ? manifold.object_b :
             manifold.object_b === ghostBody ? manifold.object_a : null;
+        // A player is a wall, not a pushable object — no knockback from another player's ghost.
         if (other && other._mass !== Infinity && other._mass > 0 && !other.isKinematicCharacter) {
             var mB = other._mass;
             var ov = other.linear_velocity;
@@ -8562,7 +8567,10 @@ proto._sweptCollideAndSlide = function(opts) {
         for (var hi = 0; hi < hits.length; hi++) {
             var h = hits[hi];
             var b0 = h.object;
-            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) { continue; }
+            // A raw kinematic character body is never a wall (no mass to yield against — its ghost
+            // is the real solver stand-in for it). A ghost belonging to ANOTHER controller, though,
+            // is a genuine mass and should block/yield like any pushable object.
+            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter && !b0.isCharacterGhost)) { continue; }
             var n = h.normal;
             if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) { continue; }
             var nlen = Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
@@ -8584,9 +8592,10 @@ proto._sweptCollideAndSlide = function(opts) {
             if (into <= 0) { continue; }
             var keep = 0;
             var b = h.object;
-            // Platforms never yield like a pushable object — they're scripted geometry.
-            if (b && !b.isPlatform && b._mass !== Infinity && b._mass > 0 && isFinite(b._mass) &&
-                b._mass <= self_._pushMassLimit && !b.isKinematicCharacter) {
+            // Platforms never yield like a pushable object — they're scripted geometry. Another
+            // player's ghost is a full body-block too — a player is a wall, not a pushable box.
+            if (b && !b.isPlatform && !b.isCharacterGhost && b._mass !== Infinity && b._mass > 0 && isFinite(b._mass) &&
+                b._mass <= self_._pushMassLimit) {
                 keep = mass / (mass + b._mass);
             }
             return { n: n, pen: h.penetration || 0, keep: keep };
@@ -8601,7 +8610,7 @@ proto._sweptCollideAndSlide = function(opts) {
         for (var hi = 0; hi < hits.length; hi++) {
             var h = hits[hi];
             var b0 = h.object;
-            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter)) { continue; }
+            if (b0 === selfBody || b0 === otherSelfBody || (b0 && b0.isKinematicCharacter && !b0.isCharacterGhost)) { continue; }
             var n = h.normal;
             if (!n || !isFinite(n.x) || !isFinite(n.y) || !isFinite(n.z)) { continue; }
             if (Math.sqrt(n.x * n.x + n.y * n.y + n.z * n.z) < FPSC.N_DEGENERATE) { continue; }
