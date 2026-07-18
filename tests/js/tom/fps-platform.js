@@ -1044,6 +1044,42 @@
 		});
 		t.simulate(w, TOTAL_TICKS);
 	}, { page: P, steps: 400, description: 'Riding a horizontal platform its full path — start, far end, hard reversal, back to start, stop — with no input has no own-velocity shuffle at any transition.' });
+
+	// ---- PL16: crouching while riding a fast rotating platform, no move input, must NOT launch a slide ----
+	PBF.scaleTest(G, 'PL16', 'crouching on a fast rotating platform does not trigger a slide', function (t, S) {
+		var w = S.flat();
+		// Fast spin (2.4 rad/s, matching the live game's rotor) with the rider far enough out that the
+		// platform's own tangential speed (omega*r) alone clears moveSpeed — this is the exact scenario
+		// slide-entry's speed test must NOT count: riding fast is not the same as MOVING fast yourself.
+		// Spun up 0 -> rate at settleTick via mover.tick reassignment (same pattern riderRotationRig
+		// uses) so the character boards a STATIONARY platform first, same as jumping onto a live one.
+		var rate = 2.4;
+		var mover = S.srotplatform(w, 10, 10, 0.3, { x: 0, y: 0.15, z: 0 }, 0, '#a04a7a');
+		var riderX = S.sc(4.5);
+		var startY = S.sc(0.15) + S.sc(0.15) + 0.9 * S.SC + 0.001;
+		var p = S.spawn(w, { x: riderX, y: startY, z: 0 }, {});
+		PBF.renderables(t, p, [mover]);
+
+		var settleTick = 15, crouchTick = 60;
+		var exceededMoveSpeed = false, everSlid = false;
+		PBF.drive(t, p, function (tick) {
+			if (tick === settleTick) { mover.tick = function (dt) { mover.angular_velocity.set(0, rate, 0); }; }
+			var rawSpeed = PBF.hsp(p);
+			if (tick > crouchTick && rawSpeed > p.moveSpeed) { exceededMoveSpeed = true; }
+			if (p.sliding) { everSlid = true; }
+			return tick > crouchTick ? { crouch: true } : {};
+		}, [mover]);
+		t.log('Ride a fast rotating platform far from the pivot (its own tangential speed alone exceeds ' +
+			'moveSpeed), then crouch with NO move input. The platform\'s speed must not be mistaken for the ' +
+			'character\'s own — no slide should ever start.');
+		t.expect('the platform\'s raw speed genuinely exceeded moveSpeed (test is exercising the real case)', function () {
+			return { ok: exceededMoveSpeed, detail: 'exceededMoveSpeed=' + exceededMoveSpeed };
+		});
+		t.expect('never entered a slide from riding alone', function () {
+			return { ok: !everSlid, detail: 'everSlid=' + everSlid };
+		});
+		t.simulate(w, 200);
+	}, { page: P, steps: 200, description: 'Crouching while riding a fast rotating platform (no move input) must not trigger a slide — the platform\'s own speed is not the character\'s own effort.' });
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

@@ -407,27 +407,28 @@ proto.endStep = function(dt) {
         var tangentZ = gb.z - vdotn * pn.z;
         var horizTangentSpeed = Math.sqrt(tangentX * tangentX + tangentZ * tangentZ);
 
-        // TRUE along-the-ground speed, for the slide entry/sustain SPEED test only (tangentX/Z above
-        // is what actually gets written to gb — always the horizontal projection). On a steep slope,
-        // riding fast downhill puts most of the character's speed into the VERTICAL component (the
-        // kinematic ground clamp keeps gb.y at 0 between ticks, so a slip's own steady-state horizontal
-        // speed converges to a value bounded near moveSpeed by its air-control blend toward wish — it
-        // can never actually EXCEED moveSpeed on its own, and never would cross the slide-entry
-        // threshold below if measured on the horizontal component alone). Reconstruct the true 3D
-        // along-surface speed the same way a raw fall's vertical energy converts to horizontal on a
-        // slide: split gb into along-slope (dxu,dzu) and cross-slope, then divide the along-slope part
-        // by ny to recover the steeper true speed a shallow horizontal reading was hiding.
+        // TRUE along-the-ground speed, for the slide entry/sustain SPEED test only (tangentX/Z above,
+        // which DOES include platform velocity, is what actually gets written to gb). Platform
+        // velocity is excluded from this speed reading — otherwise a fast rotating platform's own
+        // tangential speed alone can exceed moveSpeed with zero player effort, launching an unwanted
+        // slide on crouch while just riding. Reconstructs true 3D along-surface speed the same way a
+        // slope converts fall speed to horizontal (divide the along-slope component by ny).
+        var vdotnOwn = (gb.x - outgoingBaseVelocityX) * pn.x + gb.y * pn.y + (gb.z - outgoingBaseVelocityZ) * pn.z;
+        var tangentOwnX = (gb.x - outgoingBaseVelocityX) - vdotnOwn * pn.x;
+        var tangentOwnZ = (gb.z - outgoingBaseVelocityZ) - vdotnOwn * pn.z;
+        var horizTangentOwnSpeed = Math.sqrt(tangentOwnX * tangentOwnX + tangentOwnZ * tangentOwnZ);
+
         var slopeMag0 = probeSlope;
         var ny0 = Math.max(pn.y, 0.1);
         var groundSp;
         if (slopeMag0 > FPSC.EPS_LEN) {
             var dxu0 = pn.x / slopeMag0, dzu0 = pn.z / slopeMag0;
-            var alongH = tangentX * dxu0 + tangentZ * dzu0;
-            var crossSq = Math.max(0, horizTangentSpeed * horizTangentSpeed - alongH * alongH);
+            var alongH = tangentOwnX * dxu0 + tangentOwnZ * dzu0;
+            var crossSq = Math.max(0, horizTangentOwnSpeed * horizTangentOwnSpeed - alongH * alongH);
             var surfFall = alongH / ny0;
             groundSp = Math.sqrt(surfFall * surfFall + crossSq);
         } else {
-            groundSp = horizTangentSpeed;
+            groundSp = horizTangentOwnSpeed;
         }
         var tangentSpeed = groundSp;
 
