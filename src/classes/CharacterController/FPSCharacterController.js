@@ -79,8 +79,6 @@
  * @param {Boolean} [options.receivePush=true] - Enable object-to-character knockback via the ghost body.
  * @param {Number} [options.receiveMaxSpeed] - Cap on how fast a single object hit can knock the character.
  * @param {Number} [options.receiveKnockbackFraction] - Fraction of the ghost's contact velocity transferred.
- * @param {Number} [options.ghostMaxSpeed] - Cap on the ghost's follow/shove speed (units/sec).
- * @param {Number} [options.ghostDamping] - Fraction of the ghost's current velocity damped each tick (0..1).
  * @param {Number} [options.maxSlopeAngle] - Max standable slope in degrees (90+ disables the limit).
  * @param {Boolean} [options.visible=false] - Whether a consumer should treat the collider as drawable
  *   (this controller does no rendering itself — see `object.isVisible`).
@@ -140,24 +138,9 @@ Goblin.FPSCharacterController = function(world, options) {
     this._baseReceiveMaxSpeed = o.receiveMaxSpeed !== undefined ? o.receiveMaxSpeed : kb.maxSpeed;
     this._receiveKnockbackFraction = o.receiveKnockbackFraction !== undefined ? o.receiveKnockbackFraction : kb.knockbackFraction;
     this._receiveSelfPush = o.receiveSelfPush !== undefined ? o.receiveSelfPush === true : kb.selfPush;
-    // Ghost follow-drive (see _syncGhost). maxSpeed / maxDampSpeed default to a multiple of sprint
-    // speed, and — like sprintSpeed itself — must scale with character size: a 2x character's
-    // sprint (and the momentum it can impart to an object) is 2x faster, but a ghost capped at the
-    // UNSCALED base speed can't keep pace at that scale, falls behind, and stops being physically
-    // present to block a fast-moving object from passing straight through the (solver-invisible)
-    // character. Explicit overrides are taken as literal (caller asked for that exact number, not a
-    // scale-derived one); the multiplier-derived defaults are re-derived in _applyScale so they
-    // track scale both at construction and on any later setScale().
-    this._ghostMaxSpeedOverride = o.ghostMaxSpeed;
-    this._ghostMaxDampSpeedOverride = o.ghostMaxDampSpeed;
-    this._ghostMaxSpeedMult = gh.maxSpeedSprintMult;
-    this._ghostMaxDampSpeedMult = gh.maxDampSpeedSprintMult;
-    // Ghost body's physics material (not the chase-behavior tuning above) — read once here so
-    // _buildGhost (called on every rebuild: crouch, setScale, respawn) doesn't need its own access
-    // to Goblin.FPS_CONTROLLER_DEFAULTS.
+    // Ghost body's physics material — read once here so _buildGhost (called on every rebuild:
+    // crouch, setScale, respawn) doesn't need its own access to Goblin.FPS_CONTROLLER_DEFAULTS.
     this._ghostMaterial = o.ghostMaterial || gh.material;
-    this._ghostDamping = o.ghostDamping !== undefined ? o.ghostDamping : gh.damping;
-    this._ghostStiffness = o.ghostStiffness !== undefined ? o.ghostStiffness : gh.stiffness;
     this._driveGhostDuringResim = o.driveGhostDuringResim !== undefined ? o.driveGhostDuringResim !== false : net.driveGhostDuringResim;
     this._hardsnapGhostOnReconcile = o.hardsnapGhostOnReconcile !== undefined ? o.hardsnapGhostOnReconcile !== false : net.hardsnapGhostOnReconcile;
     this._pushMassLimitOverride = o.pushMassLimit;
@@ -347,13 +330,7 @@ proto._applyScale = function(scale) {
     // and the sub-tick smoother snaps every tick instead of easing — the high-scale render jitter.
     var rs = (this._baseRenderSnapDist || 0.8) * scale;
     this._renderSnapDist2 = rs * rs;
-    // Ghost chase speed and the push-mass eligibility limit must scale with the character, same as
-    // sprintSpeed/mass do just above — see the comment where these overrides are read in the
-    // constructor. Speed-like (linear); mass-like (volume, scale^3) — matching sprintSpeed/mass.
-    this._ghostMaxSpeed = this._ghostMaxSpeedOverride !== undefined ?
-        this._ghostMaxSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxSpeedMult;
-    this._ghostMaxDampSpeed = this._ghostMaxDampSpeedOverride !== undefined ?
-        this._ghostMaxDampSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxDampSpeedMult;
+    // Push-mass eligibility limit scales with the character, mass-like (volume, scale^3).
     this._pushMassLimit = this._pushMassLimitOverride !== undefined ?
         this._pushMassLimitOverride : this._baseMass * scale * scale * scale * this._pushMassBaseMult;
     this._receiveMaxSpeed = this._baseReceiveMaxSpeed * scale;

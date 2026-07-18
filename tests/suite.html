@@ -35,6 +35,9 @@
 		.page-hdr .pdot { width: 9px; height: 9px; border-radius: 50%; background: #3fb950; flex: none; }
 		.page-hdr .pdot.untested { background: #484f58; }   /* grey until every test in the page has run */
 		.page-hdr .pdot.hasfail { background: #f85149; }
+		.page-hdr .runpage { background: none; border: 1px solid #30363d; color: #58a6ff; font-size: 10px; padding: 1px 8px; border-radius: 3px; cursor: pointer; font-family: monospace; flex: none; }
+		.page-hdr .runpage:hover { border-color: #58a6ff; }
+		.page-hdr .runpage:disabled { color: #8b949e; border-color: #21262d; cursor: default; }
 		.page-body { display: none; padding: 2px 0 6px 8px; }
 		.page.open .page-body { display: block; }
 
@@ -190,8 +193,12 @@
 				hdr.innerHTML = '<span class="caret">▶</span>'
 					+ '<span class="pdot' + pdotCls + '"></span>'
 					+ '<span class="pn">' + pg.page + '</span>'
-					+ '<span class="cnt">' + pg.tests.length + '</span>';
-				hdr.onclick = function () { pageDiv.classList.toggle('open'); };
+					+ '<span class="cnt">' + pg.tests.length + '</span>'
+					+ '<button class="runpage quick" type="button">quick</button>'
+					+ '<button class="runpage live" type="button">run</button>';
+				hdr.onclick = function (ev) { if (ev.target.className.indexOf('runpage') === -1) pageDiv.classList.toggle('open'); };
+				hdr.querySelector('.quick').onclick = function (ev) { ev.stopPropagation(); runPageQuick(pg.tests, hdr.querySelector('.quick')); };
+				hdr.querySelector('.live').onclick = function (ev) { ev.stopPropagation(); runPageLive(pg.tests, hdr.querySelector('.live')); };
 				pageDiv.appendChild(hdr);
 
 				// remember this page's tests + its dot so we can recolor it live (in real time) as
@@ -241,6 +248,35 @@
 			var anyFail = pg.tests.some(function (t) { var r = results[key(t)]; return r && !r.ok; });
 			var allRun = pg.tests.every(function (t) { return results[key(t)]; });
 			pg.dot.className = 'pdot' + (!allRun ? ' untested' : (anyFail ? ' hasfail' : ''));
+		}
+
+		// ---- run all tests in one page, headless (like Quick Test but scoped to a category) ----
+		function runPageQuick(tests, btn) {
+			var list = tests.slice(); var i = 0;
+			btn.disabled = true; var label = btn.textContent; btn.textContent = '…';
+			list.forEach(function (t) { setDot(t, 'running'); });
+			(function next() {
+				if (i >= list.length) { btn.disabled = false; btn.textContent = label; return; }
+				var t = list[i++];
+				var r = Runner.runOne(t);
+				results[key(t)] = r; setDot(t, r.ok ? 'pass' : 'fail');
+				setTimeout(next, 0);
+			})();
+		}
+
+		// ---- run all tests in one page, live/visual (like Test Now but scoped to a category) ----
+		function runPageLive(tests, btn) {
+			var list = tests.slice(); var i = 0;
+			btn.disabled = true; var label = btn.textContent; btn.textContent = '…';
+			list.forEach(function (t) { setDot(t, 'running'); });
+			(function next() {
+				if (i >= list.length) { btn.disabled = false; btn.textContent = label; return; }
+				var t = list[i++];
+				Render.run(t, { fast: true, onComplete: function (r) {
+					results[key(t)] = r; setDot(t, r.ok ? 'pass' : 'fail');
+					setTimeout(next, t.steps > 0 ? 700 : 120);
+				} });
+			})();
 		}
 
 		// ---- run one test live ----

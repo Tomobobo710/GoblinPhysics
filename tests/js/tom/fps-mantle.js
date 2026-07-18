@@ -252,7 +252,7 @@
 			// Confirm the "pushable" claim actually holds — the box should visibly move from the
 			// approach before mantle starts.
 			var boxDrift = Math.hypot(box.position.x - boxStartX, box.position.z - boxStartZ);
-			if (boxDrift > S.sc(0.02)) { boxPushed = true; }
+			if (boxDrift > S.sc(0.01)) { boxPushed = true; }
 			var withinFootprint = Math.abs(p.body.position.x - box.position.x) < side / 2 + S.sc(0.3) &&
 				Math.abs(p.body.position.z - box.position.z) < side / 2 + S.sc(0.3);
 			if (mantleStarted && p.grounded && withinFootprint &&

@@ -78,16 +78,11 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
     },
 
     // ---- Ghost: the solver body that trails the player and pushes objects (see _syncGhost) ----
-    // maxSpeed / maxDampSpeed default to sprintSpeed * this multiplier (kept as a ratio so they scale with
-    // the character's speed tuning); override with an absolute units/sec value via options if desired.
     ghost: {
-        maxSpeedSprintMult: 1.3,     // ghost chase-speed cap = sprintSpeed * this
-        maxDampSpeedSprintMult: 1.3, // damping-term cap = sprintSpeed * this
-        damping: 1.0,          // fraction of the ghost's velocity opposed each tick (0..1)
-        stiffness: 0.9,        // 0..1 blend toward the gap-closing velocity each tick
         pushMassBaseMult: 35,  // objects heavier than mass * this block like a wall; lighter yield proportionally
-        // Physics material of the ghost body itself (not the chase behavior above). Zero friction/
-        // restitution/linearDamping so the chase-drive velocity is never fought by the solver; high
+        // Physics material of the ghost body itself (not the chase drive, which targets the
+        // character's predicted end-of-tick position directly). Zero friction/restitution/
+        // linearDamping so the chase-drive velocity is never fought by the solver; high
         // angularDamping keeps contact torque from spinning it up while it shoves objects.
         material: {
             friction: 0,

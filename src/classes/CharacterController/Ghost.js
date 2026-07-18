@@ -68,16 +68,24 @@ proto._destroyGhost = function() {
 proto._syncGhost = function(dt) {
     if (!this._ghost) { return; }
     var p = this.body.position;
+    var cv = this.body.linear_velocity;
     var gp = this._ghost.position;
-    var targetY = p.y + (this._ghostGroundInset || 0) / 2;
-    var dx = p.x - gp.x, dy = targetY - gp.y, dz = p.z - gp.z;
+    // Target where the character WILL BE at the end of this tick (p + v*dt), not where it is right
+    // now — closing "the gap as of the start of the tick" is already stale by the time it's applied,
+    // since the character moves by v*dt over that same tick. Without this the ghost permanently lags
+    // by ~one tick's worth of the character's own motion, growing with speed, even at constant
+    // velocity (no acceleration needed to produce it).
+    var targetX = p.x + cv.x * dt;
+    var targetY = p.y + cv.y * dt + (this._ghostGroundInset || 0) / 2;
+    var targetZ = p.z + cv.z * dt;
+    var dx = targetX - gp.x, dy = targetY - gp.y, dz = targetZ - gp.z;
     var gap = Math.sqrt(dx * dx + dy * dy + dz * dz);
     var gv = this._ghost.linear_velocity;
 
     // A gap this large is a rebuild/respawn/teleport: beam the ghost to the character instead of chasing.
     var teleportDist = Math.max(this.width, this.height) * 2;
     if (gap > teleportDist) {
-        this._ghost.position.set(p.x, targetY, p.z);
+        this._ghost.position.set(p.x, p.y + (this._ghostGroundInset || 0) / 2, p.z);
         gv.set(0, 0, 0);
         this._ghostCommandedVel = { x: 0, y: 0, z: 0 };
         return;
@@ -90,16 +98,10 @@ proto._syncGhost = function(dt) {
     // run-to-run (it is — the read is a pure function of the current contact state).
     this._readGhostKnockback();
 
-    // Blend the ghost's velocity toward the velocity that closes the gap this tick (want = gap/dt).
-    //   want = gap/dt; gv = gv*(1-k) + want*k.
-    var k = this._ghostStiffness;
-    var wx = dx / dt, wy = dy / dt, wz = dz / dt;
-    var wLen = Math.sqrt(wx * wx + wy * wy + wz * wz);
-    var maxSpeed = this._ghostMaxSpeed;
-    if (wLen > maxSpeed) { var s = maxSpeed / wLen; wx *= s; wy *= s; wz *= s; }
-    gv.x = gv.x * (1 - k) + wx * k;
-    gv.y = gv.y * (1 - k) + wy * k;
-    gv.z = gv.z * (1 - k) + wz * k;
+    // Drive the ghost directly at the velocity that closes the (predicted) gap this tick. No cap:
+    // any cap below the gap-closing speed just reintroduces a residual gap on fast motion — the
+    // predicted-target math above already keeps this bounded and small under normal conditions.
+    gv.x = dx / dt; gv.y = dy / dt; gv.z = dz / dt;
 
     // Clip the ghost's horizontal velocity through the same swept collide-and-slide the character uses.
     var clip = this._sweptCollideAndSlide({
