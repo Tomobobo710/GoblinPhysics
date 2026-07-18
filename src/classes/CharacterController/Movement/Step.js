@@ -68,8 +68,6 @@ proto.beginStep = function(command, dt) {
     this._wantCrouch = wantCrouch;
     this._hasMoveInput = hasInput;
 
-    // _updateMantle runs the ledge-grab arc — checked before the ladder so a ledge grab at the
-    // top of a ladder-tagged surface doesn't accidentally mount the ladder mid-arc.
     var onMantleThisTick = this._updateMantle(cmd, moveYaw, dt);
 
     // _updateLadder mounts/dismounts and, while mounted, owns velocity fully — checked first since

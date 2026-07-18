@@ -133,8 +133,11 @@
 		t.expect('lands into slide with speed > ' + S.sc(9).toFixed(2), function () {
 			return { ok: slid && sp > S.sc(9), detail: 'slid=' + slid + ' sp=' + sp.toFixed(2) + ' expect>' + S.sc(9).toFixed(2) };
 		});
-		t.simulate(w, 100);
-	}, { page: P, steps: 100, description: 'Sprint, jump, then crouch mid-air to land into a slide carrying speed (>9*scale u/s).' });
+		// Airborne crouch pulls the collider's feet up (top-anchored rebuild — see _setCrouch),
+		// adding real height/hang-time to the jump arc. 100 ticks was tuned for the arc before that
+		// change; the taller arc needs more room to fall back down and land.
+		t.simulate(w, 300);
+	}, { page: P, steps: 300, description: 'Sprint, jump, then crouch mid-air to land into a slide carrying speed (>9*scale u/s). Airborne crouch adds real jump height, so this needs a longer window than a plain jump would.' });
 
 	// ---- M6: strafe-turn no jitter ----
 	PBF.scaleTest(G, 'M6', 'strafe-turn no jitter', function (t, S) {
@@ -529,6 +532,65 @@
 		});
 		t.simulate(w, 40);
 	}, { page: P, steps: 40, description: 'Sprint then crouch into a slide with slideBoost configured; the entry tick\'s speed should be boosted roughly by that multiplier over the pre-entry speed, applied once.' });
+
+	// ---- M16/M17: airborne crouch-jump clearance (top-anchored crouch) ----
+	// Ledge height (1.6×SC) matches the 4th stair step in the fps game's buildArena() (stepRise=0.4,
+	// 4th step = 0.4*4 = 1.6) — a real in-game height chosen specifically because it's tall enough
+	// that neither step-up (stepHeight 0.4×SC) nor a standing-tap mantle (chest-height gate
+	// ~1.386×SC) clears it for free; a genuine jump (or crouch-jump) is required. See _setCrouch's
+	// airborne branch: crouching mid-air keeps the collider's TOP fixed and pulls the FEET up,
+	// giving real extra clearance over a plain jump — this pair proves that difference behaviorally,
+	// not just via internal state: same jump, same approach, only the crouch differs.
+	function ledgeClearanceScene(w, S) {
+		var topY = S.sc(1.6), hy = topY / 2, hx = S.sc(2), hz = S.sc(2);
+		var ledge = PBF.staticBox(hx, hy, hz, { x: 0, y: hy, z: hz }, '#7a6a52');
+		w.addRigidBody(ledge);
+		var spawnZ = -(hz + S.sc(1));
+		var p = S.feetSpawn(w, 0, spawnZ, {});
+		return { p: p, topY: topY, hx: hx, hz: hz };
+	}
+
+	PBF.scaleTest(G, 'M16', 'crouch-jump clears a ledge a plain jump cannot', function (t, S) {
+		var w = S.flat();
+		var scene = ledgeClearanceScene(w, S);
+		var p = scene.p;
+		PBF.renderables(t, p);
+		var landedOnTop = false;
+		PBF.drive(t, p, function (tick) {
+			var onLedgeFootprint = Math.abs(p.body.position.x) < scene.hx &&
+				p.body.position.z > 0 && p.body.position.z < 2 * scene.hz;
+			if (p.grounded && onLedgeFootprint && p.body.position.y > scene.topY) { landedOnTop = true; }
+			return {
+				forward: tick < 40 ? 1 : 0,
+				jumpPressed: tick === 8,
+				crouch: tick >= 9 && tick <= 50
+			};
+		});
+		t.log('Jump and crouch mid-air (top-anchored collider shrink) toward a ledge (1.6×SC — the same height as the 4th stair step in-game) too tall for a plain jump to clear; the crouch-jump should land on top.');
+		t.expect('landed on top of the ledge', function () {
+			return { ok: landedOnTop, detail: 'landedOnTop=' + landedOnTop + ' pos=(' + p.body.position.x.toFixed(2) + ',' + p.body.position.y.toFixed(2) + ',' + p.body.position.z.toFixed(2) + ')' };
+		});
+		t.simulate(w, 90);
+	}, { page: P, steps: 90, description: 'Jumping and crouching mid-air toward a 1.6×SC ledge (same height as the 4th in-game stair step) clears it and lands on top.' });
+
+	PBF.scaleTest(G, 'M17', 'plain jump (no crouch) does not clear the same ledge', function (t, S) {
+		var w = S.flat();
+		var scene = ledgeClearanceScene(w, S);
+		var p = scene.p;
+		PBF.renderables(t, p);
+		var landedOnTop = false;
+		PBF.drive(t, p, function (tick) {
+			var onLedgeFootprint = Math.abs(p.body.position.x) < scene.hx &&
+				p.body.position.z > 0 && p.body.position.z < 2 * scene.hz;
+			if (p.grounded && onLedgeFootprint && p.body.position.y > scene.topY) { landedOnTop = true; }
+			return { forward: tick < 40 ? 1 : 0, jumpPressed: tick === 8 }; // same jump, no crouch
+		});
+		t.log('Control for M16: identical jump and approach at the SAME ledge, but no crouch — should bounce off the face and land back on the floor, not on top.');
+		t.expect('did NOT land on top (control case)', function () {
+			return { ok: !landedOnTop, detail: 'landedOnTop=' + landedOnTop + ' pos=(' + p.body.position.x.toFixed(2) + ',' + p.body.position.y.toFixed(2) + ',' + p.body.position.z.toFixed(2) + ')' };
+		});
+		t.simulate(w, 90);
+	}, { page: P, steps: 90, description: 'Control for M16: the same jump at the same ledge WITHOUT crouching does not clear it — proves M16\'s clearance comes from the crouch, not the ledge being trivially jumpable.' });
 })(
 	typeof module !== 'undefined' && module.exports ? require('../runner.js') : window.GoblinRunner,
 	typeof module !== 'undefined' && module.exports ? require('./_util_fps.js') : window.PBF,

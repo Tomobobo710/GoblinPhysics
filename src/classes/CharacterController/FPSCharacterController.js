@@ -373,15 +373,18 @@ proto.setScale = function(scale) {
     if (!this._resimulating) { this._viewDisplacementY += this.body.position.y + this.eyeHeight - eyeBefore; } // eye jump from the resize
 };
 
-// Instantly enter/leave crouch by rebuilding the collider at the new height, feet planted.
+// Instantly enter/leave crouch by rebuilding the collider at the new height. Grounded: feet
+// planted, top comes down. Airborne: top planted, feet rise up (crouch-jump clearance aid).
 proto._setCrouch = function(want) {
     if (want === this.crouching) { return; }
     var p = this.body.position;
     var eyeBefore = p.y + this.eyeHeight;
     var feetY = p.y - this.height / 2;
+    var headY = p.y + this.height / 2;
     this.crouching = want;
     this._applyScale(this.scale); // recompute height/eye for the new crouch state
-    this._buildBody(new Goblin.Vector3(p.x, feetY + this.height / 2, p.z));
+    var newCenterY = this.grounded ? (feetY + this.height / 2) : (headY - this.height / 2);
+    this._buildBody(new Goblin.Vector3(p.x, newCenterY, p.z));
     if (!this._resimulating) { this._viewDisplacementY += this.body.position.y + this.eyeHeight - eyeBefore; } // eye jump from the crouch swap
 };
 
