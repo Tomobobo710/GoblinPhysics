@@ -7465,8 +7465,6 @@ Goblin.Utility = {
  * @param {Boolean} [options.receivePush=true] - Enable object-to-character knockback via the ghost body.
  * @param {Number} [options.receiveMaxSpeed] - Cap on how fast a single object hit can knock the character.
  * @param {Number} [options.receiveKnockbackFraction] - Fraction of the ghost's contact velocity transferred.
- * @param {Number} [options.ghostMaxSpeed] - Cap on the ghost's follow/shove speed (units/sec).
- * @param {Number} [options.ghostDamping] - Fraction of the ghost's current velocity damped each tick (0..1).
  * @param {Number} [options.maxSlopeAngle] - Max standable slope in degrees (90+ disables the limit).
  * @param {Boolean} [options.visible=false] - Whether a consumer should treat the collider as drawable
  *   (this controller does no rendering itself — see `object.isVisible`).
@@ -7526,24 +7524,9 @@ Goblin.FPSCharacterController = function(world, options) {
     this._baseReceiveMaxSpeed = o.receiveMaxSpeed !== undefined ? o.receiveMaxSpeed : kb.maxSpeed;
     this._receiveKnockbackFraction = o.receiveKnockbackFraction !== undefined ? o.receiveKnockbackFraction : kb.knockbackFraction;
     this._receiveSelfPush = o.receiveSelfPush !== undefined ? o.receiveSelfPush === true : kb.selfPush;
-    // Ghost follow-drive (see _syncGhost). maxSpeed / maxDampSpeed default to a multiple of sprint
-    // speed, and — like sprintSpeed itself — must scale with character size: a 2x character's
-    // sprint (and the momentum it can impart to an object) is 2x faster, but a ghost capped at the
-    // UNSCALED base speed can't keep pace at that scale, falls behind, and stops being physically
-    // present to block a fast-moving object from passing straight through the (solver-invisible)
-    // character. Explicit overrides are taken as literal (caller asked for that exact number, not a
-    // scale-derived one); the multiplier-derived defaults are re-derived in _applyScale so they
-    // track scale both at construction and on any later setScale().
-    this._ghostMaxSpeedOverride = o.ghostMaxSpeed;
-    this._ghostMaxDampSpeedOverride = o.ghostMaxDampSpeed;
-    this._ghostMaxSpeedMult = gh.maxSpeedSprintMult;
-    this._ghostMaxDampSpeedMult = gh.maxDampSpeedSprintMult;
-    // Ghost body's physics material (not the chase-behavior tuning above) — read once here so
-    // _buildGhost (called on every rebuild: crouch, setScale, respawn) doesn't need its own access
-    // to Goblin.FPS_CONTROLLER_DEFAULTS.
+    // Ghost body's physics material — read once here so _buildGhost (called on every rebuild:
+    // crouch, setScale, respawn) doesn't need its own access to Goblin.FPS_CONTROLLER_DEFAULTS.
     this._ghostMaterial = o.ghostMaterial || gh.material;
-    this._ghostDamping = o.ghostDamping !== undefined ? o.ghostDamping : gh.damping;
-    this._ghostStiffness = o.ghostStiffness !== undefined ? o.ghostStiffness : gh.stiffness;
     this._driveGhostDuringResim = o.driveGhostDuringResim !== undefined ? o.driveGhostDuringResim !== false : net.driveGhostDuringResim;
     this._hardsnapGhostOnReconcile = o.hardsnapGhostOnReconcile !== undefined ? o.hardsnapGhostOnReconcile !== false : net.hardsnapGhostOnReconcile;
     this._pushMassLimitOverride = o.pushMassLimit;
@@ -7733,13 +7716,7 @@ proto._applyScale = function(scale) {
     // and the sub-tick smoother snaps every tick instead of easing — the high-scale render jitter.
     var rs = (this._baseRenderSnapDist || 0.8) * scale;
     this._renderSnapDist2 = rs * rs;
-    // Ghost chase speed and the push-mass eligibility limit must scale with the character, same as
-    // sprintSpeed/mass do just above — see the comment where these overrides are read in the
-    // constructor. Speed-like (linear); mass-like (volume, scale^3) — matching sprintSpeed/mass.
-    this._ghostMaxSpeed = this._ghostMaxSpeedOverride !== undefined ?
-        this._ghostMaxSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxSpeedMult;
-    this._ghostMaxDampSpeed = this._ghostMaxDampSpeedOverride !== undefined ?
-        this._ghostMaxDampSpeedOverride : this._baseSprintSpeed * scale * this._ghostMaxDampSpeedMult;
+    // Push-mass eligibility limit scales with the character, mass-like (volume, scale^3).
     this._pushMassLimit = this._pushMassLimitOverride !== undefined ?
         this._pushMassLimitOverride : this._baseMass * scale * scale * scale * this._pushMassBaseMult;
     this._receiveMaxSpeed = this._baseReceiveMaxSpeed * scale;
@@ -8081,16 +8058,24 @@ proto._destroyGhost = function() {
 proto._syncGhost = function(dt) {
     if (!this._ghost) { return; }
     var p = this.body.position;
+    var cv = this.body.linear_velocity;
     var gp = this._ghost.position;
-    var targetY = p.y + (this._ghostGroundInset || 0) / 2;
-    var dx = p.x - gp.x, dy = targetY - gp.y, dz = p.z - gp.z;
+    // Target where the character WILL BE at the end of this tick (p + v*dt), not where it is right
+    // now — closing "the gap as of the start of the tick" is already stale by the time it's applied,
+    // since the character moves by v*dt over that same tick. Without this the ghost permanently lags
+    // by ~one tick's worth of the character's own motion, growing with speed, even at constant
+    // velocity (no acceleration needed to produce it).
+    var targetX = p.x + cv.x * dt;
+    var targetY = p.y + cv.y * dt + (this._ghostGroundInset || 0) / 2;
+    var targetZ = p.z + cv.z * dt;
+    var dx = targetX - gp.x, dy = targetY - gp.y, dz = targetZ - gp.z;
     var gap = Math.sqrt(dx * dx + dy * dy + dz * dz);
     var gv = this._ghost.linear_velocity;
 
     // A gap this large is a rebuild/respawn/teleport: beam the ghost to the character instead of chasing.
     var teleportDist = Math.max(this.width, this.height) * 2;
     if (gap > teleportDist) {
-        this._ghost.position.set(p.x, targetY, p.z);
+        this._ghost.position.set(p.x, p.y + (this._ghostGroundInset || 0) / 2, p.z);
         gv.set(0, 0, 0);
         this._ghostCommandedVel = { x: 0, y: 0, z: 0 };
         return;
@@ -8103,16 +8088,10 @@ proto._syncGhost = function(dt) {
     // run-to-run (it is — the read is a pure function of the current contact state).
     this._readGhostKnockback();
 
-    // Blend the ghost's velocity toward the velocity that closes the gap this tick (want = gap/dt).
-    //   want = gap/dt; gv = gv*(1-k) + want*k.
-    var k = this._ghostStiffness;
-    var wx = dx / dt, wy = dy / dt, wz = dz / dt;
-    var wLen = Math.sqrt(wx * wx + wy * wy + wz * wz);
-    var maxSpeed = this._ghostMaxSpeed;
-    if (wLen > maxSpeed) { var s = maxSpeed / wLen; wx *= s; wy *= s; wz *= s; }
-    gv.x = gv.x * (1 - k) + wx * k;
-    gv.y = gv.y * (1 - k) + wy * k;
-    gv.z = gv.z * (1 - k) + wz * k;
+    // Drive the ghost directly at the velocity that closes the (predicted) gap this tick. No cap:
+    // any cap below the gap-closing speed just reintroduces a residual gap on fast motion — the
+    // predicted-target math above already keeps this bounded and small under normal conditions.
+    gv.x = dx / dt; gv.y = dy / dt; gv.z = dz / dt;
 
     // Clip the ghost's horizontal velocity through the same swept collide-and-slide the character uses.
     var clip = this._sweptCollideAndSlide({
@@ -10340,16 +10319,11 @@ Goblin.FPS_CONTROLLER_DEFAULTS = {
     },
 
     // ---- Ghost: the solver body that trails the player and pushes objects (see _syncGhost) ----
-    // maxSpeed / maxDampSpeed default to sprintSpeed * this multiplier (kept as a ratio so they scale with
-    // the character's speed tuning); override with an absolute units/sec value via options if desired.
     ghost: {
-        maxSpeedSprintMult: 1.3,     // ghost chase-speed cap = sprintSpeed * this
-        maxDampSpeedSprintMult: 1.3, // damping-term cap = sprintSpeed * this
-        damping: 1.0,          // fraction of the ghost's velocity opposed each tick (0..1)
-        stiffness: 0.9,        // 0..1 blend toward the gap-closing velocity each tick
         pushMassBaseMult: 35,  // objects heavier than mass * this block like a wall; lighter yield proportionally
-        // Physics material of the ghost body itself (not the chase behavior above). Zero friction/
-        // restitution/linearDamping so the chase-drive velocity is never fought by the solver; high
+        // Physics material of the ghost body itself (not the chase drive, which targets the
+        // character's predicted end-of-tick position directly). Zero friction/restitution/
+        // linearDamping so the chase-drive velocity is never fought by the solver; high
         // angularDamping keeps contact torque from spinning it up while it shoves objects.
         material: {
             friction: 0,
