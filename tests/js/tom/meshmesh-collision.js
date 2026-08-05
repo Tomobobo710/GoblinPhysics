@@ -43,6 +43,51 @@
 		return new Goblin.MeshShape(v, faces);
 	}
 
+	// A closed uv-sphere made of triangles, wound so normals point OUT. This is a "round" mesh with no
+	// coplanar faces — the cleanest possible mesh-mesh comparison against the box (which has 6 large
+	// coplanar faces). nth segments around, nphi rings. Single pole vertices, wrapped seam => a true
+	// closed 2-manifold (every edge shared by exactly 2 triangles).
+	function sphereData(r, nth, nphi) {
+		var verts = [], ids = [];
+		verts.push(new Goblin.Vector3(0, r, 0));
+		ids.push([0]);
+		for (var p = 1; p <= nphi - 1; p++) {
+			var phi = Math.PI * p / nphi, y = r * Math.cos(phi), rr = r * Math.sin(phi), row = [];
+			for (var t = 0; t < nth; t++) {
+				var th = 2 * Math.PI * t / nth;
+				row.push(verts.push(new Goblin.Vector3(rr * Math.cos(th), y, rr * Math.sin(th))) - 1);
+			}
+			ids.push(row);
+		}
+		verts.push(new Goblin.Vector3(0, -r, 0));
+		ids.push([verts.length - 1]);
+		var f = [];
+		function tri(a, b, c) { f.push(a, b, c); }
+		function T(x) { return x % nth; }
+		for (var t = 0; t < nth; t++) tri(ids[1][T(t + 1)], ids[1][T(t)], ids[0][0]);                 // top cap
+		for (var p = 1; p <= nphi - 2; p++)
+			for (var t = 0; t < nth; t++) {   // rings
+				var a = ids[p][t], b = ids[p + 1][t], c = ids[p + 1][T(t + 1)], d = ids[p][T(t + 1)];
+				tri(a, c, b); tri(a, d, c);
+			}
+		for (var t = 0; t < nth; t++) tri(ids[nphi][0], ids[nphi - 1][T(t)], ids[nphi - 1][T(t + 1)]);  // bottom cap
+		return { v: verts, f: f };
+	}
+
+	// Outward-wound sphere mesh.
+	function sphereMesh(r, nth, nphi) {
+		var d = sphereData(r, nth, nphi);
+		return new Goblin.MeshShape(d.v, d.f);
+	}
+
+	// Inward-wound twin (reversed winding on every triangle) => normals point in. Control for the
+	// outward sphere, mirroring how invertedBoxMesh relates to boxMesh.
+	function invertedSphereMesh(r, nth, nphi) {
+		var d = sphereData(r, nth, nphi), f = [];
+		for (var i = 0; i < d.f.length; i += 3) f.push(d.f[i], d.f[i + 2], d.f[i + 1]);
+		return new Goblin.MeshShape(d.v, f);
+	}
+
 	Runner.test('mesh collision', 'inverted box smashed into inverted box', function (t) {
 		var w = t.makeWorld({ gravity: -9.8 });
 		var half = 1;
@@ -88,18 +133,20 @@
 
 		t.log('Smash an inverted box into a resting inverted box on a floor. It must collide and stop cleanly, still upright, without spinning out or tunneling through.');
 
-		t.expect('thrown box must collide and stop, still upright, beside the resting box (final minGap >= -0.05, final w >= 0.95)', function (world) {
+		t.expect('thrown box must collide, stop upright, and end BESIDE (not inside) the resting box (final minGap >= -0.05, final w >= 0.95, end non-overlap)', function (world) {
 			if (ticks < 200) return false;   // still running: keep pending
+			var finalGap = (rest.position.x - half) - (thrown.position.x + half);   // end state: 0 = touching, negative = still embedded
 			return {
-				ok: touched && minGap >= -0.05 && minUprightW >= 0.95 && maxRise <= 0.2,
+				ok: touched && minGap >= -0.05 && minUprightW >= 0.95 && maxRise <= 0.2 && finalGap >= -0.05,
 				detail: 'minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched +
 					' minUprightW=' + minUprightW.toFixed(3) + ' maxRise=' + maxRise.toFixed(3) +
+					' finalGap=' + finalGap.toFixed(3) +
 					' thrown.x=' + thrown.position.x.toFixed(3) + ' thrown.y=' + thrown.position.y.toFixed(3)
 			};
 		});
 
 		t.simulate(w, 200);
-	}, { page: 'mesh', steps: 200, description: 'An inverted (reversed-winding) box mesh thrown into a resting identical box. It must collide as a solid and stop cleanly, still upright — spinning out / tunneling is a failure.' });
+	}, { page: 'mesh', steps: 200, description: 'An inverted (reversed-winding) box mesh thrown into a resting identical box. It must collide as a solid and stop cleanly, still upright, ending beside the resting box and NOT overlapping it — spinning out / tunneling / getting stuck inside is a failure.' });
 
 	Runner.test('mesh collision', 'inverted box stacked on inverted box', function (t) {
 		var w = t.makeWorld({ gravity: -9.8 });
@@ -229,12 +276,14 @@
 
 		t.log('Control: smash a NORMAL box into a NORMAL box. Expected to stop cleanly and upright. Compare against the inverted slam — if this stays upright but the inverted one spins out, the failure is winding-dependent.');
 
-		t.expect('normal box must collide and stop, still upright, beside the resting box (final minGap >= -0.05, final w >= 0.95)', function (world) {
+		t.expect('normal box must collide, stop upright, and end BESIDE (not inside) the resting box (final minGap >= -0.05, final w >= 0.95, end non-overlap)', function (world) {
 			if (ticks < 200) return false;
+			var finalGap = (rest.position.x - half) - (thrown.position.x + half);   // end state: 0 = touching, negative = still embedded
 			return {
-				ok: touched && minGap >= -0.05 && minUprightW >= 0.95 && maxRise <= 0.2,
+				ok: touched && minGap >= -0.05 && minUprightW >= 0.95 && maxRise <= 0.2 && finalGap >= -0.05,
 				detail: 'minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched +
 					' minUprightW=' + minUprightW.toFixed(3) + ' maxRise=' + maxRise.toFixed(3) +
+					' finalGap=' + finalGap.toFixed(3) +
 					' thrown.x=' + thrown.position.x.toFixed(3) + ' thrown.y=' + thrown.position.y.toFixed(3)
 			};
 		});
@@ -278,12 +327,14 @@
 
 		t.log(label);
 
-		t.expect('thrown box must collide and stop, still upright, beside the resting box (final minGap >= -0.05, final w >= 0.95)', function (world) {
+		t.expect('thrown box must collide, stop upright, and end BESIDE (not inside) the resting box (final minGap >= -0.05, final w >= 0.95, end non-overlap)', function (world) {
 			if (ticks < 200) return false;
+			var finalGap = (rest.position.x - half) - (thrown.position.x + half);   // end state: 0 = touching, negative = still embedded
 			return {
-				ok: touched && minGap >= -0.05 && minUprightW >= 0.95 && maxRise <= 0.2,
+				ok: touched && minGap >= -0.05 && minUprightW >= 0.95 && maxRise <= 0.2 && finalGap >= -0.05,
 				detail: 'minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched +
 					' minUprightW=' + minUprightW.toFixed(3) + ' maxRise=' + maxRise.toFixed(3) +
+					' finalGap=' + finalGap.toFixed(3) +
 					' thrown.x=' + thrown.position.x.toFixed(3) + ' thrown.y=' + thrown.position.y.toFixed(3)
 			};
 		});
@@ -448,6 +499,109 @@
 		t.simulate(w, 200);
 	}, { page: 'mesh', steps: 200, description: 'A cylinder laid on its side so the curved surface contacts an inverted mesh box. Records rest height and whether it was launched, via the meshConvex path.' });
 
+	Runner.test('mesh collision', 'mesh sphere dropped onto inverted mesh box', function (t) {
+		// A MESH sphere vs a MESH box — meshes on BOTH sides, so it routes through the (suspect)
+		// mesh-vs-mesh TriangleTriangle path, unlike the convex SphereShape test below. If an outward
+		// sphere stacks on a mesh box while the box-vs-box cases fail, the bug is face-related (boxes).
+		var w = t.makeWorld({ gravity: -9.8 });
+		var half = 1, r = 0.5;
+		var floor = new Goblin.RigidBody(new Goblin.BoxShape(20, 0.5, 20), Infinity);
+		floor.position.set(0, -0.5, 0); floor.updateDerived(); w.addRigidBody(floor);
+
+		var rest = new Goblin.RigidBody(invertedBoxMesh(half, half, half), Infinity);   // top face at y=2
+		rest.position.set(0, 1, 0); rest.updateDerived(); w.addRigidBody(rest);
+
+		var ms = new Goblin.RigidBody(sphereMesh(r, 16, 10), 1);   // outward mesh sphere
+		ms.position.set(0, 5, 0); ms.updateDerived(); w.addRigidBody(ms);
+
+		var ticks = 0, maxRise = 0;
+		t.onTick(function (world, tick) {
+			ticks = tick;
+			var rise = ms.position.y - 5;   // relative to spawn; should only fall
+			if (rise > maxRise) maxRise = rise;
+		});
+
+		t.log('Drop a MESH sphere (outward, 288 tris) onto an inverted mesh box. Both bodies are meshes => the mesh-mesh TriangleTriangle path. It should land and rest at y = 2 + r = 2.5.');
+
+		t.expect('mesh sphere must land and rest on the inverted mesh box (final y ~ 2.5, no launch above spawn)', function (world) {
+			if (ticks < 200) return false;
+			return {
+				ok: Math.abs(ms.position.y - 2.5) < 0.4 && maxRise <= 0.2,
+				detail: 'ms.y=' + ms.position.y.toFixed(3) + ' (rest ~ 2.5) maxRise=' + maxRise.toFixed(3)
+			};
+		});
+		t.simulate(w, 200);
+	}, { page: 'mesh', steps: 200, description: 'A mesh-authored sphere dropped onto an inverted mesh box (meshes on both sides, mesh-mesh path). Records whether a round outward mesh stacks where box meshes fail.' });
+
+	Runner.test('mesh collision', 'outward mesh sphere stacked on outward mesh sphere', function (t) {
+		// Two round outward meshes vs each other — the least box-like mesh-mesh case there is.
+		// Outward sphere on outward sphere. If the round shape stacks cleanly (unlike boxes), mesh-mesh
+		// is innately fine and the box bug is about its flat coplanar faces / winding.
+		var w = t.makeWorld({ gravity: -9.8 });
+		var r = 0.5;
+		var floor = new Goblin.RigidBody(new Goblin.BoxShape(20, 0.5, 20), Infinity);
+		floor.position.set(0, -0.5, 0); floor.updateDerived(); w.addRigidBody(floor);
+
+		var bottom = new Goblin.RigidBody(sphereMesh(r, 16, 10), Infinity);   // rests center y = r = 0.5
+		bottom.position.set(0, r, 0); bottom.updateDerived(); w.addRigidBody(bottom);
+
+		var top = new Goblin.RigidBody(sphereMesh(r, 16, 10), 1);             // should rest center y = 3r = 1.5
+		top.position.set(0, 3.5, 0); top.updateDerived(); w.addRigidBody(top);
+
+		var ticks = 0, maxRise = 0;
+		t.onTick(function (world, tick) {
+			ticks = tick;
+			var rise = top.position.y - 3.5;   // relative to spawn; should only fall
+			if (rise > maxRise) maxRise = rise;
+		});
+
+		t.log('Drop an outward mesh sphere onto a resting outward mesh sphere. Round-mesh round-mesh. It should settle at top center y = 3r = 1.5.');
+
+		t.expect('top mesh sphere must rest on the bottom one at y ~ 1.5, not sink through (minGap >= -0.5, no launch above spawn)', function (world) {
+			if (ticks < 200) return false;
+			var gap = (top.position.y - r) - (bottom.position.y + r);   // contact gap between the two sphere surfaces
+			return {
+				ok: Math.abs(top.position.y - 1.5) < 0.4 && gap >= -0.5 && maxRise <= 0.2,
+				detail: 'top.y=' + top.position.y.toFixed(3) + ' (rest ~ 1.5) gap=' + gap.toFixed(3) + ' maxRise=' + maxRise.toFixed(3)
+			};
+		});
+		t.simulate(w, 200);
+	}, { page: 'mesh', steps: 200, description: 'Two outward round sphere meshes. If they stack cleanly while boxes fail, the box bug is flat-face/winding specific; if they also sink, mesh-mesh is broadly broken.' });
+
+	Runner.test('mesh collision', 'inverted mesh sphere stacked on inverted mesh sphere', function (t) {
+		// Mirror of the box inverted-stack failure: two INWARD-wound sphere meshes. Rounds out whether
+		// the inverted mesh-mesh failure is a box-face phenomenon or applies to any inverted mesh.
+		var w = t.makeWorld({ gravity: -9.8 });
+		var r = 0.5;
+		var floor = new Goblin.RigidBody(new Goblin.BoxShape(20, 0.5, 20), Infinity);
+		floor.position.set(0, -0.5, 0); floor.updateDerived(); w.addRigidBody(floor);
+
+		var bottom = new Goblin.RigidBody(invertedSphereMesh(r, 16, 10), Infinity);
+		bottom.position.set(0, r, 0); bottom.updateDerived(); w.addRigidBody(bottom);
+
+		var top = new Goblin.RigidBody(invertedSphereMesh(r, 16, 10), 1);
+		top.position.set(0, 3.5, 0); top.updateDerived(); w.addRigidBody(top);
+
+		var ticks = 0, maxRise = 0;
+		t.onTick(function (world, tick) {
+			ticks = tick;
+			var rise = top.position.y - 3.5;
+			if (rise > maxRise) maxRise = rise;
+		});
+
+		t.log('Drop an INVERTED (inward-wound) mesh sphere onto a resting INVERTED mesh sphere. Control for the outward pair.');
+
+		t.expect('top inverted mesh sphere should rest at y ~ 1.5 (records whether inverted winding breaks round meshes the way it breaks boxes)', function (world) {
+			if (ticks < 200) return false;
+			var gap = (top.position.y - r) - (bottom.position.y + r);
+			return {
+				ok: Math.abs(top.position.y - 1.5) < 0.4 && gap >= -0.5 && maxRise <= 0.2,
+				detail: 'top.y=' + top.position.y.toFixed(3) + ' (rest ~ 1.5) gap=' + gap.toFixed(3) + ' maxRise=' + maxRise.toFixed(3)
+			};
+		});
+		t.simulate(w, 200);
+	}, { page: 'mesh', steps: 200, description: 'Two INWARD-wound sphere meshes. Isolates whether the inverted mesh-mesh failure is specific to box faces or affects any inverted mesh (round included).' });
+
 	Runner.test('mesh collision', 'PROBE: contact normals during inverted smash', function (t) {
 		// Same scene as the inverted smash, but instead of asserting outcomes we read the WORLD's live
 		// contact manifolds each tick and log the normals the mesh-mesh path actually produced. This is
@@ -483,14 +637,44 @@
 
 		// Per-first-contact-tick snapshot of normal diversity.
 		var firstSplit = null, totalTicks = 0, wholeRun = { count: 0, tags: {} };
-		var allManifolds = { count: 0, points: 0 }, minThrownX = Infinity, minGap = Infinity;
+		var allManifolds = { count: 0, points: 0 }, minGap = Infinity;
+		// Motion telemetry: the thrown box now SEPARATES, but the user reports it does so via violent
+		// jitter / teleports rather than a clean stop. Track the worst single-tick position jump (which
+		// catches a deep-penetration correction snapping the box elsewhere), max speed reached, and how
+		// often its horizontal velocity flips sign (back-and-forth oscillation). Position is read in the
+		// pre-step hook, so delta = (this hook) - (last hook) covers one full step (integration + any
+		// contact correction).
+		var prevX = null, maxJump = 0, maxJumpTick = 0, maxSpeed = 0, maxSpeedTick = 0,
+			velocityFlips = 0, lastVxSign = 0;
+		var maxPairDepth = 0, maxPairDepthTick = 0, depthDiag = null;   // deepest box-pair penetration seen (driver of the position snap)
+		var impactWindow = [];   // (tick, x, vx, gap) samples so we can SEE the motion around contact
 		t.onTick(function (world, tick) {
 			totalTicks = tick;
+			var vx = thrown.linear_velocity.x;
+			var speed = Math.abs(vx);
+			if (speed > maxSpeed) { maxSpeed = speed; maxSpeedTick = tick; }
+
+			if (lastVxSign !== 0 && ((vx > 0 && lastVxSign < 0) || (vx < 0 && lastVxSign > 0))) {
+				velocityFlips++;
+			}
+			if (vx !== 0) lastVxSign = (vx > 0 ? 1 : -1);
+
+			var x = thrown.position.x;
+			var gap = (rest.position.x - half) - (thrown.position.x + half);
+			if (gap < minGap) minGap = gap;
+			if (prevX !== null) {
+				var jump = Math.abs(x - prevX);
+				if (jump > maxJump) { maxJump = jump; maxJumpTick = tick; }
+			}
+			prevX = x;
+
+			// Sample the trajectory densely while the boxes are near each other (|gap| < 3), sparse elsewhere.
+			if (Math.abs(gap) < 3 || jumpWindow()) impactWindow.push([tick, +x.toFixed(2), +vx.toFixed(1), +gap.toFixed(2)]);
+
 			var n = 0, tags = {};
 			var anyManifolds = 0, anyPoints = 0;
 			for (var m = world.narrowphase.contact_manifolds.first; m != null; m = m.next_manifold) {
 				anyManifolds++;
-				// Only the box-pair manifold (rest vs thrown); count world-wide points too.
 				for (var i = 0; i < m.points.length; i++) {
 					var p = m.points[i];
 					anyPoints += (p ? 1 : 0);
@@ -498,6 +682,14 @@
 					if (!isPair || !p) continue;
 					n++;
 					tags[axis(p.contact_normal)] = 1;
+					if (p.penetration_depth > maxPairDepth) {
+						maxPairDepth = p.penetration_depth; maxPairDepthTick = tick;
+						depthDiag = [];
+						for (var d = 0; d < m.points.length; d++) {
+							var q = m.points[d];
+							if (q) depthDiag.push(q.contact_point.x.toFixed(2) + ',' + q.contact_point.y.toFixed(2) + 'd' + q.penetration_depth.toFixed(2) + axis(q.contact_normal));
+						}
+					}
 				}
 			}
 			var distinct = Object.keys(tags).length;
@@ -505,13 +697,11 @@
 			for (var k in tags) wholeRun.tags[k] = (wholeRun.tags[k] || 0) + 1;
 			allManifolds.count += anyManifolds;
 			allManifolds.points += anyPoints;
-			var gap = (rest.position.x - half) - (thrown.position.x + half);
-			minGap = Math.min(minGap, gap);
-			minThrownX = Math.min(minThrownX, thrown.position.x);
 			if (n > 0 && distinct >= 2 && firstSplit === null) {
 				firstSplit = { tick: tick, count: n, tags: tags };
 			}
 		});
+		function jumpWindow() { return impactWindow.length < 80; }
 
 		t.log('Smash two inverted boxes together. The mesh-mesh path emits one unilateral contact per triangle pair. If multiple DIFFERENT normals (esp. opposing ones) coexist in a single tick, the box gets contradictory impulses -> spins/wiggles.');
 
@@ -522,8 +712,15 @@
 				detail: 'pairPoints=' + wholeRun.count +
 					' distinctNormalsSeen=' + Object.keys(wholeRun.tags).join(',') +
 					' worldManifolds=' + allManifolds.count + ' worldPoints=' + allManifolds.points +
-					' minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' minThrownX=' + minThrownX.toFixed(3) +
-					(firstSplit ? ' SPLIT@' + firstSplit.tick + ' count=' + firstSplit.count + ' dirs=' + Object.keys(firstSplit.tags).join(',') : ' noSplit')
+					' minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) +
+					' finalGap=' + ((rest.position.x - half) - (thrown.position.x + half)).toFixed(3) +
+					' maxJump=' + maxJump.toFixed(2) + '@' + maxJumpTick +
+					' maxSpeed=' + maxSpeed.toFixed(1) + '@' + maxSpeedTick +
+					' maxDepth=' + maxPairDepth.toFixed(2) + '@' + maxPairDepthTick +
+					(depthDiag ? ' [Pts:' + depthDiag.join(' ') + ']' : '') +
+					' vxFlips=' + velocityFlips +
+					(firstSplit ? ' SPLIT@' + firstSplit.tick + ' count=' + firstSplit.count + ' dirs=' + Object.keys(firstSplit.tags).join(',') : ' noSplit') +
+					' traj[' + impactWindow.map(function (s) { return s[0] + ':' + s[1] + '/' + s[2]; }).join(' ') + ']'
 			};
 		});
 
