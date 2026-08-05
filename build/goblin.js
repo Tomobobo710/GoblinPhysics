@@ -6990,7 +6990,8 @@ Goblin.TriangleShape.prototype.rayIntersect = (function(){
 		n = new Goblin.Vector3(),
 		segment = new Goblin.Vector3(),
 		b = new Goblin.Vector3(),
-		u = new Goblin.Vector3();
+		u = new Goblin.Vector3(),
+		q = new Goblin.Vector3();
 
 	return function( start, end ) {
 		d1.subtractVectors( this.b, this.a );
@@ -7000,8 +7001,9 @@ Goblin.TriangleShape.prototype.rayIntersect = (function(){
 		segment.subtractVectors( end, start );
 		var det = -segment.dot( n );
 
-		if ( det <= 0 ) {
-			// Ray is parallel to triangle or triangle's normal points away from ray
+		if ( det === 0 ) {
+			// Ray is perfectly parallel to the triangle's plane — it only grazes, never crosses.
+			// Not a hit, and avoids dividing by zero below.
 			return null;
 		}
 
@@ -7013,12 +7015,21 @@ Goblin.TriangleShape.prototype.rayIntersect = (function(){
 			return null;
 		}
 
-		u.crossVectors( b, segment );
-		var u1 = d2.dot( u ) / det,
-			u2 = -d1.dot( u ) / det;
+		// Barycentric inside test from the hit point's geometry alone, so it's the same from
+		// either side of the triangle (a back-face hit, det < 0, must not be misclassified).
+		q.scaleVector( segment, t );
+		q.add( start );          // P = start + segment * t
+		q.subtract( this.a );    // q = P - a
+		var nSq = n.dot( n );
+		if ( nSq === 0 ) { return null; }
+		u.crossVectors( d2, n );
+		var bv = q.dot( u ) / nSq,
+			cv;
+		u.crossVectors( d1, n );
+		cv = -q.dot( u ) / nSq;
 
-		if ( u1 + u2 > 1 || u1 < 0 || u2 < 0 ) {
-			// segment does not intersect triangle
+		if ( bv < 0 || cv < 0 || bv + cv > 1 ) {
+			// P lies outside the triangle
 			return null;
 		}
 
@@ -7028,6 +7039,10 @@ Goblin.TriangleShape.prototype.rayIntersect = (function(){
 		intersection.point.scaleVector( segment, t );
 		intersection.point.add( start );
 		intersection.normal.copy( this.normal );
+		if ( det < 0 ) {
+			// Back-face hit: flip the normal so it faces the ray.
+			intersection.normal.scale( -1 );
+		}
 
 		return intersection;
 	};
