@@ -22,6 +22,28 @@
 		return U.meshBody(t, w, v, f, 0, { pos: [0, 0, 0], color: '#556' });
 	}
 
+	// A cubic MESH BOX platform: a closed, outward-wound box, top face at y=+half. This turns the ground
+	// into a real closed mesh body, so a compound body dropped onto it now collides mesh-body vs mesh-body
+	// through TriangleTriangle (not the flat-panel meshConvex path). Oracle is the same: the cross must
+	// settle resting on the box's top face — which may well expose the mesh-mesh breakage here too.
+	function meshBoxPlatform(t, w, half) {
+		var xs = [-half, half], ys = [-half, half], zs = [-half, half], v = [];
+		for (var yi = 0; yi < 2; yi++) for (var zi = 0; zi < 2; zi++) for (var xi = 0; xi < 2; xi++)
+			v.push([xs[xi], ys[yi], zs[zi]]);
+		var I = function (xi, yi, zi) { return yi * 4 + zi * 2 + xi; };
+		var faces = [];
+		function quadf(p0, p1, p2, p3) { // two triangles, outward winding
+			faces.push(p0, p1, p2, p0, p2, p3);
+		}
+		quadf(I(0, 1, 0), I(0, 1, 1), I(1, 1, 1), I(1, 1, 0)); // +Y
+		quadf(I(0, 0, 0), I(1, 0, 0), I(1, 0, 1), I(0, 0, 1)); // -Y
+		quadf(I(1, 0, 0), I(1, 0, 1), I(1, 1, 1), I(1, 1, 0)); // +X
+		quadf(I(0, 0, 0), I(0, 1, 0), I(0, 1, 1), I(0, 0, 1)); // -X
+		quadf(I(0, 0, 1), I(1, 0, 1), I(1, 1, 1), I(0, 1, 1)); // +Z
+		quadf(I(0, 0, 0), I(0, 1, 0), I(1, 1, 0), I(1, 0, 0)); // -Z
+		return U.meshBody(t, w, v, faces, 0, { pos: [0, -half, 0], color: '#565' });
+	}
+
 	// Build a two-box cross as one compound RigidBody and add it to the world, mirroring runner's add():
 	// apply material + pos, addRigidBody, register for the viewer. (No t.compound helper exists.)
 	function crossCompound(t, w, mass, opts) {
@@ -47,7 +69,7 @@
 		t.log('Drop a two-box compound cross onto a mesh platform — must not throw, must rest on the mesh.');
 
 		var w = t.makeWorld({ gravity: -9.8 });
-		var platform = meshPlatform(t, w, 6);
+		var platform = meshBoxPlatform(t, w, 6);
 		var cross = crossCompound(t, w, 1, { pos: [0, DROP_Y, 0], color: '#f33' });
 
 		// Metric A: it settles on top of the mesh. The arms are ARM_THICK half-height, so a cross resting

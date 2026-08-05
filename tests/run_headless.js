@@ -21,7 +21,8 @@ var Runner = require('./js/runner.js');
 });
 
 var arg = process.argv[2] || null;
-var onlySuite = null, only = null;
+var onlySuite = null, only = null, showLogs = false;
+if (arg === '--logs') { showLogs = true; arg = process.argv[3] || null; }
 if (arg && arg.indexOf('--suite=') === 0) onlySuite = arg.slice(8);
 else only = arg;
 var filter = function (t) {
@@ -38,6 +39,12 @@ var summary = Runner.run(filter, function (r) {
 	if (r.suite !== curSuite) { curSuite = r.suite; curGroup = null; console.log('\n##### ' + (SUITE_NAMES[curSuite] || curSuite) + ' #####'); }
 	if (r.group !== curGroup) { curGroup = r.group; console.log('  [' + curGroup + ']'); }
 	console.log('    ' + (r.ok ? 'ok  ' : 'FAIL') + '  ' + r.name + (r.ok ? '' : '   -> ' + r.error));
+	if (showLogs && r.logs && r.logs.length) {
+		r.logs.forEach(function (e) {
+			if (e.type === 'criterion') console.log('        [check] ' + e.label + (e.detail ? '  (' + e.detail + ')' : ''));
+			else if (e.type === 'log') console.log('        ' + e.msg);
+		});
+	}
 });
 
 console.log('\n=== ' + summary.pass + ' passed, ' + summary.fail + ' failed (' + summary.total + ' total) ===');
