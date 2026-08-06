@@ -174,20 +174,35 @@
 		// Vertical gap = (dropped bottom) - (rest top) = (dropped.y - half) - (rest.y + half).
 		// Stacked => gap ~ 0 (dropped.y ~ 3); sank through => dropped.y ~ 1 (on the floor).
 		var minGap = Infinity, touched = false, ticks = 0;
+		// Tail window checks velocity/position spread, not just final proximity, to catch persistent jitter.
+		var TAIL = 40;
+		var tailYs = [], maxTailSpeed = 0, maxTailAngSpeed = 0;
 		t.onTick(function (world, tick) {   // forces the full tick budget in both runs
 			ticks = tick;
 			var gap = (dropped.position.y - half) - (rest.position.y + half);
 			if (gap < minGap) minGap = gap;
 			if (gap <= 0.02) touched = true;
+
+			if (tick > 200 - TAIL) {
+				tailYs.push(dropped.position.y);
+				var v = dropped.linear_velocity, av = dropped.angular_velocity;
+				var speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+				var angSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+				if (speed > maxTailSpeed) maxTailSpeed = speed;
+				if (angSpeed > maxTailAngSpeed) maxTailAngSpeed = angSpeed;
+			}
 		});
 
-		t.log('Drop an inverted box onto an inverted box on a floor. It must land and stack on top — it must not sink through to the floor.');
+		t.log('Drop an inverted box onto an inverted box on a floor. It must land and stack on top — it must not sink through to the floor, and it must actually STOP (no persistent jitter/oscillation in the tail).');
 
-		t.expect('dropped box must stack on the resting one (final dropped.y ~ 3, minGap >= -0.5)', function (world) {
+		t.expect('dropped box must stack on the resting one and settle (final dropped.y ~ 3, minGap >= -0.5, no tail jitter)', function (world) {
 			if (ticks < 200) return false;   // still running: keep pending
+			var ySpread = tailYs.length ? (Math.max.apply(null, tailYs) - Math.min.apply(null, tailYs)) : Infinity;
 			return {
-				ok: touched && minGap >= -0.5 && Math.abs(dropped.position.y - 3) < 0.4,
-				detail: 'dropped.y=' + dropped.position.y.toFixed(3) + ' minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched
+				ok: touched && minGap >= -0.5 && Math.abs(dropped.position.y - 3) < 0.4 &&
+					ySpread < 0.001 && maxTailSpeed < 0.01 && maxTailAngSpeed < 0.01,
+				detail: 'dropped.y=' + dropped.position.y.toFixed(3) + ' minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched +
+					' tailYSpread=' + ySpread.toFixed(4) + ' maxTailSpeed=' + maxTailSpeed.toFixed(4) + ' maxTailAngSpeed=' + maxTailAngSpeed.toFixed(4)
 			};
 		});
 
@@ -217,20 +232,34 @@
 		w.addRigidBody(dropped);
 
 		var minGap = Infinity, touched = false, ticks = 0;
+		var TAIL = 40;
+		var tailYs = [], maxTailSpeed = 0, maxTailAngSpeed = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
 			var gap = (dropped.position.y - half) - (rest.position.y + half);
 			if (gap < minGap) minGap = gap;
 			if (gap <= 0.02) touched = true;
+
+			if (tick > 200 - TAIL) {
+				tailYs.push(dropped.position.y);
+				var v = dropped.linear_velocity, av = dropped.angular_velocity;
+				var speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+				var angSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+				if (speed > maxTailSpeed) maxTailSpeed = speed;
+				if (angSpeed > maxTailAngSpeed) maxTailAngSpeed = angSpeed;
+			}
 		});
 
-		t.log('Control: drop a NORMAL box onto a NORMAL box. If it also sinks through, the stacking failure is winding-independent (a parallel-face mesh-mesh bug), not caused by inverted winding.');
+		t.log('Control: drop a NORMAL box onto a NORMAL box. If it also sinks through, the stacking failure is winding-independent (a parallel-face mesh-mesh bug), not caused by inverted winding. Must also actually STOP, not just numerically land near the target.');
 
-		t.expect('normal box must stack on the resting one (final dropped.y ~ 3, minGap >= -0.5)', function (world) {
+		t.expect('normal box must stack on the resting one and settle (final dropped.y ~ 3, minGap >= -0.5, no tail jitter)', function (world) {
 			if (ticks < 200) return false;
+			var ySpread = tailYs.length ? (Math.max.apply(null, tailYs) - Math.min.apply(null, tailYs)) : Infinity;
 			return {
-				ok: touched && minGap >= -0.5 && Math.abs(dropped.position.y - 3) < 0.4,
-				detail: 'dropped.y=' + dropped.position.y.toFixed(3) + ' minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched
+				ok: touched && minGap >= -0.5 && Math.abs(dropped.position.y - 3) < 0.4 &&
+					ySpread < 0.001 && maxTailSpeed < 0.01 && maxTailAngSpeed < 0.01,
+				detail: 'dropped.y=' + dropped.position.y.toFixed(3) + ' minGap=' + (minGap === Infinity ? 'n/a' : minGap.toFixed(3)) + ' touched=' + touched +
+					' tailYSpread=' + ySpread.toFixed(4) + ' maxTailSpeed=' + maxTailSpeed.toFixed(4) + ' maxTailAngSpeed=' + maxTailAngSpeed.toFixed(4)
 			};
 		});
 
@@ -377,26 +406,42 @@
 		w.addRigidBody(sphere);
 
 		var ticks = 0, maxRise = 0;
+		// Tail window checks velocity/position spread, not just final proximity, to catch persistent jitter.
+		var TAIL = 40;
+		var tailYs = [], maxTailSpeed = 0, maxTailAngSpeed = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
 			// Rise relative to SPAWN (y=5): the sphere should only ever fall from here. Going above it
 			// means the contact launched it upward. Its legit resting point is y=2.5 (below spawn).
 			var rise = sphere.position.y - 5;
 			if (rise > maxRise) maxRise = rise;
+
+			if (tick > 200 - TAIL) {
+				tailYs.push(sphere.position.y);
+				var v = sphere.linear_velocity, av = sphere.angular_velocity;
+				var speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+				var angSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+				if (speed > maxTailSpeed) maxTailSpeed = speed;
+				if (angSpeed > maxTailAngSpeed) maxTailAngSpeed = angSpeed;
+			}
 		});
 
 		t.log('Drop a sphere onto an inverted mesh box. A convex body against a mesh uses meshConvex, so it may behave like the (working) character/compound cases rather than the broken mesh-mesh path.');
 
-		t.expect('sphere must land and rest on the inverted mesh box (final y ~ 2.5, never launched above spawn)', function (world) {
+		t.expect('sphere lands, rests at y ~ 2.5, and actually STOPS (no persistent jitter/oscillation/spin in the tail)', function (world) {
 			if (ticks < 200) return false;
+			var ySpread = tailYs.length ? (Math.max.apply(null, tailYs) - Math.min.apply(null, tailYs)) : Infinity;
 			return {
-				ok: Math.abs(sphere.position.y - 2.5) < 0.4 && maxRise <= 0.2,
-				detail: 'sphere.y=' + sphere.position.y.toFixed(3) + ' (rest ~ 2.5) maxRise=' + maxRise.toFixed(3)
+				ok: Math.abs(sphere.position.y - 2.5) < 0.4 && maxRise <= 0.2 &&
+					ySpread < 0.001 && maxTailSpeed < 0.01 && maxTailAngSpeed < 0.01,
+				detail: 'sphere.y=' + sphere.position.y.toFixed(3) + ' (rest ~ 2.5) maxRise=' + maxRise.toFixed(3) +
+					' tailYSpread=' + ySpread.toFixed(4) + ' maxTailSpeed=' + maxTailSpeed.toFixed(4) +
+					' maxTailAngSpeed=' + maxTailAngSpeed.toFixed(4)
 			};
 		});
 
 		t.simulate(w, 200);
-	}, { page: 'mesh', steps: 200, description: 'A convex sphere dropped onto an inverted mesh box. Records whether a convex-vs-mesh collision (meshConvex path) stacks correctly, versus the broken mesh-vs-mesh path.' });
+	}, { page: 'mesh', steps: 200, description: 'A convex sphere dropped onto an inverted mesh box. Records whether a convex-vs-mesh collision (meshConvex path) stacks correctly and actually comes to rest (not just numerically near the target), versus the broken mesh-mesh path.' });
 
 	// Generic convex-on-inverted-mesh-box drop. buildShape(G) makes the shape; restY is the body's
 	// expected resting center height on the box top (y=2); spawn at y=5. Records rest + whether the
@@ -515,23 +560,39 @@
 		ms.position.set(0, 5, 0); ms.updateDerived(); w.addRigidBody(ms);
 
 		var ticks = 0, maxRise = 0;
+		// Tail window checks velocity/position spread, not just final proximity, to catch persistent jitter.
+		var TAIL = 40;
+		var tailYs = [], maxTailSpeed = 0, maxTailAngSpeed = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
 			var rise = ms.position.y - 5;   // relative to spawn; should only fall
 			if (rise > maxRise) maxRise = rise;
+
+			if (tick > 200 - TAIL) {
+				tailYs.push(ms.position.y);
+				var v = ms.linear_velocity, av = ms.angular_velocity;
+				var speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+				var angSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+				if (speed > maxTailSpeed) maxTailSpeed = speed;
+				if (angSpeed > maxTailAngSpeed) maxTailAngSpeed = angSpeed;
+			}
 		});
 
 		t.log('Drop a MESH sphere (outward, 288 tris) onto an inverted mesh box. Both bodies are meshes => the mesh-mesh TriangleTriangle path. It should land and rest at y = 2 + r = 2.5.');
 
-		t.expect('mesh sphere must land and rest on the inverted mesh box (final y ~ 2.5, no launch above spawn)', function (world) {
+		t.expect('mesh sphere lands, rests at y ~ 2.5, and actually STOPS (no persistent jitter/oscillation/spin in the tail)', function (world) {
 			if (ticks < 200) return false;
+			var ySpread = tailYs.length ? (Math.max.apply(null, tailYs) - Math.min.apply(null, tailYs)) : Infinity;
 			return {
-				ok: Math.abs(ms.position.y - 2.5) < 0.4 && maxRise <= 0.2,
-				detail: 'ms.y=' + ms.position.y.toFixed(3) + ' (rest ~ 2.5) maxRise=' + maxRise.toFixed(3)
+				ok: Math.abs(ms.position.y - 2.5) < 0.4 && maxRise <= 0.2 &&
+					ySpread < 0.001 && maxTailSpeed < 0.01 && maxTailAngSpeed < 0.01,
+				detail: 'ms.y=' + ms.position.y.toFixed(3) + ' (rest ~ 2.5) maxRise=' + maxRise.toFixed(3) +
+					' tailYSpread=' + ySpread.toFixed(4) + ' maxTailSpeed=' + maxTailSpeed.toFixed(4) +
+					' maxTailAngSpeed=' + maxTailAngSpeed.toFixed(4)
 			};
 		});
 		t.simulate(w, 200);
-	}, { page: 'mesh', steps: 200, description: 'A mesh-authored sphere dropped onto an inverted mesh box (meshes on both sides, mesh-mesh path). Records whether a round outward mesh stacks where box meshes fail.' });
+	}, { page: 'mesh', steps: 200, description: 'A mesh-authored sphere dropped onto an inverted mesh box (meshes on both sides, mesh-mesh path). Records whether a round outward mesh stacks - and actually comes to rest - where box meshes fail.' });
 
 	Runner.test('mesh collision', 'outward mesh sphere stacked on outward mesh sphere', function (t) {
 		// Two round outward meshes vs each other — the least box-like mesh-mesh case there is.
@@ -546,12 +607,12 @@
 		bottom.position.set(0, r, 0); bottom.updateDerived(); w.addRigidBody(bottom);
 
 		var top = new Goblin.RigidBody(sphereMesh(r, 16, 10), 1);             // should rest center y = 3r = 1.5
-		top.position.set(0, 3.5, 0); top.updateDerived(); w.addRigidBody(top);
+		top.position.set(0, 2.5, 0); top.updateDerived(); w.addRigidBody(top);   // spawn 1 diameter above rest
 
 		var ticks = 0, maxRise = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
-			var rise = top.position.y - 3.5;   // relative to spawn; should only fall
+			var rise = top.position.y - 2.5;   // relative to spawn; should only fall
 			if (rise > maxRise) maxRise = rise;
 		});
 
@@ -580,12 +641,12 @@
 		bottom.position.set(0, r, 0); bottom.updateDerived(); w.addRigidBody(bottom);
 
 		var top = new Goblin.RigidBody(invertedSphereMesh(r, 16, 10), 1);
-		top.position.set(0, 3.5, 0); top.updateDerived(); w.addRigidBody(top);
+		top.position.set(0, 2.5, 0); top.updateDerived(); w.addRigidBody(top);   // spawn 1 diameter above rest
 
 		var ticks = 0, maxRise = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
-			var rise = top.position.y - 3.5;
+			var rise = top.position.y - 2.5;
 			if (rise > maxRise) maxRise = rise;
 		});
 
