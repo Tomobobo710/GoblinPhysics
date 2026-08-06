@@ -193,7 +193,6 @@ Goblin.FPSCharacterController = function(world, options) {
     this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the character
 
     // Mantle (ledge grab + pull-up arc, see _updateMantle / Movement/Mantle.js).
-    var man = D.mantle;
     this._baseMantleHeight = o.mantleHeight !== undefined ? o.mantleHeight : man.height;
     this._baseMantleReach = o.mantleReach !== undefined ? o.mantleReach : man.reach;
     this._baseMantleSpeed = o.mantleSpeed !== undefined ? o.mantleSpeed : man.speed;
