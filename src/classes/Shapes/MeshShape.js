@@ -79,17 +79,6 @@ Goblin.MeshShape.prototype.getInertiaTensor = function( mass ) {
 };
 
 /**
- * noop
- *
- * @method findSupportPoint
- * @param direction {vec3} direction to use in finding the support point
- * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
- */
-Goblin.MeshShape.prototype.findSupportPoint = function( direction, support_point ) {
-	return; // MeshShape isn't convex so it cannot be used directly in GJK
-};
-
-/**
  * Checks if a ray segment intersects with the shape
  *
  * @method rayIntersect
