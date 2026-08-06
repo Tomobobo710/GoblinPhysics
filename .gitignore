@@ -2,6 +2,7 @@
 node_modules
 references
 
-# scratch commit-message drafts
-temp-message.md
-temp-*.md
+# Ignore all .txt and .md except specific ones
+*.txt
+*.md
+!README.md
