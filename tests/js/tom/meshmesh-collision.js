@@ -610,20 +610,39 @@
 		top.position.set(0, 2.5, 0); top.updateDerived(); w.addRigidBody(top);   // spawn 1 diameter above rest
 
 		var ticks = 0, maxRise = 0;
+		var TAIL = 40;
+		var tailYs = [], maxTailSpeed = 0, maxTailAngSpeed = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
 			var rise = top.position.y - 2.5;   // relative to spawn; should only fall
 			if (rise > maxRise) maxRise = rise;
+
+			if (tick > 200 - TAIL) {
+				tailYs.push(top.position.y);
+				var v = top.linear_velocity, av = top.angular_velocity;
+				var speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+				var angSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+				if (speed > maxTailSpeed) maxTailSpeed = speed;
+				if (angSpeed > maxTailAngSpeed) maxTailAngSpeed = angSpeed;
+			}
 		});
 
 		t.log('Drop an outward mesh sphere onto a resting outward mesh sphere. Round-mesh round-mesh. It should settle at top center y = 3r = 1.5.');
 
-		t.expect('top mesh sphere must rest on the bottom one at y ~ 1.5, not sink through (minGap >= -0.5, no launch above spawn)', function (world) {
+		t.expect('top mesh sphere rests on the bottom sphere (not penetrating, not on the ground, no jitter or spin)', function (world) {
 			if (ticks < 200) return false;
 			var gap = (top.position.y - r) - (bottom.position.y + r);   // contact gap between the two sphere surfaces
+			var ySpread = tailYs.length ? (Math.max.apply(null, tailYs) - Math.min.apply(null, tailYs)) : Infinity;
 			return {
-				ok: Math.abs(top.position.y - 1.5) < 0.4 && gap >= -0.5 && maxRise <= 0.2,
-				detail: 'top.y=' + top.position.y.toFixed(3) + ' (rest ~ 1.5) gap=' + gap.toFixed(3) + ' maxRise=' + maxRise.toFixed(3)
+				ok: gap >= -0.05 &&          // not penetrating the bottom sphere
+					top.position.y > 1.0 &&      // not on the ground (fell through to floor at y~0.5)
+					maxRise <= 0.2 &&            // not launched upward
+					ySpread < 0.001 &&           // no vertical jitter
+					maxTailSpeed < 0.01 &&       // not moving
+					maxTailAngSpeed < 0.01,      // not spinning
+				detail: 'top.y=' + top.position.y.toFixed(3) + ' (rest ~ 1.5) gap=' + gap.toFixed(3) +
+					' maxRise=' + maxRise.toFixed(3) + ' tailYSpread=' + ySpread.toFixed(4) +
+					' maxTailSpeed=' + maxTailSpeed.toFixed(4) + ' maxTailAngSpeed=' + maxTailAngSpeed.toFixed(4)
 			};
 		});
 		t.simulate(w, 200);
@@ -644,20 +663,39 @@
 		top.position.set(0, 2.5, 0); top.updateDerived(); w.addRigidBody(top);   // spawn 1 diameter above rest
 
 		var ticks = 0, maxRise = 0;
+		var TAIL = 40;
+		var tailYs = [], maxTailSpeed = 0, maxTailAngSpeed = 0;
 		t.onTick(function (world, tick) {
 			ticks = tick;
 			var rise = top.position.y - 2.5;
 			if (rise > maxRise) maxRise = rise;
+
+			if (tick > 200 - TAIL) {
+				tailYs.push(top.position.y);
+				var v = top.linear_velocity, av = top.angular_velocity;
+				var speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+				var angSpeed = Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z);
+				if (speed > maxTailSpeed) maxTailSpeed = speed;
+				if (angSpeed > maxTailAngSpeed) maxTailAngSpeed = angSpeed;
+			}
 		});
 
 		t.log('Drop an INVERTED (inward-wound) mesh sphere onto a resting INVERTED mesh sphere. Control for the outward pair.');
 
-		t.expect('top inverted mesh sphere should rest at y ~ 1.5 (records whether inverted winding breaks round meshes the way it breaks boxes)', function (world) {
+		t.expect('top inverted mesh sphere rests on the bottom sphere (not penetrating, not on the ground, no jitter or spin)', function (world) {
 			if (ticks < 200) return false;
 			var gap = (top.position.y - r) - (bottom.position.y + r);
+			var ySpread = tailYs.length ? (Math.max.apply(null, tailYs) - Math.min.apply(null, tailYs)) : Infinity;
 			return {
-				ok: Math.abs(top.position.y - 1.5) < 0.4 && gap >= -0.5 && maxRise <= 0.2,
-				detail: 'top.y=' + top.position.y.toFixed(3) + ' (rest ~ 1.5) gap=' + gap.toFixed(3) + ' maxRise=' + maxRise.toFixed(3)
+				ok: gap >= -0.05 &&          // not penetrating the bottom sphere
+					top.position.y > 1.0 &&      // not on the ground (fell through to floor at y~0.5)
+					maxRise <= 0.2 &&            // not launched upward
+					ySpread < 0.001 &&           // no vertical jitter
+					maxTailSpeed < 0.01 &&       // not moving
+					maxTailAngSpeed < 0.01,      // not spinning
+				detail: 'top.y=' + top.position.y.toFixed(3) + ' (rest ~ 1.5) gap=' + gap.toFixed(3) +
+					' maxRise=' + maxRise.toFixed(3) + ' tailYSpread=' + ySpread.toFixed(4) +
+					' maxTailSpeed=' + maxTailSpeed.toFixed(4) + ' maxTailAngSpeed=' + maxTailAngSpeed.toFixed(4)
 			};
 		});
 		t.simulate(w, 200);
