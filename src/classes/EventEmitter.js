@@ -30,16 +30,21 @@ Goblin.EventEmitter.prototype = {
 	},
 
 	emit: function( event ) {
+		// Skip the arguments slice (an allocation) entirely when nobody's listening — with thousands
+		// of speculativeContact/contact emits per step and usually zero listeners, this was allocating
+		// an array per call for nothing.
+		if ( !( this.listeners[event] instanceof Array ) || this.listeners[event].length === 0 ) {
+			return;
+		}
+
 		var event_arguments = Array.prototype.slice.call( arguments, 1 ),
 			ret_value;
 
-		if ( this.listeners[event] instanceof Array ) {
-			var listeners = this.listeners[event].slice();
-			for ( var i = 0; i < listeners.length; i++ ) {
-				ret_value = listeners[i].apply( this, event_arguments );
-				if ( ret_value === false ) {
-					return false;
-				}
+		var listeners = this.listeners[event].slice();
+		for ( var i = 0; i < listeners.length; i++ ) {
+			ret_value = listeners[i].apply( this, event_arguments );
+			if ( ret_value === false ) {
+				return false;
 			}
 		}
 	}

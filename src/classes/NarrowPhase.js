@@ -12,6 +12,15 @@ Goblin.NarrowPhase = function() {
 	 * @type Goblin.ContactManifoldList
 	 */
 	this.contact_manifolds = new Goblin.ContactManifoldList();
+
+	// Built once instead of per meshCollision() call (every resting mesh contact, every frame).
+	// Calls through `this.addContact` dynamically (not a frozen bound reference) because callers like
+	// World.shapeIntersect temporarily override narrowphase.addContact to intercept mesh/compound
+	// contacts for transient queries, and expect meshCollision to see that override.
+	var self = this;
+	this._boundAddContact = function( object_a, object_b, contact ) {
+		self.addContact( object_a, object_b, contact );
+	};
 };
 
 /**
@@ -27,6 +36,7 @@ Goblin.NarrowPhase.prototype.updateContactManifolds = function() {
 		current.update();
 
 		if ( current.points.length === 0 ) {
+			this.contact_manifolds.remove( current );
 			Goblin.ObjectPool.freeObject( 'ContactManifold', current );
 			if ( prev == null ) {
 				this.contact_manifolds.first = current.next_manifold;
@@ -190,12 +200,9 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 		}
 	}
 
-	function triangleConvex( triangle, mesh, convex ) {
-		// Create proxy to convert convex into mesh's space
-		var proxy = Goblin.ObjectPool.getObject( 'RigidBodyProxy' );
-
-		var child_shape = new Goblin.CompoundShapeChild( triangle, new Goblin.Vector3(), new Goblin.Quaternion() );
-		proxy.setFrom( mesh, child_shape );
+	// Proxy transform is the same for every leaf in a query; only `.shape` changes here.
+	function triangleConvex( triangle, proxy, convex ) {
+		proxy.shape = triangle;
 
 		var simplex = Goblin.GjkEpa.GJK( proxy, convex ),
 			contact;
@@ -205,14 +212,13 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 			contact = Goblin.GjkEpa.EPA( simplex );
 		}
 
-		Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
-
 		return contact;
 	}
 
 	var meshConvex = (function(){
 		var convex_to_mesh = new Goblin.Matrix4(),
-			convex_aabb_in_mesh = new Goblin.AABB();
+			convex_aabb_in_mesh = new Goblin.AABB(),
+			node_stack = [];
 
 		return function meshConvex( mesh, convex, addContact ) {
 			// Find matrix that converts convex into mesh space
@@ -221,14 +227,28 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 
 			convex_aabb_in_mesh.transform( convex.aabb, mesh.transform_inverse );
 
-			// Traverse the BHV in mesh
-			var pending_nodes = [ mesh.shape.hierarchy ],
+			// Reused across every leaf this query tests; only `.shape` changes per leaf.
+			var proxy = Goblin.ObjectPool.getObject( 'RigidBodyProxy' );
+			proxy.parent = mesh;
+			proxy.id = mesh.id;
+			proxy.shape_data = null;
+			proxy._mass = mesh._mass;
+			proxy.position.copy( mesh.position );
+			proxy.transform.copy( mesh.transform );
+			proxy.transform_inverse.copy( mesh.transform_inverse );
+			proxy.restitution = mesh.restitution;
+			proxy.friction = mesh.friction;
+
+			// Index-based stack (not shift()/push() on a growing array) reused across calls.
+			var stack_size = 0,
 				node;
-			while ( ( node = pending_nodes.shift() ) ) {
+			node_stack[stack_size++] = mesh.shape.hierarchy;
+			while ( stack_size > 0 ) {
+				node = node_stack[--stack_size];
 				if ( node.aabb.intersects( convex_aabb_in_mesh ) ) {
 					if ( node.isLeaf() ) {
 						// Check node for collision
-						var contact = triangleConvex( node.object, mesh, convex );
+						var contact = triangleConvex( node.object, proxy, convex );
 						if ( contact != null ) {
 							var _mesh = mesh;
 							while ( _mesh.parent != null ) {
@@ -247,10 +267,13 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 							addContact( _mesh, _convex, contact );
 						}
 					} else {
-						pending_nodes.push( node.left, node.right );
+						node_stack[stack_size++] = node.left;
+						node_stack[stack_size++] = node.right;
 					}
 				}
 			}
+
+			Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
 		};
 	})();
 
@@ -259,12 +282,12 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 			b_is_mesh = object_b.shape instanceof Goblin.MeshShape;
 
 		if ( a_is_mesh && b_is_mesh ) {
-			meshMesh( object_a, object_b, this.addContact.bind( this ) );
+			meshMesh( object_a, object_b, this._boundAddContact );
 		} else {
 			if ( a_is_mesh ) {
-				meshConvex( object_a, object_b, this.addContact.bind( this ) );
+				meshConvex( object_a, object_b, this._boundAddContact );
 			} else {
-				meshConvex( object_b, object_a, this.addContact.bind( this ) );
+				meshConvex( object_b, object_a, this._boundAddContact );
 			}
 		}
 	};

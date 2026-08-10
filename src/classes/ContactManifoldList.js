@@ -12,6 +12,14 @@ Goblin.ContactManifoldList = function() {
 	 * @type {ContactManifold}
 	 */
 	this.first = null;
+
+	// Pair-id -> manifold, kept alongside the linked list so getManifoldForObjects is O(1) instead of
+	// scanning every active manifold (hundreds of resting bodies means hundreds of calls per frame).
+	this._byKey = {};
+};
+
+Goblin.ContactManifoldList.pairKey = function( object_a, object_b ) {
+	return object_a.id < object_b.id ? ( object_a.id + '_' + object_b.id ) : ( object_b.id + '_' + object_a.id );
 };
 
 /**
@@ -24,6 +32,19 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
 	// The list is completely unordered, throw the manifold at the beginning
 	contact_manifold.next_manifold = this.first;
 	this.first = contact_manifold;
+	this._byKey[ Goblin.ContactManifoldList.pairKey( contact_manifold.object_a, contact_manifold.object_b ) ] = contact_manifold;
+};
+
+/**
+ * Removes a ContactManifold from the key index. Callers that unlink a manifold from the linked list
+ * directly (e.g. NarrowPhase.updateContactManifolds) must also call this so the index doesn't hand back
+ * a freed/reused manifold on the next getManifoldForObjects lookup for that pair.
+ *
+ * @method remove
+ * @param {ContactManifold} contact_manifold
+ */
+Goblin.ContactManifoldList.prototype.remove = function( contact_manifold ) {
+	delete this._byKey[ Goblin.ContactManifoldList.pairKey( contact_manifold.object_a, contact_manifold.object_b ) ];
 };
 
 /**
@@ -35,20 +56,7 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
  * @return {ContactManifold}
  */
 Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a, object_b ) {
-	var manifold = null;
-	if ( this.first !== null ) {
-		var current = this.first;
-		while ( current !== null ) {
-			if (
-				current.object_a === object_a && current.object_b === object_b ||
-				current.object_a === object_b && current.object_b === object_a
-			) {
-				manifold = current;
-				break;
-			}
-			current = current.next_manifold;
-		}
-	}
+	var manifold = this._byKey[ Goblin.ContactManifoldList.pairKey( object_a, object_b ) ] || null;
 
 	if ( manifold === null ) {
 		// A manifold for these two objects does not exist, create one

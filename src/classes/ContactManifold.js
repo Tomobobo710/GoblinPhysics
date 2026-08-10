@@ -163,14 +163,19 @@ Goblin.ContactManifold.prototype.addContact = function( contact ) {
  *
  * @method update
  */
-Goblin.ContactManifold.prototype.update = function() {
+Goblin.ContactManifold.prototype.update = (function() {
+	// Reused across every call instead of allocated fresh each time — this runs once per active
+	// manifold, every step (hundreds with many resting bodies), and these are pure scratch space,
+	// never read after this function returns.
+	var object_a_world_coords = new Goblin.Vector3(),
+		object_b_world_coords = new Goblin.Vector3(),
+		vector_difference = new Goblin.Vector3();
+
+	return function() {
 	// Update positions / depths of contacts
 	var i,
 		j,
 		point,
-		object_a_world_coords = new Goblin.Vector3(),
-		object_b_world_coords = new Goblin.Vector3(),
-		vector_difference = new Goblin.Vector3(),
 		starting_points_length = this.points.length;
 
 	for ( i = 0; i < this.points.length; i++ ) {
@@ -223,4 +228,5 @@ Goblin.ContactManifold.prototype.update = function() {
 		this.object_a.emit( 'endAllContact', this.object_b );
 		this.object_b.emit( 'endAllContact', this.object_a );
 	}
-};
+	};
+})();

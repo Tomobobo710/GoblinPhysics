@@ -74,3 +74,5 @@ Goblin.ObjectPool.registerType( 'ContactConstraint', function() { return new Gob
 Goblin.ObjectPool.registerType( 'FrictionConstraint', function() { return new Goblin.FrictionConstraint(); } );
 Goblin.ObjectPool.registerType( 'RayIntersection', function() { return new Goblin.RayIntersection(); } );
 Goblin.ObjectPool.registerType( 'RigidBodyProxy', function() { return new Goblin.RigidBodyProxy(); } );
+Goblin.ObjectPool.registerType( 'GjkEpaFace', function() { return new Goblin.GjkEpa.Face(); } );
+Goblin.ObjectPool.registerType( 'GjkEpaPolyhedron', function() { return new Goblin.GjkEpa.Polyhedron(); } );

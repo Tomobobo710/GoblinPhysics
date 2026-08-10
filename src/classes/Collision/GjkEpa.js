@@ -106,7 +106,11 @@ Goblin.GjkEpa = {
 			if ( pool.indexOf( polyhedron.faces[i].c ) === -1 ) {
 				Goblin.ObjectPool.freeObject( 'GJK2SupportPoint', polyhedron.faces[i].c );
 			}
+			Goblin.ObjectPool.freeObject( 'GjkEpaFace', polyhedron.faces[i] );
 		}
+		polyhedron.faces.length = 0;
+
+		Goblin.ObjectPool.freeObject( 'GjkEpaPolyhedron', polyhedron );
 	},
 
     /**
@@ -126,9 +130,11 @@ Goblin.GjkEpa = {
 		return function( simplex ) {
             // Time to convert the simplex to real faces
             // @TODO this should be a priority queue where the position in the queue is ordered by distance from face to origin
-			var polyhedron = new Goblin.GjkEpa.Polyhedron( simplex );
+			var polyhedron = Goblin.ObjectPool.getObject( 'GjkEpaPolyhedron' ).reset( simplex );
 
 			var i = 0;
+			var prev_closest_face_distance = -1;
+			var stable_streak = 0;
 
             // Expand the polyhedron until it doesn't expand any more
 			while ( ++i ) {
@@ -148,7 +154,29 @@ Goblin.GjkEpa = {
                 _tmp_vec3_1.subtractVectors( support_point.point, polyhedron.closest_point );
                 var gap = _tmp_vec3_1.lengthSquared();
 
-				if ( i === Goblin.GjkEpa.max_iterations || ( gap < Goblin.GjkEpa.epa_condition && polyhedron.closest_face_distance > Goblin.EPSILON ) ) {
+				// A round shape's support point in a near-tangent direction is ambiguous — it can keep
+				// landing on a different, near-equidistant point of the curved surface every iteration
+				// (e.g. hopping around a cylinder's rim), so `gap` never shrinks below epa_condition even
+				// though the polytope's actual answer, closest_face_distance, already converged several
+				// iterations ago and is no longer moving. Require several consecutive near-zero-delta
+				// iterations (not just one) before treating that as converged — a single small delta can
+				// happen mid-convergence for flat-faced shapes (e.g. box/box) too, so one sample isn't a
+				// reliable signal on its own; a genuine plateau holds for many iterations in a row.
+				var STABLE_EPS = Goblin.GjkEpa.epa_condition * 0.01;
+				var STABLE_STREAK_REQUIRED = 5;
+				if ( prev_closest_face_distance >= 0 &&
+					Math.abs( polyhedron.closest_face_distance - prev_closest_face_distance ) < STABLE_EPS ) {
+					stable_streak++;
+				} else {
+					stable_streak = 0;
+				}
+				prev_closest_face_distance = polyhedron.closest_face_distance;
+				var face_distance_stable =
+					stable_streak >= STABLE_STREAK_REQUIRED &&
+					polyhedron.closest_face_distance > Goblin.EPSILON;
+
+				if ( i === Goblin.GjkEpa.max_iterations || face_distance_stable ||
+					( gap < Goblin.GjkEpa.epa_condition && polyhedron.closest_face_distance > Goblin.EPSILON ) ) {
 
 					// Get a ContactDetails object and fill out its details
 					var contact = Goblin.ObjectPool.getObject( 'ContactDetails' );
@@ -213,18 +241,10 @@ Goblin.GjkEpa = {
     })(),
 
     Face: function( polyhedron, a, b, c ) {
-		this.active = true;
-		//this.polyhedron = polyhedron;
-        this.a = a;
-        this.b = b;
-        this.c = c;
         this.normal = new Goblin.Vector3();
-		this.neighbors = [];
-
-        _tmp_vec3_1.subtractVectors( b.point, a.point );
-        _tmp_vec3_2.subtractVectors( c.point, a.point );
-        this.normal.crossVectors( _tmp_vec3_1, _tmp_vec3_2 );
-        this.normal.normalize();
+        this.neighbors = [];
+        this.closest_point = new Goblin.Vector3();
+        this.reset( polyhedron || null, a || null, b || null, c || null );
     }
 };
 
@@ -232,21 +252,37 @@ Goblin.GjkEpa.Polyhedron = function( simplex ) {
 	this.closest_face = null;
 	this.closest_face_distance = null;
 	this.closest_point = new Goblin.Vector3();
-
-	this.faces = [
-		//BCD, ACB, CAD, DAB
-		new Goblin.GjkEpa.Face( this, simplex.points[2], simplex.points[1], simplex.points[0] ),
-		new Goblin.GjkEpa.Face( this, simplex.points[3], simplex.points[1], simplex.points[2] ),
-		new Goblin.GjkEpa.Face( this, simplex.points[1], simplex.points[3], simplex.points[0] ),
-		new Goblin.GjkEpa.Face( this, simplex.points[0], simplex.points[3], simplex.points[2] )
-	];
-
-	this.faces[0].neighbors.push( this.faces[1], this.faces[2], this.faces[3] );
-	this.faces[1].neighbors.push( this.faces[2], this.faces[0], this.faces[3] );
-	this.faces[2].neighbors.push( this.faces[1], this.faces[3], this.faces[0] );
-	this.faces[3].neighbors.push( this.faces[2], this.faces[1], this.faces[0] );
+	this.faces = [];
+	this.reset( simplex || null );
 };
 Goblin.GjkEpa.Polyhedron.prototype = {
+	reset: function( simplex ) {
+		for ( var i = 0; i < this.faces.length; i++ ) {
+			Goblin.ObjectPool.freeObject( 'GjkEpaFace', this.faces[i] );
+		}
+		this.faces.length = 0;
+		this.closest_face = null;
+		this.closest_face_distance = null;
+
+		if ( simplex === null ) {
+			return this;
+		}
+
+		//BCD, ACB, CAD, DAB
+		this.faces.push(
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[2], simplex.points[1], simplex.points[0] ),
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[3], simplex.points[1], simplex.points[2] ),
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[1], simplex.points[3], simplex.points[0] ),
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[0], simplex.points[3], simplex.points[2] )
+		);
+
+		this.faces[0].neighbors.push( this.faces[1], this.faces[2], this.faces[3] );
+		this.faces[1].neighbors.push( this.faces[2], this.faces[0], this.faces[3] );
+		this.faces[2].neighbors.push( this.faces[1], this.faces[3], this.faces[0] );
+		this.faces[3].neighbors.push( this.faces[2], this.faces[1], this.faces[0] );
+
+		return this;
+	},
     addVertex: function( vertex )
     {
         var edges = [], faces = [], i, j, a, b, last_b;
@@ -289,7 +325,7 @@ Goblin.GjkEpa.Polyhedron.prototype = {
             a = edges[i+3];
             b = edges[i+4];
 
-            var face = new Goblin.GjkEpa.Face( this, b, vertex, a );
+            var face = Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, b, vertex, a );
             face.neighbors[2] = edges[i];
             faces.push( face );
 
@@ -306,33 +342,53 @@ Goblin.GjkEpa.Polyhedron.prototype = {
         return edges;
     },
 
-	findFaceClosestToOrigin: (function(){
-		var origin = new Goblin.Vector3(),
-			point = new Goblin.Vector3();
+	findFaceClosestToOrigin: function() {
+		this.closest_face_distance = Infinity;
 
-		return function() {
-			this.closest_face_distance = Infinity;
+		var i, face;
 
-			var distance, i;
-
-			for ( i = 0; i < this.faces.length; i++ ) {
-				if ( this.faces[i].active === false ) {
-					continue;
-				}
-
-				Goblin.GeometryMethods.findClosestPointInTriangle( origin, this.faces[i].a.point, this.faces[i].b.point, this.faces[i].c.point, point );
-				distance = point.lengthSquared();
-				if ( distance < this.closest_face_distance ) {
-					this.closest_face_distance = distance;
-					this.closest_face = i;
-					this.closest_point.copy( point );
-				}
+		for ( i = 0; i < this.faces.length; i++ ) {
+			face = this.faces[i];
+			if ( face.active === false ) {
+				continue;
 			}
-		};
-	})()
+
+			if ( face.closest_point_distance < this.closest_face_distance ) {
+				this.closest_face_distance = face.closest_point_distance;
+				this.closest_face = i;
+				this.closest_point.copy( face.closest_point );
+			}
+		}
+	}
 };
 
-Goblin.GjkEpa.Face.prototype = {
+Goblin.GjkEpa.Face.prototype = (function() {
+	var origin = new Goblin.Vector3();
+
+	return {
+	reset: function( polyhedron, a, b, c ) {
+		this.active = true;
+		this.a = a;
+		this.b = b;
+		this.c = c;
+		this.neighbors.length = 0;
+
+		if ( a === null ) {
+			return this;
+		}
+
+		_tmp_vec3_1.subtractVectors( b.point, a.point );
+		_tmp_vec3_2.subtractVectors( c.point, a.point );
+		this.normal.crossVectors( _tmp_vec3_1, _tmp_vec3_2 );
+		this.normal.normalize();
+
+		// Cached once here instead of recomputed on every findFaceClosestToOrigin() scan.
+		Goblin.GeometryMethods.findClosestPointInTriangle( origin, a.point, b.point, c.point, this.closest_point );
+		this.closest_point_distance = this.closest_point.lengthSquared();
+
+		return this;
+	},
+
 	/**
 	 * Determines if a vertex is in front of or behind the face
 	 *
@@ -374,7 +430,8 @@ Goblin.GjkEpa.Face.prototype = {
 			edges.push( this, neighbor_idx, source, b, a );
 		}
 	}
-};
+	};
+})();
 
 (function(){
     var origin = new Goblin.Vector3(),

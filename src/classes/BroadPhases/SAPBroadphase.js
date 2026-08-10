@@ -113,16 +113,17 @@
 			if ( this.overlap_counter[key] === 0 ) {
 				delete this.overlap_counter[key];
 			} else if ( this.overlap_counter[key] === 2 ) {
-				// These are no longer touching, remove from potential contacts
-				this.collision_pairs = this.collision_pairs.filter(function( pair ){
-					if ( pair[0] === body_a && pair[1] === body_b ) {
-						return false;
+				// These are no longer touching, remove from potential contacts. Find-and-splice the one
+				// matching pair instead of filter()'s full-array reallocation — this fires ~40+/step with
+				// hundreds of resting bodies (markers jitter near their rest position), and collision_pairs
+				// can be 500+ long, so a fresh filtered copy every call was real per-step churn.
+				for ( var i = 0; i < this.collision_pairs.length; i++ ) {
+					var pair = this.collision_pairs[i];
+					if ( ( pair[0] === body_a && pair[1] === body_b ) || ( pair[0] === body_b && pair[1] === body_a ) ) {
+						this.collision_pairs.splice( i, 1 );
+						break;
 					}
-					if ( pair[0] === body_b && pair[1] === body_a ) {
-						return false;
-					}
-					return true;
-				});
+				}
 			}
 		},
 

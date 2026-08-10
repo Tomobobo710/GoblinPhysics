@@ -91,8 +91,11 @@ Goblin.IterativeSolver = function() {
 	this.onContactDeactivate = function() {
 		this.removeListener( 'deactivate', solver.onContactDeactivate );
 
-		var idx = solver.contact_constraints.indexOf( this );
-		solver.contact_constraints.splice( idx, 1 );
+		// Swap-remove using the constraint's own tracked index instead of indexOf()'s O(n) scan — with
+		// hundreds of resting bodies this fires over 1000 times/step (contact points churn constantly
+		// as manifolds swap their weakest point), each previously scanning the full contact_constraints
+		// array (1000s of elements) to find itself.
+		Goblin.IterativeSolver._swapRemove( solver.contact_constraints, this );
 
 		delete solver.existing_contact_ids[ this.contact.uid ];
 	};
@@ -105,9 +108,40 @@ Goblin.IterativeSolver = function() {
 	this.onFrictionDeactivate = function() {
 		this.removeListener( 'deactivate', solver.onFrictionDeactivate );
 
-		var idx = solver.friction_constraints.indexOf( this );
-		solver.friction_constraints.splice( idx, 1 );
+		Goblin.IterativeSolver._swapRemove( solver.friction_constraints, this );
 	};
+};
+
+/**
+ * Removes `item` from `array` in O(1) using item._arrayIndex (kept in sync by _pushTracked), by
+ * swapping the last element into its slot instead of shifting everything after it down (splice) or
+ * scanning to find it first (indexOf). Requires every element currently in `array` to have been added
+ * via _pushTracked.
+ *
+ * @method _swapRemove
+ * @static
+ */
+Goblin.IterativeSolver._swapRemove = function( array, item ) {
+	var idx = item._arrayIndex;
+	var last = array.length - 1;
+	if ( idx !== last ) {
+		array[idx] = array[last];
+		array[idx]._arrayIndex = idx;
+	}
+	array.length = last;
+	item._arrayIndex = -1;
+};
+
+/**
+ * Pushes `item` onto `array`, recording its index on the item itself so _swapRemove can later find
+ * it in O(1).
+ *
+ * @method _pushTracked
+ * @static
+ */
+Goblin.IterativeSolver._pushTracked = function( array, item ) {
+	item._arrayIndex = array.length;
+	array.push( item );
 };
 
 /**
@@ -164,13 +198,13 @@ Goblin.IterativeSolver.prototype.processContactManifolds = function( contact_man
 				// Build contact constraint
 				constraint = Goblin.ObjectPool.getObject( 'ContactConstraint' );
 				constraint.buildFromContact( contact );
-				this.contact_constraints.push( constraint );
+				Goblin.IterativeSolver._pushTracked( this.contact_constraints, constraint );
 				constraint.addListener( 'deactivate', this.onContactDeactivate );
 
 				// Build friction constraint
 				constraint = Goblin.ObjectPool.getObject( 'FrictionConstraint' );
 				constraint.buildFromContact( contact );
-				this.friction_constraints.push( constraint );
+				Goblin.IterativeSolver._pushTracked( this.friction_constraints, constraint );
 				constraint.addListener( 'deactivate', this.onFrictionDeactivate );
 			}
 		}
@@ -352,6 +386,8 @@ Goblin.IterativeSolver.prototype.solveConstraints = function() {
 		max_impulse = 0, // Track the largest impulse per iteration; if the impulse is <= EPSILON then early out
 		jdot;
 
+	this._buildNormalBlockPairs();
+
 	// Warm starting
 	for ( i = 0; i < num_constraints; i++ ) {
 		constraint = this.all_constraints[i];
@@ -487,6 +523,42 @@ Goblin.IterativeSolver.prototype.solveConstraints = function() {
  *
  * @method solveNormalBlocks
  */
+/**
+ * Precomputes, once per solveConstraints() call, which contact_constraints share a body pair (a
+ * 2-point resting manifold produces two ContactConstraints on the same object_a/object_b). Was an O(n)
+ * inner scan per constraint INSIDE solveNormalBlocks, itself called once per solver iteration — an
+ * O(n^2 * iterations) cost that dominates with hundreds of resting contacts. The pairing can't change
+ * within a solveConstraints() call (contact_constraints' membership is fixed by then), so it's built
+ * once here and solveNormalBlocks just looks it up.
+ *
+ * @method _buildNormalBlockPairs
+ */
+Goblin.IterativeSolver.prototype._buildNormalBlockPairs = function() {
+	var cc = this.contact_constraints;
+	var n = cc.length;
+	var byKey = {};
+	var i, c, key;
+
+	for ( i = 0; i < n; i++ ) {
+		cc[i]._blockPartner = null;
+	}
+
+	for ( i = 0; i < n; i++ ) {
+		c = cc[i];
+		if ( c.active === false ) {
+			continue;
+		}
+		key = Goblin.ContactManifoldList.pairKey( c.object_a, c.object_b );
+		if ( byKey.hasOwnProperty( key ) ) {
+			var partner = byKey[key];
+			c._blockPartner = partner;
+			partner._blockPartner = c;
+		} else {
+			byKey[key] = c;
+		}
+	}
+};
+
 Goblin.IterativeSolver.prototype.solveNormalBlocks = function() {
 	var cc = this.contact_constraints;
 	var n = cc.length;
@@ -495,15 +567,8 @@ Goblin.IterativeSolver.prototype.solveNormalBlocks = function() {
 		if ( c1.active === false || c1._blockPaired ) {
 			continue;
 		}
-		var c2 = null;
-		for ( var b = a + 1; b < n; b++ ) {
-			var cand = cc[b];
-			if ( cand.active === false || cand._blockPaired ) {
-				continue;
-			}
-			if ( cand.object_a === c1.object_a && cand.object_b === c1.object_b ) { c2 = cand; break; }
-		}
-		if ( c2 === null ) {
+		var c2 = c1._blockPartner;
+		if ( c2 === null || c2.active === false || c2._blockPaired ) {
 			continue;
 		}
 
