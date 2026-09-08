@@ -23,16 +23,24 @@
 		t.check(c.contact_point.distanceTo(t.vec(point[0], point[1], point[2])), 0, EPS, 'contact point is where the surfaces meet');
 	}
 
+	// collision 1-3: two spheres exactly stacked on the same X/Z (only Y differs), a GJK degeneracy
+	// where the origin lies exactly on the Minkowski-difference simplex's line (see
+	// GjkEpa.findDirectionFromLine / _resolveCollinearDegenerate). The true contact normal for two
+	// spheres is unambiguous — exactly the center-to-center direction, here straight down — and is
+	// rotation-invariant (a sphere's rotation never affects its collision geometry, so collision 3's
+	// rotated sphere still gives pure [0,-1,0]). Expected values below are the verified analytic
+	// answer, not the old GJK fallback's arbitrary tie-broken axis it used to report for this exact
+	// degenerate configuration.
 	Runner.test('gjk/spheres', 'collision 1: near-touching, normal points down', function (t) {
-		collide(t, { pos: [0, 0.9999, 0] }, { pos: [0, -1, 0] }, 0.01, [0, -1, 0], 0.977, [0, 0, 0]);
+		collide(t, { pos: [0, 0.9999, 0] }, { pos: [0, -1, 0] }, 0.0001, [0, -1, 0], 1, [0, 0, 0]);
 	}, { visual: true, steps: 0, page: 'gjk_spheres', description: DESC });
 
 	Runner.test('gjk/spheres', 'collision 2: deep overlap', function (t) {
-		collide(t, { pos: [0, 0.5, 0] }, { pos: [0, -1, 0] }, 0.5, [0.2, -0.97, 0], 0.99, [0, -0.25, 0]);
+		collide(t, { pos: [0, 0.5, 0] }, { pos: [0, -1, 0] }, 0.5, [0, -1, 0], 1, [0, -0.25, 0]);
 	}, { visual: true, steps: 0, page: 'gjk_spheres', description: DESC });
 
 	Runner.test('gjk/spheres', 'collision 3: one sphere rotated', function (t) {
-		collide(t, { pos: [-2, 1, 0], rot: [1, 0, 0, 1] }, { pos: [-2, -0.5, 0] }, 0.5, [0.1486, -0.98, -0.1486], 0.93, [-2, 0.25, 0]);
+		collide(t, { pos: [-2, 1, 0], rot: [1, 0, 0, 1] }, { pos: [-2, -0.5, 0] }, 0.5, [0, -1, 0], 1, [-2, 0.25, 0]);
 	}, { visual: true, steps: 0, page: 'gjk_spheres', description: DESC });
 
 	Runner.test('gjk/spheres', 'collision 4: other sphere rotated', function (t) {

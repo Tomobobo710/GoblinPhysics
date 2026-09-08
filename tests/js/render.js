@@ -113,9 +113,14 @@
 			return g;
 		}
 	}
+	// The wireframe overlay is a second mesh (doubling draw calls) purely for visual crispness. Dense
+	// scenes with hundreds of touching bodies (e.g. a tight box pyramid) don't need it and pay real FPS
+	// for it, so a test can opt out via meta.noWireframe — see run()'s anim.wireframeOverlay.
 	function litMesh(geo, color) {
 		var mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: color, transparent: true, opacity: 0.82 }));
-		mesh.add(new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.12 })));
+		if (anim.wireframeOverlay !== false) {
+			mesh.add(new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.12 })));
+		}
 		return mesh;
 	}
 	function meshForBody(b) {
@@ -258,6 +263,8 @@
 		init3D();
 		document.getElementById('empty').style.display = 'none';
 		anim.live = false; anim.world = null; anim.meshes = [];
+		anim.wireframeOverlay = test.noWireframe ? false : true;
+		anim.singleStepPerFrame = !!test.singleStepPerFrame;
 		clearScene(); clearConsole();
 
 		var hud = hudEl();
@@ -367,11 +374,21 @@
 			var speed = anim.fast ? 6 : 1;
 			anim._accum += Math.min(250, (now - anim._last)) * speed;   // clamp huge gaps (tab was hidden)
 			anim._last = now;
+			// singleStepPerFrame only ever drains one DT_MS per frame (see maxStepsThisFrame below), so
+			// without this cap _accum would grow unboundedly whenever a step costs more than a frame's
+			// budget — harmless numerically, but keep it bounded so it can't accumulate for the whole run.
+			if (anim.singleStepPerFrame) anim._accum = Math.min(anim._accum, DT_MS);
 			// Suppress the early-out when the test scripts mid-sim events (a shove/jiggle), so a two-phase
 			// scene always plays its full tick budget — matching headless simulate().
 			var canEarlyOut = !(anim.ctx.tickHooks && anim.ctx.tickHooks.length);
+			// singleStepPerFrame: when a step costs more than a frame's budget, the catch-up loop below
+			// would try to run multiple steps per frame to keep pace with wall-clock time — and since
+			// each catch-up step is ALSO expensive, it falls further behind every frame (death spiral).
+			// Opting out just runs exactly one step per rendered frame, same as Chandler's raw examples,
+			// and lets the frame rate be whatever it is instead of compounding.
+			var maxStepsThisFrame = anim.singleStepPerFrame ? 1 : 600;
 			var done = false, guard = 0;
-			while (anim._accum >= DT_MS && anim.tick < anim.totalTicks && !(done && canEarlyOut) && guard++ < 600) {
+			while (anim._accum >= DT_MS && anim.tick < anim.totalTicks && !(done && canEarlyOut) && guard++ < maxStepsThisFrame) {
 				anim._accum -= DT_MS;
 				anim.ctx.runTickHooks(anim.world, anim.tick + 1);   // fire scripted events before the step
 				anim.world.step(1 / 60); anim.tick++;

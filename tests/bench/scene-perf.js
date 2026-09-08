@@ -178,6 +178,7 @@ function run() {
 	var origBpUpdate = world.broadphase.update.bind(world.broadphase);
 	var origNpGenerate = world.narrowphase.generateContacts.bind(world.narrowphase);
 	var solver = world.solver;
+	var origProcessManifolds = solver.processContactManifolds.bind(solver);
 	var origPrepare = solver.prepareConstraints.bind(solver);
 	var origResolve = solver.resolveContacts.bind(solver);
 	var origSolve = solver.solveConstraints.bind(solver);
@@ -202,6 +203,7 @@ function run() {
 			return r;
 		};
 	}
+	solver.processContactManifolds = timedSolverCall(origProcessManifolds);
 	solver.prepareConstraints = timedSolverCall(origPrepare);
 	solver.resolveContacts = timedSolverCall(origResolve);
 	solver.solveConstraints = timedSolverCall(origSolve);
@@ -247,7 +249,7 @@ function run() {
 	console.log('broad    mean=' + fmt(bpStats.mean) + ' p95=' + fmt(bpStats.p95) + ' max=' + fmt(bpStats.max));
 	console.log('narrow   mean=' + fmt(npStats.mean) + ' p95=' + fmt(npStats.p95) + ' max=' + fmt(npStats.max));
 	console.log('solver   mean=' + fmt(solverStats.mean) + ' p95=' + fmt(solverStats.p95) + ' max=' + fmt(solverStats.max));
-	console.log('other    mean=' + fmt(unaccounted) + '  (gravity/integrate/updateDerived/ghost/emit)');
+	console.log('other    mean=' + fmt(unaccounted) + '  (gravity/integrate/updateDerived/ghost/emit — actually negligible; kept as a sanity residual)');
 	console.log('');
 	console.log('avg broadphase pairs/step=' + avgPairs.toFixed(1) + ' max=' + maxPairs);
 	console.log('implied avg FPS (physics-only, single thread)=' + avgFps.toFixed(1));

@@ -16,6 +16,10 @@
 		.controls button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 5px 9px; cursor: pointer; font-family: monospace; font-size: 12px; border-radius: 4px; }
 		.controls button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
 		.controls button:hover { border-color: #8b949e; }
+		.solverRow { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; }
+		.solverRow label { color: #8b949e; }
+		.solverRow select { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 4px 6px; font-family: monospace; font-size: 12px; border-radius: 4px; flex: 1; }
+		.solverRow select:focus { outline: 1px solid #58a6ff; }
 		#testNow { width: 100%; background: #238636; border: 1px solid #2ea043; color: #fff; padding: 8px; font-size: 13px; font-weight: bold; border-radius: 5px; cursor: pointer; font-family: monospace; }
 		#testNow:hover { background: #2ea043; }
 		#testNow:disabled { background: #21262d; border-color: #30363d; color: #8b949e; cursor: default; }
@@ -95,11 +99,13 @@
 			'js/chandler/support-points.js', 'js/chandler/raytracing.js', 'js/chandler/sweptshapes.js',
 			'js/chandler/convexshape.js', 'js/chandler/vector3.js', 'js/chandler/quaternion.js',
 			'js/chandler/matrix3.js', 'js/chandler/matrix4.js',
+			'js/chandler/stack.js', 'js/chandler/spheres.js', 'js/chandler/constraint-point.js',
+			'js/chandler/constraint-hinge.js', 'js/chandler/constraint-slider.js', 'js/chandler/constraint-weld.js',
 			// Tom's Suite. _util.js first — the tom tests depend on it.
 			'js/tom/_util.js',
 			'js/tom/shapes-drop.js', 'js/tom/roll.js', 'js/tom/rest.js', 'js/tom/bounce-energy.js',
-			'js/tom/entangle.js', 'js/tom/smear.js', 'js/tom/balance.js', 'js/tom/special-shapes.js',
-			'js/tom/compound-mesh.js', 'js/tom/swept-mesh-query.js', 'js/tom/swept-shape-matrix.js', 'js/tom/capsule-support.js',
+			'js/tom/entangle.js', 'js/tom/smear.js', 'js/tom/balance.js', 'js/tom/special-shapes.js', 'js/tom/rocket-settle-parity.js',
+			'js/tom/compound-mesh.js', 'js/tom/compound-mesh-cache.js', 'js/tom/swept-mesh-query.js', 'js/tom/swept-shape-matrix.js', 'js/tom/capsule-support.js',
 			// FPSCharacterController suites. _util_fps.js first.
 			'js/tom/_util_fps.js',
 			'js/tom/fps-movement.js', 'js/tom/fps-walls.js', 'js/tom/fps-knockback.js', 'js/tom/fps-push.js',
@@ -110,8 +116,9 @@
 			'js/tom/chainlink-data.js',
 			'js/tom/chain-mesh.js',
 			'js/tom/meshmesh-collision.js',
-			// Perf scene (visual, always passes — for watching narrowphase cost, not asserting behavior)
+			// Perf scenes (visual, always pass — for watching solver/narrowphase cost, not asserting behavior)
 			'js/tom/perf-settle-scene.js',
+			'js/tom/perf-settle-scene-compound.js',
 			// renderer LAST (after all tests are registered)
 			'js/render.js'
 		];
@@ -125,6 +132,13 @@
 			<div class="top">
 				<h1>Goblin Physics — Test Suite</h1>
 				<div class="controls" id="suitePicker"></div>
+				<div class="solverRow">
+					<label for="solverPicker">solver</label>
+					<select id="solverPicker">
+						<option value="pgs">IterativeSolver (PGS, default)</option>
+						<option value="pbd">PBDSolver (XPBD)</option>
+					</select>
+				</div>
 				<button id="testNow">Test Now</button>
 				<button id="quickTest">Quick Test</button>
 				<div class="summary" id="summary">hit Quick Test to run</div>
@@ -153,6 +167,19 @@
 		// Running all tests synchronously on load is what used to hang the page.
 
 		var suiteName = {}; Runner.suites().forEach(function (s) { suiteName[s.key] = s.name; });
+
+		// ---- solver picker: which Goblin.Solver every test's makeWorld() builds. Switching solvers
+		// invalidates every prior result (a pass under PGS says nothing about PBD) — clear dots/summary
+		// on change so a stale green dot never gets read as "passes under the now-selected solver".
+		var solverPicker = document.getElementById('solverPicker');
+		solverPicker.onchange = function () {
+			var v = solverPicker.value;
+			if (v === 'pbd') Runner.setSolverFactory(function () { return new Goblin.PBDSolver(); });
+			else Runner.setSolverFactory(function () { return new Goblin.IterativeSolver(); });
+			results = {};
+			document.getElementById('summary').innerHTML = 'solver switched — hit Quick Test to run';
+			renderList();
+		};
 
 		// ---- suite picker ----
 		var picker = document.getElementById('suitePicker');

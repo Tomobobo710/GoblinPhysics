@@ -31,6 +31,13 @@
 	var SUITE_ORDER = ['chandler', 'tom'];
 	var SUITE_NAMES = { chandler: "Chandler's Suite", tom: "Tom's Suite" };
 
+	// Which Goblin.Solver every test's makeWorld() constructs - defaults to IterativeSolver (PGS), the
+	// engine's original/default solver. Overridable via setSolverFactory so the whole suite can be run
+	// against a different Goblin.Solver implementation (e.g. PBDSolver) to check parity, without any
+	// individual test file needing to know or care which solver is active.
+	var _solverFactory = function () { return new Goblin.IterativeSolver(); };
+	function setSolverFactory(factory) { _solverFactory = factory; }
+
 	// A failed assertion throws this; a real code error is anything else. The runner distinguishes them.
 	function AssertionError(message) { this.message = message; this.name = 'AssertionError'; }
 	AssertionError.prototype = Object.create(Error.prototype);
@@ -53,7 +60,18 @@
 			suite: _currentSuite, group: group, name: name, fn: fn,
 			visual: meta.visual === true, steps: meta.steps || 0,
 			page: meta.page || group.split('/')[0],
-			description: meta.description || ''
+			description: meta.description || '',
+			// dense scenes (hundreds of mutually-touching bodies) can skip the wireframe overlay mesh —
+			// it doubles draw calls for a purely cosmetic crispness that isn't worth it at that density.
+			noWireframe: meta.noWireframe === true,
+			// when a single world.step() costs more than one frame's budget, the default real-time
+			// accumulator (render.js) tries to run multiple steps per frame to keep sim-time matched to
+			// wall-clock time — and since each catch-up step is ALSO expensive, it falls further behind
+			// every frame (a death spiral). A scene this heavy should instead run exactly one step per
+			// rendered frame, same as Chandler's original examples, and just let the frame rate be
+			// whatever it is. Opt-in per test since it changes the on-screen pacing (no fixed N-ticks-in-
+			// N/60-seconds wall-clock guarantee).
+			singleStepPerFrame: meta.singleStepPerFrame === true
 		});
 	}
 
@@ -189,7 +207,7 @@
 			// makeWorld({ gravity }) — omit gravity for the engine default (-9.8), pass 0 for zero-g.
 			makeWorld: function (opts) {
 				opts = opts || {};
-				var w = new Goblin.World(new Goblin.SAPBroadphase(), new Goblin.NarrowPhase(), new Goblin.IterativeSolver());
+				var w = new Goblin.World(new Goblin.SAPBroadphase(), new Goblin.NarrowPhase(), _solverFactory());
 				if (opts.gravity != null) w.gravity = new Goblin.Vector3(0, opts.gravity, 0);
 				ctx.world = w;
 				return w;
@@ -237,6 +255,7 @@
 			if (opts.vel) b.linear_velocity.set(opts.vel[0] || 0, opts.vel[1] || 0, opts.vel[2] || 0);
 			if (opts.avel) b.angular_velocity.set(opts.avel[0] || 0, opts.avel[1] || 0, opts.avel[2] || 0);
 			if (opts.friction != null) b.friction = opts.friction;
+			if (opts.rolling_friction != null) b.rolling_friction = opts.rolling_friction;
 			if (opts.restitution != null) b.restitution = opts.restitution;
 			if (opts.linear_damping != null) b.linear_damping = opts.linear_damping;
 			if (opts.angular_damping != null) b.angular_damping = opts.angular_damping;
@@ -332,6 +351,7 @@
 	return {
 		suite: suite, test: test,
 		run: run, runOne: runOne, runByName: runByName,
-		groups: groups, suites: suites, orderedTests: orderedTests, tests: tests
+		groups: groups, suites: suites, orderedTests: orderedTests, tests: tests,
+		setSolverFactory: setSolverFactory
 	};
 });

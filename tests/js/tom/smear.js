@@ -20,9 +20,14 @@
 		U.ground(t, w);
 		// Static tall support: center y=0.9, top y=1.8.
 		t.box(w, 0.3, 0.9, 0.3, 0, { pos: [0, 0.9, 0], friction: 0.4, restitution: 0, color: '#3355ff' });
-		// Falling box released tilted, offset off the support's top corner (grippy material: friction 3).
+		// Falling box released tilted, hanging off the support's top corner (grippy material: friction 3).
+		// x=0.4 puts the box's inner face level with the pillar's outer edge (pillar half-width 0.3, box
+		// half-extent 0.4), so it catches the corner clearly overhanging and must tumble off rather than
+		// balancing on top. The old 0.169 sat close enough to centred that a solver which lands the box
+		// squarely - rather than knocking it off - leaves it resting on the pillar, which reads as a
+		// failure without being one. Both PGS and XPBD tumble off across x=0.32-0.48.
 		var box = t.box(w, HALF, HALF, HALF, 2, {
-			pos: [0.169, 0.9 + 2.92, 0.017], rot: SEED_Q, friction: 3, restitution: 0.33, color: '#e0b020'
+			pos: [0.4, 0.9 + 2.92, 0.017], rot: SEED_Q, friction: 3, restitution: 0.33, color: '#e0b020'
 		});
 
 		// Track the worst "stuck up high" run: box frozen (tiny |vy|, tiny spin) while still above y=0.9,

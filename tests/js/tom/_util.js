@@ -14,10 +14,14 @@
 	// Tom's material preset — the material these scenes put on their bodies. The high angular_damping is
 	// deliberate and load-bearing: friction alone cannot stop a ROLLING contact (it opposes sliding at
 	// the contact point, not spin), so without it any spin picked up on landing never bleeds off and round
-	// shapes roll/buzz forever. A moderate linear_damping does the same for slow lateral creep. Tests that
-	// must MEASURE raw bounce or contact energy (bounce-energy) override these back to bare values so the
-	// damping doesn't mask the signal.
-	var MAT = { friction: 3.0, restitution: 0.33, linear_damping: 0.1, angular_damping: 0.9 };
+	// shapes roll/buzz forever. A moderate linear_damping does the same for slow lateral creep.
+	// rolling_friction is the same idea but modeled as a real contact-level rolling-resistance torque
+	// (see RigidBody.rolling_friction) rather than a blanket per-body damping - inert for any engine/
+	// solver that doesn't read the property (angular_damping alone still does the work there), and a
+	// genuine (small, physically-typical) material property for one that does. Tests that must MEASURE
+	// raw bounce or contact energy (bounce-energy) override these back to bare values so the damping
+	// doesn't mask the signal.
+	var MAT = { friction: 3.0, restitution: 0.33, linear_damping: 0.1, angular_damping: 0.9, rolling_friction: 0.02 };
 
 	// Merge Tom's material preset into an opts object without clobbering anything the caller set.
 	function withMat(opts) {
