@@ -495,6 +495,13 @@ Goblin.Quaternion.prototype = {
 		this.w = w;
 	},
 
+	copy: function( q ) {
+		this.x = q.x;
+		this.y = q.y;
+		this.z = q.z;
+		this.w = q.w;
+	},
+
 	multiply: function( q ) {
 		var x = this.x, y = this.y, z = this.z, w = this.w,
 			qx = q.x, qy = q.y, qz = q.z, qw = q.w;
@@ -780,16 +787,19 @@ Goblin.EventEmitter.prototype = {
 	},
 
 	emit: function( event ) {
+		// Skip the arguments-slice allocation entirely when nobody's listening.
+		if ( !( this.listeners[event] instanceof Array ) || this.listeners[event].length === 0 ) {
+			return;
+		}
+
 		var event_arguments = Array.prototype.slice.call( arguments, 1 ),
 			ret_value;
 
-		if ( this.listeners[event] instanceof Array ) {
-			var listeners = this.listeners[event].slice();
-			for ( var i = 0; i < listeners.length; i++ ) {
-				ret_value = listeners[i].apply( this, event_arguments );
-				if ( ret_value === false ) {
-					return false;
-				}
+		var listeners = this.listeners[event].slice();
+		for ( var i = 0; i < listeners.length; i++ ) {
+			ret_value = listeners[i].apply( this, event_arguments );
+			if ( ret_value === false ) {
+				return false;
 			}
 		}
 	}
@@ -934,6 +944,23 @@ Goblin.RigidBody = (function() {
 		 * @default 0.5
 		 */
 		this.friction = 0.5;
+
+		/**
+		 * Rolling resistance coefficient: a torque opposing spin at a rolling contact, distinct from
+		 * `friction` (which opposes SLIDING - the contact point's own tangential velocity, near-zero
+		 * for a round shape rolling without slip, so Coulomb friction alone cannot arrest rolling
+		 * motion). Defaults to 0 (no rolling resistance, matching every physics engine's convention of
+		 * treating it as an opt-in material property, since most simulated contacts either aren't
+		 * round or don't need it modeled). 0.01-0.05 is a typical real-world range (much smaller than
+		 * `friction`'s 0-1+ range) for a rubber-like material; 0 leaves round shapes rolling forever on
+		 * a frictionless-in-the-rolling-direction surface, which is physically correct for a perfect
+		 * rigid cylinder/sphere on a perfectly rigid floor.
+		 *
+		 * @property rolling_friction
+		 * @type {Number}
+		 * @default 0
+		 */
+		this.rolling_friction = 0;
 
 		/**
 		 * bitmask indicating what collision groups this object belongs to
@@ -1245,22 +1272,34 @@ Goblin.RigidBody.prototype.updateDerived = function() {
 	// normalize rotation
 	this.rotation.normalize();
 
-	// update this.transform and this.transform_inverse
-	this.transform.makeTransform( this.rotation, this.position );
-	this.transform.invertInto( this.transform_inverse );
+	// Only bump _transformVersion when position/rotation actually changed, so caches keyed on it
+	// (e.g. a static compound's per-child world AABB) stay valid across steps a body doesn't move.
+	var moved = this._transformVersion === undefined ||
+		this.position.x !== this._lastPos_x || this.position.y !== this._lastPos_y || this.position.z !== this._lastPos_z ||
+		this.rotation.x !== this._lastRot_x || this.rotation.y !== this._lastRot_y || this.rotation.z !== this._lastRot_z || this.rotation.w !== this._lastRot_w;
 
-	// Update the world frame inertia tensor and inverse
-	if ( this._mass !== Infinity ) {
-		_tmp_mat3_1.fromMatrix4( this.transform_inverse );
-		_tmp_mat3_1.transposeInto( _tmp_mat3_2 );
-		_tmp_mat3_2.multiply( this.inertiaTensor );
-		this.inertiaTensorWorldFrame.multiplyFrom( _tmp_mat3_2, _tmp_mat3_1 );
+	// Transform rebuild, inertia tensor world-frame update, and AABB transform only run when moved.
+	if ( moved ) {
+		this.transform.makeTransform( this.rotation, this.position );
+		this.transform.invertInto( this.transform_inverse );
 
-		this.inertiaTensorWorldFrame.invertInto( this.inverseInertiaTensorWorldFrame );
+		this._transformVersion = ( this._transformVersion || 0 ) + 1;
+		this._lastPos_x = this.position.x; this._lastPos_y = this.position.y; this._lastPos_z = this.position.z;
+		this._lastRot_x = this.rotation.x; this._lastRot_y = this.rotation.y; this._lastRot_z = this.rotation.z; this._lastRot_w = this.rotation.w;
+
+		// Update the world frame inertia tensor and inverse
+		if ( this._mass !== Infinity ) {
+			_tmp_mat3_1.fromMatrix4( this.transform_inverse );
+			_tmp_mat3_1.transposeInto( _tmp_mat3_2 );
+			_tmp_mat3_2.multiply( this.inertiaTensor );
+			this.inertiaTensorWorldFrame.multiplyFrom( _tmp_mat3_2, _tmp_mat3_1 );
+
+			this.inertiaTensorWorldFrame.invertInto( this.inverseInertiaTensorWorldFrame );
+		}
+
+		// Update AABB
+		this.aabb.transform( this.shape.aabb, this.transform );
 	}
-
-	// Update AABB
-	this.aabb.transform( this.shape.aabb, this.transform );
 };
 /**
  * adds a constant force to associated objects
@@ -1613,16 +1652,14 @@ Goblin.BasicBroadphase.prototype.rayIntersect = function( start, end ) {
 			if ( this.overlap_counter[key] === 0 ) {
 				delete this.overlap_counter[key];
 			} else if ( this.overlap_counter[key] === 2 ) {
-				// These are no longer touching, remove from potential contacts
-				this.collision_pairs = this.collision_pairs.filter(function( pair ){
-					if ( pair[0] === body_a && pair[1] === body_b ) {
-						return false;
+				// No longer touching; find-and-splice instead of filter()'s full-array reallocation.
+				for ( var i = 0; i < this.collision_pairs.length; i++ ) {
+					var pair = this.collision_pairs[i];
+					if ( ( pair[0] === body_a && pair[1] === body_b ) || ( pair[0] === body_b && pair[1] === body_a ) ) {
+						this.collision_pairs.splice( i, 1 );
+						break;
 					}
-					if ( pair[0] === body_b && pair[1] === body_a ) {
-						return false;
-					}
-					return true;
-				});
+				}
 			}
 		},
 
@@ -2047,6 +2084,7 @@ Goblin.BoxSphere = function( object_a, object_b ) {
 
 	contact.restitution = ( sphere.restitution + box.restitution ) / 2;
 	contact.friction = ( sphere.friction + box.friction ) / 2;
+	contact.rolling_friction = ( sphere.rolling_friction + box.rolling_friction ) / 2;
 
 	return contact;
 };
@@ -2158,10 +2196,61 @@ Goblin.GjkEpa = {
 	testCollision: function( object_a, object_b ) {
 		var simplex = Goblin.GjkEpa.GJK( object_a, object_b );
 		if ( Goblin.GjkEpa.result != null ) {
+			if ( simplex != null ) {
+				Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
+			}
 			return Goblin.GjkEpa.result;
 		} else if ( simplex != null ) {
 			return Goblin.GjkEpa.EPA( simplex );
 		}
+	},
+
+	/**
+	 * Sphere-vs-sphere exact answer for the collinear GJK degeneracy; null (declines) otherwise.
+	 *
+	 * @method _resolveCollinearDegenerate
+	 * @param simplex {Goblin.GjkEpa.Simplex}
+	 * @return {Goblin.ContactDetails|null}
+	 */
+	_resolveCollinearDegenerate: function( simplex ) {
+		var object_a = simplex.object_a,
+			object_b = simplex.object_b;
+
+		if ( !( object_a.shape instanceof Goblin.SphereShape ) || !( object_b.shape instanceof Goblin.SphereShape ) ) {
+			return null;
+		}
+
+		_tmp_vec3_1.subtractVectors( object_b.position, object_a.position );
+		var distance = _tmp_vec3_1.length();
+		if ( distance === 0 ) {
+			// Exactly coincident centers: no well-defined direction at all, not even analytically.
+			return null;
+		}
+
+		var contact = Goblin.ObjectPool.getObject( 'ContactDetails' );
+		contact.object_a = object_a;
+		contact.object_b = object_b;
+
+		contact.contact_normal.scaleVector( _tmp_vec3_1, 1 / distance );
+
+		contact.penetration_depth = object_a.shape.radius + object_b.shape.radius - distance;
+
+		contact.contact_point_in_a.scaleVector( contact.contact_normal, object_a.shape.radius );
+		contact.contact_point_in_a.add( object_a.position );
+		contact.contact_point_in_b.scaleVector( contact.contact_normal, -object_b.shape.radius );
+		contact.contact_point_in_b.add( object_b.position );
+
+		contact.contact_point.addVectors( contact.contact_point_in_a, contact.contact_point_in_b );
+		contact.contact_point.scale( 0.5 );
+
+		contact.object_a.transform_inverse.transformVector3( contact.contact_point_in_a );
+		contact.object_b.transform_inverse.transformVector3( contact.contact_point_in_b );
+
+		contact.restitution = ( object_a.restitution + object_b.restitution ) / 2;
+		contact.friction = ( object_a.friction + object_b.friction ) / 2;
+		contact.rolling_friction = ( object_a.rolling_friction + object_b.rolling_friction ) / 2;
+
+		return contact;
 	},
 
     /**
@@ -2174,7 +2263,7 @@ Goblin.GjkEpa = {
      */
 	GJK: (function(){
         return function( object_a, object_b ) {
-            var simplex = new Goblin.GjkEpa.Simplex( object_a, object_b ),
+            var simplex = Goblin.ObjectPool.getObject( 'GjkEpaSimplex' ).reset( object_a, object_b ),
                 last_point;
 
 			Goblin.GjkEpa.result = null;
@@ -2196,6 +2285,12 @@ Goblin.GjkEpa = {
 		for ( var i = 0, points_length = simplex.points.length; i < points_length; i++ ) {
 			Goblin.ObjectPool.freeObject( 'GJK2SupportPoint', simplex.points[i] );
 		}
+		Goblin.ObjectPool.freeObject( 'GjkEpaSimplex', simplex );
+	},
+
+	// Frees the Simplex wrapper only, not its .points (which Polyhedron.reset may still own).
+	freeSimplexWrapperOnly: function( simplex ) {
+		Goblin.ObjectPool.freeObject( 'GjkEpaSimplex', simplex );
 	},
 
 	freePolyhedron: function( polyhedron ) {
@@ -2213,7 +2308,11 @@ Goblin.GjkEpa = {
 			if ( pool.indexOf( polyhedron.faces[i].c ) === -1 ) {
 				Goblin.ObjectPool.freeObject( 'GJK2SupportPoint', polyhedron.faces[i].c );
 			}
+			Goblin.ObjectPool.freeObject( 'GjkEpaFace', polyhedron.faces[i] );
 		}
+		polyhedron.faces.length = 0;
+
+		Goblin.ObjectPool.freeObject( 'GjkEpaPolyhedron', polyhedron );
 	},
 
     /**
@@ -2233,9 +2332,12 @@ Goblin.GjkEpa = {
 		return function( simplex ) {
             // Time to convert the simplex to real faces
             // @TODO this should be a priority queue where the position in the queue is ordered by distance from face to origin
-			var polyhedron = new Goblin.GjkEpa.Polyhedron( simplex );
+			var polyhedron = Goblin.ObjectPool.getObject( 'GjkEpaPolyhedron' ).reset( simplex );
+			Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
 
 			var i = 0;
+			var prev_closest_face_distance = -1;
+			var stable_streak = 0;
 
             // Expand the polyhedron until it doesn't expand any more
 			while ( ++i ) {
@@ -2255,7 +2357,20 @@ Goblin.GjkEpa = {
                 _tmp_vec3_1.subtractVectors( support_point.point, polyhedron.closest_point );
                 var gap = _tmp_vec3_1.lengthSquared();
 
-				if ( i === Goblin.GjkEpa.max_iterations || ( gap < Goblin.GjkEpa.epa_condition && polyhedron.closest_face_distance > Goblin.EPSILON ) ) {
+				// Round shapes can plateau in closest_face_distance without gap shrinking; require a streak.
+				var STABLE_EPS = Goblin.GjkEpa.epa_condition * 0.01;
+				var STABLE_STREAK_REQUIRED = 5;
+				if ( prev_closest_face_distance >= 0 &&
+					Math.abs( polyhedron.closest_face_distance - prev_closest_face_distance ) < STABLE_EPS ) {
+					stable_streak++;
+				} else {
+					stable_streak = 0;
+				}
+				prev_closest_face_distance = polyhedron.closest_face_distance;
+				var face_distance_stable = stable_streak >= STABLE_STREAK_REQUIRED;
+
+				if ( i === Goblin.GjkEpa.max_iterations || face_distance_stable ||
+					( gap < Goblin.GjkEpa.epa_condition && polyhedron.closest_face_distance > Goblin.EPSILON ) ) {
 
 					// Get a ContactDetails object and fill out its details
 					var contact = Goblin.ObjectPool.getObject( 'ContactDetails' );
@@ -2267,6 +2382,40 @@ Goblin.GjkEpa = {
 						contact.contact_normal.subtractVectors( contact.object_b.position, contact.object_a.position );
 					}
 					contact.contact_normal.normalize();
+
+					// A TriangleShape is genuinely zero-thickness (a flat, degenerate convex shape), so
+					// its own findSupportPoint has no notion of "front" vs "back" - both sides of the
+					// triangle give identical GJK support points. That leaves EPA's derived normal
+					// (above, purely the direction from the Minkowski difference's closest point to the
+					// origin) numerically free to resolve to either side of the triangle's plane for a
+					// near-touching query, since the true closest-point direction is genuinely ambiguous
+					// at zero thickness - unlike a real solid shape, where the Minkowski difference has
+					// real volume and only one side is ever actually closest. The triangle's own vertex
+					// winding already encodes which way is "up" reliably (see TriangleShape's
+					// constructor) - but ONLY for a STATIC triangle mesh (a ground/level built from
+					// MeshShape tiles), which is a genuine one-sided solid boundary. A dynamic mesh body
+					// (e.g. this project's own trophy/rocket test shapes) can legitimately include
+					// explicitly double-sided triangles (a thin decorative shell, no "inside"), where the
+					// winding-derived normal is not a reliable ground truth to reconcile against - gating
+					// on infinite mass keeps this fix scoped to the case it actually corrects (confirmed
+					// via instrumentation: a box resting on a tiled static MeshShape floor got contact
+					// manifold points whose normal pointed straight down instead of up on a subset of
+					// ticks, launching/dropping the body; applying the same reconciliation unconditionally
+					// to a dynamic double-sided mesh body instead flipped an already-correct normal and
+					// broke that separate scene).
+					if ( contact.object_a.shape instanceof Goblin.TriangleShape && contact.object_a._mass === Infinity ) {
+						_tmp_vec3_1.copy( contact.object_a.shape.normal );
+						contact.object_a.transform.rotateVector3( _tmp_vec3_1 );
+						if ( _tmp_vec3_1.dot( contact.contact_normal ) < 0 ) {
+							contact.contact_normal.scale( -1 );
+						}
+					} else if ( contact.object_b.shape instanceof Goblin.TriangleShape && contact.object_b._mass === Infinity ) {
+						_tmp_vec3_1.copy( contact.object_b.shape.normal );
+						contact.object_b.transform.rotateVector3( _tmp_vec3_1 );
+						if ( _tmp_vec3_1.dot( contact.contact_normal ) > 0 ) {
+							contact.contact_normal.scale( -1 );
+						}
+					}
 
 					Goblin.GeometryMethods.findBarycentricCoordinates( polyhedron.closest_point, polyhedron.faces[polyhedron.closest_face].a.point, polyhedron.faces[polyhedron.closest_face].b.point, polyhedron.faces[polyhedron.closest_face].c.point, barycentric );
 
@@ -2305,6 +2454,7 @@ Goblin.GjkEpa = {
 
 					contact.restitution = ( simplex.object_a.restitution + simplex.object_b.restitution ) / 2;
 					contact.friction = ( simplex.object_a.friction + simplex.object_b.friction ) / 2;
+					contact.rolling_friction = ( simplex.object_a.rolling_friction + simplex.object_b.rolling_friction ) / 2;
 
 					Goblin.GjkEpa.freePolyhedron( polyhedron );
 
@@ -2320,40 +2470,64 @@ Goblin.GjkEpa = {
     })(),
 
     Face: function( polyhedron, a, b, c ) {
-		this.active = true;
-		//this.polyhedron = polyhedron;
-        this.a = a;
-        this.b = b;
-        this.c = c;
         this.normal = new Goblin.Vector3();
-		this.neighbors = [];
-
-        _tmp_vec3_1.subtractVectors( b.point, a.point );
-        _tmp_vec3_2.subtractVectors( c.point, a.point );
-        this.normal.crossVectors( _tmp_vec3_1, _tmp_vec3_2 );
-        this.normal.normalize();
+        this.neighbors = [];
+        this.closest_point = new Goblin.Vector3();
+        this.reset( polyhedron || null, a || null, b || null, c || null );
     }
+};
+
+Goblin.GjkEpa.HeapEntry = function( value, index ) {
+	this.value = value;
+	this.index = index;
+};
+Goblin.GjkEpa.HeapEntry.prototype.valueOf = function() {
+	return this.value;
 };
 
 Goblin.GjkEpa.Polyhedron = function( simplex ) {
 	this.closest_face = null;
 	this.closest_face_distance = null;
 	this.closest_point = new Goblin.Vector3();
-
-	this.faces = [
-		//BCD, ACB, CAD, DAB
-		new Goblin.GjkEpa.Face( this, simplex.points[2], simplex.points[1], simplex.points[0] ),
-		new Goblin.GjkEpa.Face( this, simplex.points[3], simplex.points[1], simplex.points[2] ),
-		new Goblin.GjkEpa.Face( this, simplex.points[1], simplex.points[3], simplex.points[0] ),
-		new Goblin.GjkEpa.Face( this, simplex.points[0], simplex.points[3], simplex.points[2] )
-	];
-
-	this.faces[0].neighbors.push( this.faces[1], this.faces[2], this.faces[3] );
-	this.faces[1].neighbors.push( this.faces[2], this.faces[0], this.faces[3] );
-	this.faces[2].neighbors.push( this.faces[1], this.faces[3], this.faces[0] );
-	this.faces[3].neighbors.push( this.faces[2], this.faces[1], this.faces[0] );
+	this.faces = [];
+	// Lazy-deletion min-heap over this.faces by closest_point_distance (fixed at Face construction,
+	// so no decrease-key needed) — avoids findFaceClosestToOrigin's O(faces) rescan every EPA iteration.
+	this._heap = new Goblin.MinHeap();
+	this.reset( simplex || null );
 };
 Goblin.GjkEpa.Polyhedron.prototype = {
+	reset: function( simplex ) {
+		for ( var i = 0; i < this.faces.length; i++ ) {
+			Goblin.ObjectPool.freeObject( 'GjkEpaFace', this.faces[i] );
+		}
+		this.faces.length = 0;
+		this._heap.heap.length = 0;
+		this.closest_face = null;
+		this.closest_face_distance = null;
+
+		if ( simplex === null ) {
+			return this;
+		}
+
+		//BCD, ACB, CAD, DAB
+		this.faces.push(
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[2], simplex.points[1], simplex.points[0] ),
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[3], simplex.points[1], simplex.points[2] ),
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[1], simplex.points[3], simplex.points[0] ),
+			Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, simplex.points[0], simplex.points[3], simplex.points[2] )
+		);
+
+		this.faces[0].neighbors.push( this.faces[1], this.faces[2], this.faces[3] );
+		this.faces[1].neighbors.push( this.faces[2], this.faces[0], this.faces[3] );
+		this.faces[2].neighbors.push( this.faces[1], this.faces[3], this.faces[0] );
+		this.faces[3].neighbors.push( this.faces[2], this.faces[1], this.faces[0] );
+
+		for ( var f = 0; f < 4; f++ ) {
+			this._heap.push( new Goblin.GjkEpa.HeapEntry( this.faces[f].closest_point_distance, f ) );
+		}
+
+		return this;
+	},
     addVertex: function( vertex )
     {
         var edges = [], faces = [], i, j, a, b, last_b;
@@ -2396,7 +2570,7 @@ Goblin.GjkEpa.Polyhedron.prototype = {
             a = edges[i+3];
             b = edges[i+4];
 
-            var face = new Goblin.GjkEpa.Face( this, b, vertex, a );
+            var face = Goblin.ObjectPool.getObject( 'GjkEpaFace' ).reset( this, b, vertex, a );
             face.neighbors[2] = edges[i];
             faces.push( face );
 
@@ -2408,38 +2582,66 @@ Goblin.GjkEpa.Polyhedron.prototype = {
             faces[i].neighbors[1] = faces[ i - 1 < 0 ? faces.length - 1 : i - 1 ];
         }
 
+		var base_index = this.faces.length;
 		Array.prototype.push.apply( this.faces, faces );
+		for ( i = 0; i < faces.length; i++ ) {
+			this._heap.push( new Goblin.GjkEpa.HeapEntry( faces[i].closest_point_distance, base_index + i ) );
+		}
 
         return edges;
     },
 
-	findFaceClosestToOrigin: (function(){
-		var origin = new Goblin.Vector3(),
-			point = new Goblin.Vector3();
-
-		return function() {
-			this.closest_face_distance = Infinity;
-
-			var distance, i;
-
-			for ( i = 0; i < this.faces.length; i++ ) {
-				if ( this.faces[i].active === false ) {
-					continue;
-				}
-
-				Goblin.GeometryMethods.findClosestPointInTriangle( origin, this.faces[i].a.point, this.faces[i].b.point, this.faces[i].c.point, point );
-				distance = point.lengthSquared();
-				if ( distance < this.closest_face_distance ) {
-					this.closest_face_distance = distance;
-					this.closest_face = i;
-					this.closest_point.copy( point );
-				}
+	findFaceClosestToOrigin: function() {
+		// Discard stale entries (faces deactivated since being pushed) from the top of the heap.
+		var entry;
+		while ( ( entry = this._heap.peek() ) !== null ) {
+			if ( this.faces[entry.index].active === false ) {
+				this._heap.pop();
+				continue;
 			}
-		};
-	})()
+			break;
+		}
+
+		if ( entry === null ) {
+			this.closest_face_distance = Infinity;
+			this.closest_face = null;
+			return;
+		}
+
+		var face = this.faces[entry.index];
+		this.closest_face_distance = face.closest_point_distance;
+		this.closest_face = entry.index;
+		this.closest_point.copy( face.closest_point );
+	}
 };
 
-Goblin.GjkEpa.Face.prototype = {
+Goblin.GjkEpa.Face.prototype = (function() {
+	var origin = new Goblin.Vector3();
+
+	return {
+	reset: function( polyhedron, a, b, c ) {
+		this.active = true;
+		this.a = a;
+		this.b = b;
+		this.c = c;
+		this.neighbors.length = 0;
+
+		if ( a === null ) {
+			return this;
+		}
+
+		_tmp_vec3_1.subtractVectors( b.point, a.point );
+		_tmp_vec3_2.subtractVectors( c.point, a.point );
+		this.normal.crossVectors( _tmp_vec3_1, _tmp_vec3_2 );
+		this.normal.normalize();
+
+		// Cached once here instead of recomputed on every findFaceClosestToOrigin() scan.
+		Goblin.GeometryMethods.findClosestPointInTriangle( origin, a.point, b.point, c.point, this.closest_point );
+		this.closest_point_distance = this.closest_point.lengthSquared();
+
+		return this;
+	},
+
 	/**
 	 * Determines if a vertex is in front of or behind the face
 	 *
@@ -2481,7 +2683,8 @@ Goblin.GjkEpa.Face.prototype = {
 			edges.push( this, neighbor_idx, source, b, a );
 		}
 	}
-};
+	};
+})();
 
 (function(){
     var origin = new Goblin.Vector3(),
@@ -2495,7 +2698,13 @@ Goblin.GjkEpa.Face.prototype = {
 			a: new Goblin.Vector3(),
 			b: new Goblin.Vector3(),
 			c: new Goblin.Vector3()
-		};
+		},
+		// Scratch for the degenerate-triangle fallback in addPoint; reused, never held across calls.
+		_degenerate_edge_0 = new Goblin.Vector3(),
+		_degenerate_edge_1 = new Goblin.Vector3(),
+		// Interpolation weight along a 2-point simplex, shared between the margin test and the witness
+		// point it implies.
+		segment_t = 0;
 
     Goblin.GjkEpa.Simplex = function( object_a, object_b ) {
         this.object_a = object_a;
@@ -2503,9 +2712,20 @@ Goblin.GjkEpa.Face.prototype = {
         this.points = [];
         this.iterations = 0;
         this.next_direction = new Goblin.Vector3();
-        this.updateDirection();
+        // Pool factory constructs with (null, null); reset() always follows before use.
+        if ( object_a != null && object_b != null ) {
+            this.updateDirection();
+        }
     };
     Goblin.GjkEpa.Simplex.prototype = {
+        reset: function( object_a, object_b ) {
+            this.object_a = object_a;
+            this.object_b = object_b;
+            this.points.length = 0;
+            this.iterations = 0;
+            this.updateDirection();
+            return this;
+        },
         addPoint: function() {
             if ( ++this.iterations === Goblin.GjkEpa.max_iterations ) {
                 return false;
@@ -2516,8 +2736,11 @@ Goblin.GjkEpa.Face.prototype = {
             this.points.push( support_point );
 
 			if ( support_point.point.dot( this.next_direction ) < 0 && this.points.length > 1 ) {
-				// Check the margins first
-				// @TODO this can be expanded to support 1-simplex (2 points)
+				// Check the margins first. The simplex may be a triangle or just a segment: GJK stops as
+				// soon as it can prove the origin is outside, and for shapes resting flush that can
+				// happen before a third support is added. Only handling the triangle left those pairs
+				// reporting no contact at all despite sitting inside the margin.
+				var distanceSquared;
 				if ( this.points.length >= 3 ) {
 					Goblin.GeometryMethods.findClosestPointInTriangle(
 						origin,
@@ -2526,8 +2749,23 @@ Goblin.GjkEpa.Face.prototype = {
 						this.points[2].point,
 						_tmp_vec3_1
 					);
-					var distanceSquared = _tmp_vec3_1.lengthSquared();
+					distanceSquared = _tmp_vec3_1.lengthSquared();
+				} else {
+					// Closest point on segment [p0, p1] to the origin, clamped to the segment.
+					_degenerate_edge_0.subtractVectors( this.points[1].point, this.points[0].point );
+					var segLengthSquared = _degenerate_edge_0.lengthSquared();
+					segment_t = 0;
+					if ( segLengthSquared > 0 ) {
+						_degenerate_edge_1.scaleVector( this.points[0].point, -1 );
+						segment_t = _degenerate_edge_1.dot( _degenerate_edge_0 ) / segLengthSquared;
+						if ( segment_t < 0 ) { segment_t = 0; } else if ( segment_t > 1 ) { segment_t = 1; }
+					}
+					_tmp_vec3_1.scaleVector( _degenerate_edge_0, segment_t );
+					_tmp_vec3_1.add( this.points[0].point );
+					distanceSquared = _tmp_vec3_1.lengthSquared();
+				}
 
+				{
 					if ( distanceSquared <= Goblin.GjkEpa.margins * Goblin.GjkEpa.margins ) {
 						// Get a ContactDetails object and fill out its details
 						var contact = Goblin.ObjectPool.getObject( 'ContactDetails' );
@@ -2543,19 +2781,60 @@ Goblin.GjkEpa.Face.prototype = {
 
 						contact.penetration_depth = Goblin.GjkEpa.margins - Math.sqrt( distanceSquared );
 
+						if ( this.points.length < 3 ) {
+							confirm.a.scaleVector( this.points[0].witness_a, 1 - segment_t );
+							confirm.b.scaleVector( this.points[1].witness_a, segment_t );
+							contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+						} else {
+
 						Goblin.GeometryMethods.findBarycentricCoordinates( _tmp_vec3_1, this.points[0].point, this.points[1].point, this.points[2].point, barycentric );
 
 						if ( isNaN( barycentric.x ) ) {
-							//debugger;
-							return false;
-						}
+							// Degenerate triangle: the three support points are collinear, so it has no
+							// area and barycentric coordinates are undefined. This is the normal result
+							// for two shapes resting exactly flush - the supports all land on the same
+							// touching face - and discarding the contact here is why such a pair
+							// reported nothing at all despite sitting well inside the margin (two boxes
+							// 0.0001 apart, against a margin of 0.01). In a stack that is every flush
+							// support at once: a box straddling four neighbours kept one of them and
+							// balanced on a single off-centre corner, torquing it about the vertical by
+							// 9 to 16 degrees in one tick. The simplex still pins down the closest
+							// feature, so fall back to interpolating along its longest edge.
+							var e0 = _degenerate_edge_0, e1 = _degenerate_edge_1, best_a = this.points[0], best_b = this.points[1];
+							e0.subtractVectors( this.points[1].point, this.points[0].point );
+							var bestLengthSquared = e0.lengthSquared();
+							e1.subtractVectors( this.points[2].point, this.points[0].point );
+							if ( e1.lengthSquared() > bestLengthSquared ) {
+								bestLengthSquared = e1.lengthSquared();
+								best_b = this.points[2];
+							}
+							e1.subtractVectors( this.points[2].point, this.points[1].point );
+							if ( e1.lengthSquared() > bestLengthSquared ) {
+								bestLengthSquared = e1.lengthSquared();
+								best_a = this.points[1];
+								best_b = this.points[2];
+							}
 
-						// Contact coordinates of object a
-						confirm.a.scaleVector( this.points[0].witness_a, barycentric.x );
-						confirm.b.scaleVector( this.points[1].witness_a, barycentric.y );
-						confirm.c.scaleVector( this.points[2].witness_a, barycentric.z );
-						contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
-						contact.contact_point_in_a.add( confirm.c );
+							var edge_t = 0;
+							if ( bestLengthSquared > 0 ) {
+								e0.subtractVectors( best_b.point, best_a.point );
+								e1.scaleVector( best_a.point, -1 );
+								edge_t = e1.dot( e0 ) / bestLengthSquared;
+								if ( edge_t < 0 ) { edge_t = 0; } else if ( edge_t > 1 ) { edge_t = 1; }
+							}
+
+							confirm.a.scaleVector( best_a.witness_a, 1 - edge_t );
+							confirm.b.scaleVector( best_b.witness_a, edge_t );
+							contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+						} else {
+							// Contact coordinates of object a
+							confirm.a.scaleVector( this.points[0].witness_a, barycentric.x );
+							confirm.b.scaleVector( this.points[1].witness_a, barycentric.y );
+							confirm.c.scaleVector( this.points[2].witness_a, barycentric.z );
+							contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+							contact.contact_point_in_a.add( confirm.c );
+						}
+						}
 
 						// Contact coordinates of object b
 						contact.contact_point_in_b.scaleVector( contact.contact_normal, -contact.penetration_depth );
@@ -2571,6 +2850,7 @@ Goblin.GjkEpa.Face.prototype = {
 
 						contact.restitution = ( this.object_a.restitution + this.object_b.restitution ) / 2;
 						contact.friction = ( this.object_a.friction + this.object_b.friction ) / 2;
+						contact.rolling_friction = ( this.object_a.rolling_friction + this.object_b.rolling_friction ) / 2;
 
 						//Goblin.GjkEpa.freePolyhedron( polyhedron );
 
@@ -2613,6 +2893,13 @@ Goblin.GjkEpa.Face.prototype = {
                     this.next_direction.y === 0 &&
                     this.next_direction.z === 0
                 ) {
+                    // Try the analytic shortcut before the arbitrary perpendicular fallback below.
+                    var result = Goblin.GjkEpa._resolveCollinearDegenerate( this );
+                    if ( result !== null ) {
+                        Goblin.GjkEpa.result = result;
+                        return true;
+                    }
+
                     ab.normalize();
                     this.next_direction.x = 1 - Math.abs( ab.x );
                     this.next_direction.y = 1 - Math.abs( ab.y );
@@ -2858,7 +3145,7 @@ Goblin.GjkEpa.Face.prototype = {
 
             } else if ( this.points.length === 2 ) {
 
-                this.findDirectionFromLine();
+                return this.findDirectionFromLine();
 
             } else if ( this.points.length === 3 ) {
 
@@ -2920,6 +3207,7 @@ Goblin.SphereSphere = function( object_a, object_b ) {
 
 	contact.restitution = ( object_a.restitution + object_b.restitution ) / 2;
 	contact.friction = ( object_a.friction + object_b.friction ) / 2;
+	contact.rolling_friction = ( object_a.rolling_friction + object_b.rolling_friction ) / 2;
 
 	return contact;
 };
@@ -3545,6 +3833,10 @@ Goblin.ContactConstraint.prototype.buildFromContact = function( contact ) {
 	var row = this.rows[0] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	row.lower_limit = 0;
 	row.upper_limit = Infinity;
+	// A pooled row still holds the previous contact's impulse; warm starting would apply it to this
+	// unrelated body pair.
+	row.multiplier = 0;
+	row.multiplier_cached = 0;
 	this.rows[0] = row;
 
 	this.update();
@@ -3699,6 +3991,10 @@ Goblin.FrictionConstraint.prototype = Object.create( Goblin.Constraint.prototype
 Goblin.FrictionConstraint.prototype.buildFromContact = function( contact ) {
 	this.rows[0] = this.rows[0] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	this.rows[1] = this.rows[1] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
+	// A pooled row still holds the previous contact's impulse; warm starting would apply it to this
+	// unrelated body pair.
+	this.rows[0].multiplier = this.rows[0].multiplier_cached = 0;
+	this.rows[1].multiplier = this.rows[1].multiplier_cached = 0;
 
 	this.object_a = contact.object_a;
 	this.object_b = contact.object_b;
@@ -5289,6 +5585,29 @@ Goblin.CompoundShape = function() {
 Goblin.CompoundShape.prototype.addChildShape = function( shape, position, rotation ) {
 	this.child_shapes.push( new Goblin.CompoundShapeChild( shape, position, rotation ) );
 	this.calculateLocalAABB( this.aabb );
+
+	// Invalidate any previously-built child BVH; deferred rebuild (see ensureHierarchy) avoids an
+	// O(n^2) rebuild-per-call when children are added one at a time.
+	this.hierarchy = null;
+	this.hierarchy_flat = null;
+};
+
+/**
+ * Lazily builds (or rebuilds, if invalidated by a since-added child) the BVH over this compound's
+ * children — see addChildShape's doc for why this can't happen eagerly there. A no-op if the current
+ * tree is already valid (this.hierarchy_flat is non-null and nothing has been added since).
+ *
+ * @method ensureHierarchy
+ */
+Goblin.CompoundShape.prototype.ensureHierarchy = function() {
+	if ( this.hierarchy_flat != null || this.child_shapes.length < 4 ) {
+		// Either already built, or below BVH.AAC's effective cluster-building threshold and not worth
+		// the construction cost — NarrowPhase.midPhase falls back to a flat scan when this is unset.
+		return;
+	}
+	var bvh = new Goblin.BVH( this.child_shapes );
+	this.hierarchy = bvh.tree;
+	this.hierarchy_flat = bvh.flat;
 };
 
 /**
@@ -5333,17 +5652,18 @@ Goblin.CompoundShape.prototype.getInertiaTensor = function( mass ) {
 
 		_tmp_vec3_1.subtract( child.position );
 
-		j.e00 = mass * -( _tmp_vec3_1.y * _tmp_vec3_1.y + _tmp_vec3_1.z * _tmp_vec3_1.z );
-		j.e10 = mass * _tmp_vec3_1.x * _tmp_vec3_1.y;
-		j.e20 = mass * _tmp_vec3_1.x * _tmp_vec3_1.z;
+		// Parallel axis theorem: diagonal terms ADD m*d^2, off-diagonal terms SUBTRACT m*d_i*d_j — both signs were backwards.
+		j.e00 = mass * ( _tmp_vec3_1.y * _tmp_vec3_1.y + _tmp_vec3_1.z * _tmp_vec3_1.z );
+		j.e10 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.y );
+		j.e20 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.z );
 
-		j.e01 = mass * _tmp_vec3_1.x * _tmp_vec3_1.y;
-		j.e11 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.z * _tmp_vec3_1.z );
-		j.e21 = mass * _tmp_vec3_1.y * _tmp_vec3_1.z;
+		j.e01 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.y );
+		j.e11 = mass * ( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.z * _tmp_vec3_1.z );
+		j.e21 = mass * -( _tmp_vec3_1.y * _tmp_vec3_1.z );
 
-		j.e02 = mass * _tmp_vec3_1.x * _tmp_vec3_1.z;
-		j.e12 = mass * _tmp_vec3_1.y * _tmp_vec3_1.z;
-		j.e22 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.y * _tmp_vec3_1.y );
+		j.e02 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.z );
+		j.e12 = mass * -( _tmp_vec3_1.y * _tmp_vec3_1.z );
+		j.e22 = mass * ( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.y * _tmp_vec3_1.y );
 
 		_tmp_mat3_1.fromMatrix4( child.transform );
 		child_tensor = child.shape.getInertiaTensor( mass );
@@ -5413,6 +5733,7 @@ Goblin.CompoundShape.prototype.rayIntersect = (function(){
  * @constructor
  */
 Goblin.CompoundShapeChild = function( shape, position, rotation ) {
+	this.id = Goblin.Utility.getUid();
 	this.shape = shape;
 
 	this.position = new Goblin.Vector3( position.x, position.y, position.z );
@@ -6430,7 +6751,11 @@ Goblin.MeshShape = function( vertices, faces ) {
 	 */
 	this._integral = new Float32Array( 10 );
 
-	this.hierarchy = new Goblin.BVH( this.triangles ).tree;
+	var bvh = new Goblin.BVH( this.triangles );
+	this.hierarchy = bvh.tree;
+	// Flat, cache-friendly BVH layout for the mesh-vs-convex hot path (see NarrowPhase.meshConvex);
+	// .hierarchy (pointer tree) stays around for mesh-mesh/ray-intersect, which aren't the bottleneck.
+	this.hierarchy_flat = bvh.flat;
 
 	var polygon_faces = this.triangles.map(
 		function( triangle ) {
@@ -6456,8 +6781,10 @@ Goblin.MeshShape = function( vertices, faces ) {
  * @param aabb {AABB}
  */
 Goblin.MeshShape.prototype.calculateLocalAABB = function( aabb ) {
-	aabb.min.x = aabb.min.y = aabb.min.z = 0;
-	aabb.max.x = aabb.max.y = aabb.max.z = 0;
+	// Must start from +/-Infinity, not 0: a mesh entirely on one side of an axis would otherwise
+	// have that bound clamped at 0 forever, inflating its AABB to always include the origin.
+	aabb.min.x = aabb.min.y = aabb.min.z = Infinity;
+	aabb.max.x = aabb.max.y = aabb.max.z = -Infinity;
 
 	for ( var i = 0; i < this.vertices.length; i++ ) {
 		aabb.min.x = Math.min( aabb.min.x, this.vertices[i].x );
@@ -6472,17 +6799,6 @@ Goblin.MeshShape.prototype.calculateLocalAABB = function( aabb ) {
 
 Goblin.MeshShape.prototype.getInertiaTensor = function( mass ) {
 	return Goblin.ConvexShape.prototype.getInertiaTensor.call( this, mass );
-};
-
-/**
- * noop
- *
- * @method findSupportPoint
- * @param direction {vec3} direction to use in finding the support point
- * @param support_point {vec3} vec3 variable which will contain the supporting point after calling this method
- */
-Goblin.MeshShape.prototype.findSupportPoint = function( direction, support_point ) {
-	return; // MeshShape isn't convex so it cannot be used directly in GJK
 };
 
 /**
@@ -7400,6 +7716,147 @@ Goblin.Utility = {
 	})()
 };
 /**
+ * Base interface for the constraint solver World drives each step. World only ever calls the 6
+ * methods defined here (see World.step and World.addConstraint/removeConstraint) - any object
+ * implementing them can be assigned as world.solver, regardless of the algorithm underneath
+ * (Gauss-Seidel/PGS in IterativeSolver, position-based in PBDSolver, or anything else). Concrete
+ * solvers extend this via `Object.create( Goblin.Solver.prototype )` and override the 6 step methods;
+ * addConstraint/removeConstraint are algorithm-agnostic bookkeeping and are inherited as-is.
+ *
+ * @class Solver
+ * @constructor
+ */
+Goblin.Solver = function() {
+	/**
+	 * User-added constraints (joints: hinge, point, slider, weld, etc.) - populated via
+	 * addConstraint/removeConstraint, distinct from whatever a solver derives from contact manifolds.
+	 *
+	 * @property constraints
+	 * @type {Array}
+	 */
+	this.constraints = [];
+
+	this.world = null;
+};
+
+/**
+ * Applies gravity/external forces and integrates every rigid body's position and rotation for this
+ * world tick. Owned by the solver (not World) so an algorithm that needs a structurally different
+ * integration scheme - e.g. XPBD substepping, where gravity is applied and position is integrated
+ * fresh N times per tick, each followed by its own mini contact-resolve, rather than once - can do so.
+ * World.step calls this BEFORE processContactManifolds/prepareConstraints/resolveContacts, and force
+ * generators have already run for this tick by the time it's called (see World.step). rigid_bodies of
+ * infinite mass must be left untouched, matching RigidBody.integrate's own guard.
+ *
+ * @method integrate
+ * @param rigid_bodies {Array} every body in the world
+ * @param gravity {Vector3} the world's default gravity (a body's own `.gravity`, if set, overrides this)
+ * @param time_delta {Number} elapsed time for this whole world tick, in seconds
+ */
+Goblin.Solver.prototype.integrate = function( rigid_bodies, gravity, time_delta ) {
+	throw new Error( 'Solver.integrate is not implemented' );
+};
+
+/**
+ * Converts this step's contact manifolds into whatever internal representation the solver uses.
+ * Called once per step, before prepareConstraints.
+ *
+ * @method processContactManifolds
+ * @param contact_manifolds {ContactManifoldList} this step's contact manifolds
+ */
+Goblin.Solver.prototype.processContactManifolds = function( contact_manifolds ) {
+	throw new Error( 'Solver.processContactManifolds is not implemented' );
+};
+
+/**
+ * Precomputes whatever per-constraint state the solver needs before solving (e.g. Jacobians for a
+ * velocity solver, rest lengths for a position solver).
+ *
+ * @method prepareConstraints
+ * @param time_delta {Number} elapsed time for this step, in seconds
+ */
+Goblin.Solver.prototype.prepareConstraints = function( time_delta ) {
+	throw new Error( 'Solver.prepareConstraints is not implemented' );
+};
+
+/**
+ * Resolves existing penetration (a separate pass from the main velocity/position solve in
+ * IterativeSolver; a position-based solver may fold this into solveConstraints and leave this a no-op).
+ *
+ * @method resolveContacts
+ */
+Goblin.Solver.prototype.resolveContacts = function() {
+	throw new Error( 'Solver.resolveContacts is not implemented' );
+};
+
+/**
+ * Runs the solver's main iteration and updates body velocities and/or positions.
+ *
+ * @method solveConstraints
+ */
+Goblin.Solver.prototype.solveConstraints = function() {
+	throw new Error( 'Solver.solveConstraints is not implemented' );
+};
+
+/**
+ * Applies the solved result (impulses, position corrections) to the rigid bodies.
+ *
+ * @method applyConstraints
+ * @param time_delta {Number} elapsed time for this step, in seconds
+ */
+Goblin.Solver.prototype.applyConstraints = function( time_delta ) {
+	throw new Error( 'Solver.applyConstraints is not implemented' );
+};
+
+/**
+ * Optional whole-tick hook. A solver that defines this owns the entire tick - integration, collision
+ * detection and solving - instead of being driven through the six methods above, and World.step calls
+ * it in their place.
+ *
+ * This exists for substepping algorithms. XPBD's stability comes from interleaving integrate ->
+ * detect -> solve -> derive-velocity N times per tick with a timestep of dt/N; the six-method split
+ * cannot express that, because World.step runs collision detection exactly once, between integrate
+ * and solve. A solver stuck in that shape can only integrate the whole tick, penetrate deeply, and
+ * then try to dig itself out once - which is not XPBD and does not behave like it.
+ *
+ * Solvers that do not define `step` (IterativeSolver) are unaffected and keep the six-method path.
+ *
+ * @method step
+ * @param rigid_bodies {Array} every body in the world
+ * @param gravity {Vector3} the world's default gravity
+ * @param time_delta {Number} elapsed time for this whole world tick, in seconds
+ * @param broadphase {Goblin.Broadphase} the world's broadphase, for pair generation
+ * @param narrowphase {Goblin.NarrowPhase} the world's narrowphase, for contact generation
+ */
+Goblin.Solver.prototype.step = null;
+
+/**
+ * Adds a user constraint (joint) to the solver. Generic array bookkeeping - concrete solvers only
+ * need to override this if they track joints differently than a flat array.
+ *
+ * @method addConstraint
+ * @param constraint {Goblin.Constraint} constraint to be added
+ */
+Goblin.Solver.prototype.addConstraint = function( constraint ) {
+	if ( this.constraints.indexOf( constraint ) === -1 ) {
+		this.constraints.push( constraint );
+	}
+};
+
+/**
+ * Removes a user constraint (joint) from the solver.
+ *
+ * @method removeConstraint
+ * @param constraint {Goblin.Constraint} constraint to be removed
+ */
+Goblin.Solver.prototype.removeConstraint = function( constraint ) {
+	var idx = this.constraints.indexOf( constraint );
+	if ( idx !== -1 ) {
+		this.constraints.splice( idx, 1 );
+	}
+};
+
+/**
  * Engine-agnostic, reusable first-person character controller built directly on Goblin
  * (NOT `Goblin.CharacterController` — that's a separate, spring-based capsule controller; this
  * one is a kinematic box mover with its own ground/wall/slope/ghost handling). Uses a BOX
@@ -7594,7 +8051,6 @@ Goblin.FPSCharacterController = function(world, options) {
     this._ladderNormal = new Goblin.Vector3(0, 0, 1); // points OUT of the ladder face, toward the character
 
     // Mantle (ledge grab + pull-up arc, see _updateMantle / Movement/Mantle.js).
-    var man = D.mantle;
     this._baseMantleHeight = o.mantleHeight !== undefined ? o.mantleHeight : man.height;
     this._baseMantleReach = o.mantleReach !== undefined ? o.mantleReach : man.reach;
     this._baseMantleSpeed = o.mantleSpeed !== undefined ? o.mantleSpeed : man.speed;
@@ -9391,8 +9847,12 @@ proto.beginStep = function(command, dt) {
     var wishX = 0;
     var wishZ = 0;
     if (hasInput) {
-        wishX = (dirX / dirLen) * speed;
-        wishZ = (dirZ / dirLen) * speed;
+        // Clamp to unit length, not normalize: a full digital diagonal (dirLen ~= 1.41)
+        // still caps at gait speed, but a partial analog stick keeps its magnitude for a
+        // proportional walk.
+        var norm = dirLen > 1 ? 1 / dirLen : 1;
+        wishX = dirX * norm * speed;
+        wishZ = dirZ * norm * speed;
     }
 
     // Stashed for endStep (this same tick, after world.step) to use when it decides this tick's
@@ -10708,8 +11168,10 @@ Goblin.AABB.prototype.testRayIntersect = (function(){
 
 			// Sort leaves based on morton code
 			leaves.sort( AAC.mortonSort );
-			var tree = AAC.buildTree( leaves, 29 ); // @TODO smaller starting bit, log4N or log2N or log10N ?
-			//var tree = AAC.buildTree( leaves, 20 ); // @TODO smaller starting bit, log4N or log2N or log10N ?
+			// Each axis is quantized to 9 bits, interleaved into bits [0..26] — 26 is the highest bit
+			// that can differ between two leaves; starting higher wastes early recursion levels on
+			// no-op splits.
+			var tree = AAC.buildTree( leaves, 26 );
 			AAC.combineCluster( tree, 1 );
 			return tree;
 		};
@@ -10722,9 +11184,10 @@ Goblin.AABB.prototype.testRayIntersect = (function(){
 				return 0;
 			}
 		};
+		// Gu et al. 2013's reduction function: f(n) = C * n^alpha (C=0.5, alpha=0.5) — combineCluster
+		// should shrink a bucket to ~0.5*sqrt(n) clusters, not n/2.
 		AAC.clusterReductionCount = function( cluster_size ) {
-			var c = Math.pow( cluster_size, 0.5 ) / 2,
-				a = 0.5;
+			var c = 0.5, a = 0.5;
 			return Math.max( c * Math.pow( cluster_size, a ), 1 );
 		};
 		AAC.buildTree = function( nodes, bit ) {
@@ -10837,6 +11300,84 @@ Goblin.AABB.prototype.testRayIntersect = (function(){
 		}
 
 		this.tree = AAC( global_aabb, leaves )[0];
+
+		this.flat = Goblin.BVH.flatten( this.tree );
+	};
+
+	/**
+	 * Flattens a BVHNode tree into a cache-friendly, index-based layout for hot traversal loops
+	 * (`Float32Array` of AABBs + `Int32Array` of child indices, instead of chasing `.left`/`.right`
+	 * object pointers scattered across the heap). Traversing 2M individual GC'd node objects for a
+	 * 1M-triangle mesh means every node visit during a BVH walk is a fresh cache miss; a flat array
+	 * walk streams through contiguous memory instead. The original pointer-based `.tree` is left
+	 * intact and still used by the mesh-mesh/ray-intersect paths — this is purely an additive fast
+	 * path for the convex-vs-mesh hot loop, so a bug here can't affect the already-correct tree walk.
+	 *
+	 * Leaf/internal distinction is encoded in `children`: a leaf stores `-1 - leafIndex` (always < -1
+	 * counting from -1, so index 0 encodes as -1, distinguishable from "no node"); an internal node
+	 * stores its right-child flat index directly (>= 0) with the left child always immediately
+	 * following its parent in the array (standard depth-first flattening), so only one child index
+	 * needs to be stored per node.
+	 *
+	 * @method flatten
+	 * @static
+	 * @param root {BVHNode}
+	 * @return {Object} { aabbs: Float32Array, rightOrLeaf: Int32Array, leafObjects: Array, nodeCount: Number }
+	 */
+	Goblin.BVH.flatten = function( root ) {
+		// Iterative, not recursive: a large mesh's node count is O(N) even though depth is O(log N),
+		// and a naive recursive walk blows the JS call stack on a large tree.
+
+		// First pass: count nodes so the typed arrays can be allocated exactly once.
+		var nodeCount = 0;
+		var stack = [ root ];
+		while ( stack.length > 0 ) {
+			var n = stack.pop();
+			nodeCount++;
+			if ( !n.isLeaf() ) {
+				stack.push( n.left, n.right );
+			}
+		}
+
+		var aabbs = new Float32Array( nodeCount * 6 );
+		var rightOrLeaf = new Int32Array( nodeCount );
+		var leafObjects = new Array( nodeCount );
+
+		// Second pass: depth-first pre-order assignment of flat indices, so each internal node's left
+		// child always lands at parentIndex + 1 (only the right child's index needs to be stored).
+		// Uses an explicit stack of {node, index, rightPending} frames to stay iterative; `rightOrLeaf`
+		// for an internal node is patched in once its right subtree's root index is known, via a
+		// pending-patch list keyed by the parent's flat index.
+		var next = 0;
+		var pendingParent = []; // parallel arrays: flat index of parent awaiting its right child's index
+		var workStack = [ { node: root, parent: -1 } ];
+		while ( workStack.length > 0 ) {
+			var frame = workStack.pop();
+			var node = frame.node;
+			var i = next++;
+			var base = i * 6;
+			aabbs[base] = node.aabb.min.x;
+			aabbs[base + 1] = node.aabb.min.y;
+			aabbs[base + 2] = node.aabb.min.z;
+			aabbs[base + 3] = node.aabb.max.x;
+			aabbs[base + 4] = node.aabb.max.y;
+			aabbs[base + 5] = node.aabb.max.z;
+
+			if ( frame.parent >= 0 && frame.isRightChild ) {
+				rightOrLeaf[frame.parent] = i;
+			}
+
+			if ( node.isLeaf() ) {
+				rightOrLeaf[i] = -1 - i;
+				leafObjects[i] = node.object;
+			} else {
+				// Push right first so left is processed next (pop = LIFO), landing left at i + 1.
+				workStack.push( { node: node.right, parent: i, isRightChild: true } );
+				workStack.push( { node: node.left, parent: i, isRightChild: false } );
+			}
+		}
+
+		return { aabbs: aabbs, rightOrLeaf: rightOrLeaf, leafObjects: leafObjects, nodeCount: nodeCount };
 	};
 
 	Goblin.BVH.AAC = AAC;
@@ -11374,6 +11915,18 @@ Goblin.ContactDetails = function() {
 	 */
 	this.friction = 0;
 
+	/**
+	 * amount of rolling resistance between the objects in contact - see RigidBody.rolling_friction
+	 *
+	 * @property rolling_friction
+	 * @type {*}
+	 */
+	this.rolling_friction = 0;
+
+	// Set only for mesh-triangle contacts (see NarrowPhase.triangleConvex) — lets ContactManifold
+	// match a refreshed contact back to the same manifold point across frames by triangle identity.
+	this._source_triangle = null;
+
 	this.listeners = {};
 };
 Goblin.EventEmitter.apply( Goblin.ContactDetails );
@@ -11382,6 +11935,7 @@ Goblin.ContactDetails.prototype.destroy = function() {
 	this.emit( 'destroy' );
 	Goblin.ObjectPool.freeObject( 'ContactDetails', this );
 };
+
 /**
  * Structure which holds information about the contact points between two objects
  *
@@ -11389,6 +11943,8 @@ Goblin.ContactDetails.prototype.destroy = function() {
  * @constructor
  */
 Goblin.ContactManifold = function() {
+	this.id = Goblin.Utility.getUid();
+
 	/**
 	 * first body in the contact
 	 *
@@ -11420,6 +11976,12 @@ Goblin.ContactManifold = function() {
 	 * @type {ContactManifold}
 	 */
 	this.next_manifold = null;
+
+	// Mesh-narrowphase leaf cache (static mesh vs convex only) — see NarrowPhase.meshConvex.
+	this._cachedTriangles = null;
+	this._cachePosition = null;
+	this._cacheRotation = null;
+	this._cacheValid = false;
 };
 
 /**
@@ -11496,10 +12058,32 @@ Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
  * @param contact {ContactDetails} the contact to add
  */
 Goblin.ContactManifold.prototype.addContact = function( contact ) {
-	//@TODO add feature-ids to detect duplicate contacts
 	var i;
 	var is_sphere_contact = contact.object_a.shape instanceof Goblin.SphereShape ||
 		contact.object_b.shape instanceof Goblin.SphereShape;
+
+	// Mesh-triangle contacts carry a stable per-frame triangle identity (see NarrowPhase.triangleConvex),
+	// letting an already-seated point stay seated (keeping its warm-start data) instead of losing a
+	// footrace against whichever triangle got tested first this frame. Proximity (0.02 threshold) is
+	// still required alongside identity: one triangle can generate several genuinely distinct contact
+	// points (e.g. all 4 corners of a resting box touching one large triangle), and identity alone would
+	// collapse them into one slot that teleports between corners frame to frame — injecting a phantom
+	// lever-arm swing that keeps a flat multi-point footprint from ever settling.
+	if ( contact._source_triangle != null ) {
+		for ( i = 0; i < this.points.length; i++ ) {
+			if ( this.points[i]._source_triangle === contact._source_triangle &&
+				this.points[i].contact_point.distanceTo( contact.contact_point ) <= 0.02 ) {
+				this.points[i].contact_point.copy( contact.contact_point );
+				this.points[i].contact_point_in_a.copy( contact.contact_point_in_a );
+				this.points[i].contact_point_in_b.copy( contact.contact_point_in_b );
+				this.points[i].contact_normal.copy( contact.contact_normal );
+				this.points[i].penetration_depth = contact.penetration_depth;
+				contact.destroy();
+				return;
+			}
+		}
+	}
+
 	for ( i = 0; i < this.points.length; i++ ) {
 		if ( this.points[i].contact_point.distanceTo( contact.contact_point ) <= 0.02 ) {
 			if ( is_sphere_contact ) {
@@ -11547,14 +12131,61 @@ Goblin.ContactManifold.prototype.addContact = function( contact ) {
  *
  * @method update
  */
-Goblin.ContactManifold.prototype.update = function() {
+/**
+ * Recomputes each point's world position and penetration depth from the bodies' current transforms,
+ * without the staleness culling `update` does. For refreshing an existing manifold several times inside
+ * one tick (see PBDSolver substepping): `update`'s job is to retire points that have drifted apart
+ * between ticks, and running that judgement 5x per tick retires points that are merely mid-substep -
+ * measured on the 385-box pyramid, 38 of 1210 manifolds were emptied this way, and a box that lost the
+ * contacts under one side balanced on its remaining corner and yawed.
+ *
+ * @method refresh
+ */
+Goblin.ContactManifold.prototype.refresh = (function() {
+	var object_a_world_coords = new Goblin.Vector3(),
+		object_b_world_coords = new Goblin.Vector3(),
+		vector_difference = new Goblin.Vector3();
+
+	return function() {
+		for ( var i = 0; i < this.points.length; i++ ) {
+			var point = this.points[i];
+
+			point.object_a.transform.transformVector3Into( point.contact_point_in_a, object_a_world_coords );
+			point.object_b.transform.transformVector3Into( point.contact_point_in_b, object_b_world_coords );
+
+			point.contact_point.addVectors( object_a_world_coords, object_b_world_coords );
+			point.contact_point.scale( 0.5 );
+
+			vector_difference.subtractVectors( object_a_world_coords, object_b_world_coords );
+			point.penetration_depth = vector_difference.dot( point.contact_normal );
+
+			// Retire a point only once the surfaces have genuinely separated along the normal. The
+			// orthogonal-drift test `update` also applies is deliberately not repeated here: sliding is
+			// exactly what a substep is meant to resolve, and judging it mid-tick discards points that
+			// the next substep would have pulled back into place.
+			if ( point.penetration_depth < -0.02 ) {
+				point.destroy();
+				for ( var j = i; j < this.points.length - 1; j++ ) {
+					this.points[j] = this.points[j + 1];
+				}
+				this.points.length = this.points.length - 1;
+				i--;
+			}
+		}
+	};
+})();
+
+Goblin.ContactManifold.prototype.update = (function() {
+	// Scratch space, reused across calls instead of allocated fresh each time.
+	var object_a_world_coords = new Goblin.Vector3(),
+		object_b_world_coords = new Goblin.Vector3(),
+		vector_difference = new Goblin.Vector3();
+
+	return function() {
 	// Update positions / depths of contacts
 	var i,
 		j,
 		point,
-		object_a_world_coords = new Goblin.Vector3(),
-		object_b_world_coords = new Goblin.Vector3(),
-		vector_difference = new Goblin.Vector3(),
 		starting_points_length = this.points.length;
 
 	for ( i = 0; i < this.points.length; i++ ) {
@@ -11607,7 +12238,8 @@ Goblin.ContactManifold.prototype.update = function() {
 		this.object_a.emit( 'endAllContact', this.object_b );
 		this.object_b.emit( 'endAllContact', this.object_a );
 	}
-};
+	};
+})();
 /**
  * List/Manager of ContactManifolds
  *
@@ -11622,6 +12254,13 @@ Goblin.ContactManifoldList = function() {
 	 * @type {ContactManifold}
 	 */
 	this.first = null;
+
+	// Pair-id -> manifold, kept alongside the list for O(1) getManifoldForObjects lookup.
+	this._byKey = {};
+};
+
+Goblin.ContactManifoldList.pairKey = function( object_a, object_b ) {
+	return object_a.id < object_b.id ? ( object_a.id + '_' + object_b.id ) : ( object_b.id + '_' + object_a.id );
 };
 
 /**
@@ -11634,6 +12273,17 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
 	// The list is completely unordered, throw the manifold at the beginning
 	contact_manifold.next_manifold = this.first;
 	this.first = contact_manifold;
+	this._byKey[ Goblin.ContactManifoldList.pairKey( contact_manifold.object_a, contact_manifold.object_b ) ] = contact_manifold;
+};
+
+/**
+ * Removes a ContactManifold from the key index. Callers unlinking from the list directly must also call this.
+ *
+ * @method remove
+ * @param {ContactManifold} contact_manifold
+ */
+Goblin.ContactManifoldList.prototype.remove = function( contact_manifold ) {
+	delete this._byKey[ Goblin.ContactManifoldList.pairKey( contact_manifold.object_a, contact_manifold.object_b ) ];
 };
 
 /**
@@ -11645,26 +12295,16 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
  * @return {ContactManifold}
  */
 Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a, object_b ) {
-	var manifold = null;
-	if ( this.first !== null ) {
-		var current = this.first;
-		while ( current !== null ) {
-			if (
-				current.object_a === object_a && current.object_b === object_b ||
-				current.object_a === object_b && current.object_b === object_a
-			) {
-				manifold = current;
-				break;
-			}
-			current = current.next_manifold;
-		}
-	}
+	var manifold = this._byKey[ Goblin.ContactManifoldList.pairKey( object_a, object_b ) ] || null;
 
 	if ( manifold === null ) {
 		// A manifold for these two objects does not exist, create one
 		manifold = Goblin.ObjectPool.getObject( 'ContactManifold' );
 		manifold.object_a = object_a;
 		manifold.object_b = object_b;
+		// A pooled manifold may carry a stale mesh-leaf cache from its previous pairing; clear it.
+		manifold._cachedTriangles = null;
+		manifold._cacheValid = false;
 		this.insert( manifold );
 	}
 
@@ -11706,12 +12346,17 @@ Goblin.GhostBody.prototype.checkForEndedContacts = function() {
     this.tick_contacts.length = 0;
 };
 /**
- * Adapted from BulletPhysics's btIterativeSolver
+ * Adapted from BulletPhysics's btIterativeSolver. A projected-Gauss-Seidel velocity solver - one of
+ * potentially several Goblin.Solver implementations (see Solver.js); World only depends on the
+ * Goblin.Solver interface, not on this class specifically.
  *
  * @class IterativeSolver
+ * @extends Goblin.Solver
  * @constructor
  */
 Goblin.IterativeSolver = function() {
+	Goblin.Solver.call( this );
+
 	this.existing_contact_ids = {};
 
 	/**
@@ -11739,14 +12384,6 @@ Goblin.IterativeSolver = function() {
 	this.all_constraints = [];
 
 	/**
-	 * array of constraints on the system, excluding contact & friction
-	 *
-	 * @property constraints
-	 * @type {Array}
-	 */
-	this.constraints = [];
-
-	/**
 	 * maximum solver iterations per time step
 	 *
 	 * @property max_iterations
@@ -11772,6 +12409,85 @@ Goblin.IterativeSolver = function() {
 	this.relaxation = 0.9;
 
 	/**
+	 * Overlap (in world units) left uncorrected at a resting contact. Bodies settle slightly
+	 * interpenetrated and stop generating position correction, so a settled pile stops being nudged.
+	 * Measured AFTER GjkEpa.margins, which already offsets reported depths.
+	 *
+	 * 0 reproduces the single-relaxation behavior.
+	 *
+	 * @property penetration_slop
+	 * @type {number}
+	 */
+	this.penetration_slop = 0;
+
+	/**
+	 * Largest overlap correctable in one step. A deep overlap then recovers over several steps
+	 * instead of one shove big enough to fling the body.
+	 *
+	 * Infinity reproduces the single-relaxation behavior.
+	 *
+	 * @property max_position_correction
+	 * @type {number}
+	 */
+	this.max_position_correction = 0.01;
+
+	/**
+	 * Multiple of `max_position_correction` an overlap must exceed to count as a tunnel-in candidate
+	 * (see _buildFlatPenetration). An isolated overlap past this depth is resolved in full for prompt
+	 * recovery; anything shallower, or any overlap on a body that has several deep contacts at once
+	 * (a settling pile), stays on the per-step cap. Set high enough that a resting stack's solver
+	 * noise never crosses it - ~5x the cap.
+	 *
+	 * @property deep_contact_multiple
+	 * @type {number}
+	 */
+	this.deep_contact_multiple = 5;
+
+	/**
+	 * Consecutive frames a contact must stay deep (see `deep_contact_multiple`) before it is granted
+	 * full per-step correction. A genuine tunnel-in stays deep for many frames while it digs out; a
+	 * settling pile's shuffle only blips a contact deep for a frame or two, and that blip must not
+	 * earn an off-centre full-strength shove (which yaws the box). 1 disables the streak requirement.
+	 *
+	 * A pile's landing-impact phase is chaotic for a good fraction of a second, and during it a box
+	 * can hold an isolated deep contact for a dozen-plus frames by chance; this is set past that so
+	 * only a body that is genuinely stuck inside another (a tunnel-in that never resolves on its own)
+	 * ever qualifies.
+	 *
+	 * @property deep_streak_frames
+	 * @type {number}
+	 */
+	this.deep_streak_frames = 16;
+
+	/**
+	 * When true, position correction is projected onto the contact normal's vertical-vs-tangential
+	 * split and the tangential part is scaled by tangential_correction. Separating two bodies should
+	 * move them apart, not slide them past each other; unconstrained tangential correction shows up
+	 * as lateral drift that friction cannot oppose (it never becomes velocity).
+	 *
+	 * 1 reproduces the single-relaxation behavior.
+	 *
+	 * @property tangential_correction
+	 * @type {number}
+	 */
+	this.tangential_correction = 1;
+
+	/**
+	 * When true, penetration correction is applied as a pseudo-velocity integrated once per BODY,
+	 * rather than as a separate position write per CONTACT CONSTRAINT.
+	 *
+	 * The per-constraint form applies a full correction for every contact a body has, so a box with
+	 * ten contacts is displaced ten times in a step. In a deep stack those displacements accumulate
+	 * sideways and show up as lateral drift that the velocity solver never sees and friction cannot
+	 * oppose. The pseudo-velocity form uses the accumulated push/turn the penetration LCP already
+	 * solves for, so each body moves once by the amount that actually resolves its overlap.
+	 *
+	 * @property split_impulse
+	 * @type {boolean}
+	 */
+	this.split_impulse = false;
+
+	/**
 	 * weighting used in the Gauss-Seidel successive over-relaxation solver
 	 *
 	 * @property sor_weight
@@ -11787,6 +12503,16 @@ Goblin.IterativeSolver = function() {
 	 */
 	this.warmstarting_factor = 0.95;
 
+	/**
+	 * mass-normalized impulse below which a solver sweep counts as converged and the iteration loop
+	 * stops early. Too loose and deep stacks exit with a large residual that shows up as bodies
+	 * slowly rotating in place.
+	 *
+	 * @property convergence_epsilon
+	 * @type {number}
+	 */
+	this.convergence_epsilon = 0.02;
+
 
 	var solver = this;
 	/**
@@ -11798,8 +12524,8 @@ Goblin.IterativeSolver = function() {
 	this.onContactDeactivate = function() {
 		this.removeListener( 'deactivate', solver.onContactDeactivate );
 
-		var idx = solver.contact_constraints.indexOf( this );
-		solver.contact_constraints.splice( idx, 1 );
+		// Swap-remove using the constraint's tracked index instead of indexOf()'s O(n) scan.
+		Goblin.IterativeSolver._swapRemove( solver.contact_constraints, this );
 
 		delete solver.existing_contact_ids[ this.contact.uid ];
 	};
@@ -11812,35 +12538,68 @@ Goblin.IterativeSolver = function() {
 	this.onFrictionDeactivate = function() {
 		this.removeListener( 'deactivate', solver.onFrictionDeactivate );
 
-		var idx = solver.friction_constraints.indexOf( this );
-		solver.friction_constraints.splice( idx, 1 );
+		Goblin.IterativeSolver._swapRemove( solver.friction_constraints, this );
 	};
 };
+Goblin.IterativeSolver.prototype = Object.create( Goblin.Solver.prototype );
+Goblin.IterativeSolver.prototype.constructor = Goblin.IterativeSolver;
 
 /**
- * adds a constraint to the solver
+ * Applies gravity once for the whole tick and integrates every body once - the same single-shot
+ * integration World.step used to do inline before Solver.integrate existed. PGS has no need for
+ * substeps the way XPBD does (see PBDSolver.prototype.integrate for why that one differs).
  *
- * @method addConstraint
- * @param constraint {Goblin.Constraint} constraint to be added
+ * @method integrate
+ * @param rigid_bodies {Array}
+ * @param gravity {Vector3}
+ * @param time_delta {Number}
  */
-Goblin.IterativeSolver.prototype.addConstraint = function( constraint ) {
-	if ( this.constraints.indexOf( constraint ) === -1 ) {
-		this.constraints.push( constraint );
+Goblin.IterativeSolver.prototype.integrate = function( rigid_bodies, gravity, time_delta ) {
+	var i, loop_count, body;
+
+	for ( i = 0, loop_count = rigid_bodies.length; i < loop_count; i++ ) {
+		body = rigid_bodies[i];
+		if ( body._mass !== Infinity ) {
+			_tmp_vec3_1.scaleVector( body.gravity || gravity, body._mass * time_delta );
+			body.accumulated_force.add( _tmp_vec3_1 );
+		}
+	}
+
+	for ( i = 0, loop_count = rigid_bodies.length; i < loop_count; i++ ) {
+		rigid_bodies[i].integrate( time_delta );
 	}
 };
 
 /**
- * removes a constraint from the solver
+ * Removes `item` from `array` in O(1) via its tracked _arrayIndex. Requires _pushTracked additions.
  *
- * @method removeConstraint
- * @param constraint {Goblin.Constraint} constraint to be removed
+ * @method _swapRemove
+ * @static
  */
-Goblin.IterativeSolver.prototype.removeConstraint = function( constraint ) {
-	var idx = this.constraints.indexOf( constraint );
-	if ( idx !== -1 ) {
-		this.constraints.splice( idx, 1 );
+Goblin.IterativeSolver._swapRemove = function( array, item ) {
+	var idx = item._arrayIndex;
+	var last = array.length - 1;
+	if ( idx !== last ) {
+		array[idx] = array[last];
+		array[idx]._arrayIndex = idx;
 	}
+	array.length = last;
+	item._arrayIndex = -1;
 };
+
+/**
+ * Pushes `item` onto `array`, recording its index for later O(1) removal via _swapRemove.
+ *
+ * @method _pushTracked
+ * @static
+ */
+Goblin.IterativeSolver._pushTracked = function( array, item ) {
+	item._arrayIndex = array.length;
+	array.push( item );
+};
+
+// addConstraint/removeConstraint are inherited from Goblin.Solver - joint bookkeeping is the same
+// flat-array logic regardless of how contacts are solved.
 
 /**
  * Converts contact manifolds into contact constraints
@@ -11871,13 +12630,18 @@ Goblin.IterativeSolver.prototype.processContactManifolds = function( contact_man
 				// Build contact constraint
 				constraint = Goblin.ObjectPool.getObject( 'ContactConstraint' );
 				constraint.buildFromContact( contact );
-				this.contact_constraints.push( constraint );
+				// Which actual sub-shapes generated this (see NarrowPhase's _shapeKeyA/B stamping) —
+				// used by solveNormalBlocks' pairing so a compound's independent contacts, which all
+				// share one manifold, are never block-paired with each other.
+				constraint._shapeKeyA = contact._shapeKeyA;
+				constraint._shapeKeyB = contact._shapeKeyB;
+				Goblin.IterativeSolver._pushTracked( this.contact_constraints, constraint );
 				constraint.addListener( 'deactivate', this.onContactDeactivate );
 
 				// Build friction constraint
 				constraint = Goblin.ObjectPool.getObject( 'FrictionConstraint' );
 				constraint.buildFromContact( contact );
-				this.friction_constraints.push( constraint );
+				Goblin.IterativeSolver._pushTracked( this.friction_constraints, constraint );
 				constraint.addListener( 'deactivate', this.onFrictionDeactivate );
 			}
 		}
@@ -11915,72 +12679,319 @@ Goblin.IterativeSolver.prototype.prepareConstraints = function( time_delta ) {
 	}
 };
 
+Goblin.IterativeSolver.prototype._buildFlatPenetration = function() {
+	var cc = this.contact_constraints;
+	var n = cc.length;
+
+	if ( !this._flatPenCap || this._flatPenCap < n ) {
+		this._flatPenCap = Math.max( 64, n * 2 );
+		this._flatPenJacobian = new Float64Array( this._flatPenCap * 12 );
+		this._flatPenB = new Float64Array( this._flatPenCap * 12 );
+		this._flatPenD = new Float64Array( this._flatPenCap );
+		this._flatPenLower = new Float64Array( this._flatPenCap );
+		this._flatPenUpper = new Float64Array( this._flatPenCap );
+		this._flatPenMultiplier = new Float64Array( this._flatPenCap );
+		this._flatPenDepth = new Float64Array( this._flatPenCap );
+		this._flatPenBodyA = new Int32Array( this._flatPenCap );
+		this._flatPenBodyB = new Int32Array( this._flatPenCap );
+		this._flatPenRowRef = new Array( this._flatPenCap );
+	}
+	if ( !this._flatPenBodyCap || this._flatPenBodyCap < n * 2 + 2 ) {
+		this._flatPenBodyCap = Math.max( 64, n * 2 + 2 );
+		this._flatPenBodyPush = new Float64Array( this._flatPenBodyCap * 3 );
+		this._flatPenBodyTurn = new Float64Array( this._flatPenBodyCap * 3 );
+		this._flatPenBodyLinearFactor = new Float64Array( this._flatPenBodyCap * 3 );
+		this._flatPenBodyAngularFactor = new Float64Array( this._flatPenBodyCap * 3 );
+		this._flatPenBodyRef = new Array( this._flatPenBodyCap );
+	}
+
+	var flatJacobian = this._flatPenJacobian, flatB = this._flatPenB, flatD = this._flatPenD,
+		flatLower = this._flatPenLower, flatUpper = this._flatPenUpper, flatMultiplier = this._flatPenMultiplier,
+		flatDepth = this._flatPenDepth, flatBodyA = this._flatPenBodyA, flatBodyB = this._flatPenBodyB,
+		flatRowRef = this._flatPenRowRef,
+		flatBodyPush = this._flatPenBodyPush, flatBodyTurn = this._flatPenBodyTurn,
+		flatBodyLinearFactor = this._flatPenBodyLinearFactor, flatBodyAngularFactor = this._flatPenBodyAngularFactor,
+		flatBodyRef = this._flatPenBodyRef;
+
+	var bodySlots = this._flatPenBodyMap = {};
+	var bodyCount = 0;
+
+	function bodySlotFor( body ) {
+		if ( body == null || body._mass === Infinity ) {
+			return -1;
+		}
+		var slot = bodySlots[ body.id ];
+		if ( slot === undefined ) {
+			slot = bodyCount++;
+			bodySlots[ body.id ] = slot;
+			flatBodyRef[slot] = body;
+			var base3 = slot * 3;
+			flatBodyPush[base3] = body.push_velocity.x;
+			flatBodyPush[base3 + 1] = body.push_velocity.y;
+			flatBodyPush[base3 + 2] = body.push_velocity.z;
+			flatBodyTurn[base3] = body.turn_velocity.x;
+			flatBodyTurn[base3 + 1] = body.turn_velocity.y;
+			flatBodyTurn[base3 + 2] = body.turn_velocity.z;
+			flatBodyLinearFactor[base3] = body.linear_factor.x;
+			flatBodyLinearFactor[base3 + 1] = body.linear_factor.y;
+			flatBodyLinearFactor[base3 + 2] = body.linear_factor.z;
+			flatBodyAngularFactor[base3] = body.angular_factor.x;
+			flatBodyAngularFactor[base3 + 1] = body.angular_factor.y;
+			flatBodyAngularFactor[base3 + 2] = body.angular_factor.z;
+		}
+		return slot;
+	}
+
+	// Deep-contact count per body slot, for the tunnel-in vs stack-landing discriminator below.
+	if ( !this._flatPenDeepCount || this._flatPenDeepCount.length < this._flatPenBodyCap ) {
+		this._flatPenDeepCount = new Int32Array( this._flatPenBodyCap );
+	}
+	var deepCountByBody = this._flatPenDeepCount;
+
+	var over_cap = this.max_position_correction;
+	// A contact only counts as "deep" (tunnel-in candidate) well above the per-step cap - a settled
+	// pile's contacts blip a hair over the cap from solver noise, and treating one of those as a
+	// tunnel-in over-corrects it into lateral creep. Real tunnel-ins are an order of magnitude past it.
+	var deep_threshold = over_cap * this.deep_contact_multiple;
+
+	for ( var i = 0; i < n; i++ ) {
+		var constraint = cc[i];
+		var row = constraint.rows[0];
+		var jb = i * 12;
+		flatJacobian.set( row.jacobian, jb );
+		flatB.set( row.B, jb );
+		flatD[i] = row.D;
+		flatLower[i] = row.lower_limit;
+		flatUpper[i] = row.upper_limit;
+		flatMultiplier[i] = row.multiplier;
+
+		// Slop only, for now - the per-step cap is applied in the second pass, once we know how many
+		// deep contacts each body has. Negative depths (separated pairs, within GjkEpa.margins) pass
+		// through unchanged: the solve clamps them to zero via flatLower, and forcing them to zero here
+		// measurably destabilizes resting contacts.
+		var depth = constraint.contact.penetration_depth;
+		if ( depth > 0 ) {
+			depth -= this.penetration_slop;
+			if ( depth < 0 ) { depth = 0; }
+		}
+		flatDepth[i] = depth;
+
+		var sa = bodySlotFor( constraint.object_a );
+		var sb = bodySlotFor( constraint.object_b );
+		flatBodyA[i] = sa;
+		flatBodyB[i] = sb;
+		flatRowRef[i] = row;
+
+		// A per-contact streak of consecutive deep frames. A real tunnel-in stays deep for many
+		// frames while it digs out; a settling pile's shuffle only blips one contact deep for a frame
+		// or two. Requiring a streak keeps that shuffle on the per-step cap (no off-centre full-
+		// correction shove -> no yaw) while still fast-tracking a genuine punch-through.
+		if ( depth > deep_threshold ) {
+			constraint._deepStreak = ( constraint._deepStreak || 0 ) + 1;
+			if ( constraint._deepStreak >= this.deep_streak_frames ) {
+				if ( sa >= 0 ) { deepCountByBody[sa]++; }
+				if ( sb >= 0 ) { deepCountByBody[sb]++; }
+			}
+		} else {
+			constraint._deepStreak = 0;
+		}
+		flatDepth[i] = depth;   // (re-store: unchanged, keeps the assignment adjacent to the streak logic)
+	}
+
+	// Second pass: cap the per-step correction for a deep overlap ONLY when one of its bodies is in
+	// more than one deep contact at once. That is the signature of a stack settling under its own
+	// weight (or a pile's landing-impact frame): every box reports a fat overlap, the coupled LCP
+	// solves one big consistent correction, and applying it in a single step makes the whole pile jump
+	// and ring. An isolated deep overlap - a fast body that punched through a wall or a head - has no
+	// such neighbours and is safe to resolve in full, which is what makes it stop looking buried.
+	for ( var k = 0; k < n; k++ ) {
+		if ( flatDepth[k] <= over_cap ) { continue; }
+		var ka = flatBodyA[k], kb = flatBodyB[k];
+		// Free pass (resolve in full) only for a deep overlap that is BOTH persistent (its own streak
+		// has qualified - flatRowRef's constraint) AND isolated (neither body is in a second qualified
+		// deep contact). Everything else is capped: a settling pile, a one-frame shuffle blip, or the
+		// shallow-but-over-cap contacts that ring an isolated tunnel-in.
+		var qualified = ( cc[k]._deepStreak || 0 ) >= this.deep_streak_frames;
+		var lone = ( ka < 0 || deepCountByBody[ka] <= 1 ) && ( kb < 0 || deepCountByBody[kb] <= 1 );
+		if ( !( qualified && lone && flatDepth[k] > deep_threshold ) ) {
+			flatDepth[k] = over_cap;
+		}
+	}
+
+	// Clear the scratch counts we used (only the slots we touched).
+	for ( var c = 0; c < bodyCount; c++ ) { deepCountByBody[c] = 0; }
+
+	this._flatPenCount = n;
+	this._flatPenBodyCount = bodyCount;
+};
+
+Goblin.IterativeSolver.prototype._flushFlatPenetration = function() {
+	var n = this._flatPenCount,
+		flatMultiplier = this._flatPenMultiplier,
+		flatRowRef = this._flatPenRowRef,
+		i;
+	for ( i = 0; i < n; i++ ) {
+		flatRowRef[i].multiplier = flatMultiplier[i];
+	}
+
+	var bodyCount = this._flatPenBodyCount,
+		flatBodyPush = this._flatPenBodyPush, flatBodyTurn = this._flatPenBodyTurn,
+		flatBodyRef = this._flatPenBodyRef;
+	for ( i = 0; i < bodyCount; i++ ) {
+		var body = flatBodyRef[i];
+		var base3 = i * 3;
+		body.push_velocity.x = flatBodyPush[base3];
+		body.push_velocity.y = flatBodyPush[base3 + 1];
+		body.push_velocity.z = flatBodyPush[base3 + 2];
+		body.turn_velocity.x = flatBodyTurn[base3];
+		body.turn_velocity.y = flatBodyTurn[base3 + 1];
+		body.turn_velocity.z = flatBodyTurn[base3 + 2];
+	}
+};
+
+/**
+ * Splits a position correction into its component along `normal` and the component across it, and
+ * scales only the latter by `scale`. Separating two bodies should move them apart along the contact
+ * normal; any across-normal component slides them, which is drift the velocity solver never sees.
+ *
+ * @method _dampTangential
+ * @static
+ * @private
+ */
+Goblin.IterativeSolver._dampTangential = function( correction, normal, scale ) {
+	var along = correction.x * normal.x + correction.y * normal.y + correction.z * normal.z;
+	var nx = normal.x * along, ny = normal.y * along, nz = normal.z * along;
+	correction.x = nx + ( correction.x - nx ) * scale;
+	correction.y = ny + ( correction.y - ny ) * scale;
+	correction.z = nz + ( correction.z - nz ) * scale;
+};
+
+/**
+ * Integrates each body's accumulated penetration pseudo-velocity into its position and orientation
+ * ONCE, then clears it. Counterpart to the per-constraint position write - see `split_impulse`.
+ *
+ * push_velocity/turn_velocity already hold the solved correction for the whole step (the penetration
+ * LCP accumulated them across every contact the body has), so applying them per body resolves the
+ * overlap without displacing a heavily-contacted body once per contact.
+ *
+ * @method _applyPseudoVelocity
+ * @private
+ */
+Goblin.IterativeSolver.prototype._applyPseudoVelocity = function() {
+	var bodies = this._flatPenBodyRef, n = this._flatPenBodyCount, i;
+	var relaxation = this.relaxation;
+	var tangential_correction = this.tangential_correction;
+
+	for ( i = 0; i < n; i++ ) {
+		var body = bodies[i];
+		if ( body == null || body._mass === Infinity ) { continue; }
+
+		var push = body.push_velocity, turn = body.turn_velocity;
+
+		_tmp_vec3_2.x = push.x * relaxation;
+		_tmp_vec3_2.y = push.y * relaxation;
+		_tmp_vec3_2.z = push.z * relaxation;
+
+		// Damp sideways displacement without weakening the separating (vertical) part. The body's net
+		// push direction stands in for a per-contact normal here, since this correction is the sum over
+		// all of its contacts.
+		if ( tangential_correction !== 1 ) {
+			var len = Math.sqrt( _tmp_vec3_2.x * _tmp_vec3_2.x + _tmp_vec3_2.y * _tmp_vec3_2.y + _tmp_vec3_2.z * _tmp_vec3_2.z );
+			if ( len > Goblin.EPSILON ) {
+				_tmp_vec3_1.x = _tmp_vec3_2.x / len;
+				_tmp_vec3_1.y = _tmp_vec3_2.y / len;
+				_tmp_vec3_1.z = _tmp_vec3_2.z / len;
+				Goblin.IterativeSolver._dampTangential( _tmp_vec3_2, _tmp_vec3_1, tangential_correction );
+			}
+		}
+
+		body.position.x += _tmp_vec3_2.x;
+		body.position.y += _tmp_vec3_2.y;
+		body.position.z += _tmp_vec3_2.z;
+
+		// Rotation stays on the per-constraint path. Summing every contact's angular correction
+		// before applying it loses the cancellation between opposing contacts, and the small residual
+		// that leaves is applied every step in a consistent direction - over a long run it compounds
+		// into visible tilt. Translation has no such issue because opposing pushes sum to zero.
+
+		push.x = push.y = push.z = 0;
+		turn.x = turn.y = turn.z = 0;
+	}
+};
+
 Goblin.IterativeSolver.prototype.resolveContacts = function() {
 	var iteration,
 		constraint,
-		jdot, row, i,
-		delta_lambda,
-		max_impulse = 0,
+		row, i,
 		invmass;
+
+	// Separate buffers from _buildFlatConstraints: this loop uses push_velocity/turn_velocity
+	// (position correction) rather than solver_impulse (velocity solve), and only visits
+	// contact_constraints, not the full all_constraints list.
+	this._buildFlatPenetration();
+	var flatJacobian = this._flatPenJacobian, flatB = this._flatPenB, flatD = this._flatPenD,
+		flatLower = this._flatPenLower, flatUpper = this._flatPenUpper, flatMultiplier = this._flatPenMultiplier,
+		flatDepth = this._flatPenDepth, flatBodyA = this._flatPenBodyA, flatBodyB = this._flatPenBodyB,
+		flatBodyPush = this._flatPenBodyPush, flatBodyTurn = this._flatPenBodyTurn,
+		flatBodyLinearFactor = this._flatPenBodyLinearFactor, flatBodyAngularFactor = this._flatPenBodyAngularFactor;
+	var count = this._flatPenCount;
+	var max_impulse = 0, jdot, delta_lambda;
 
 	// Solve penetrations
 	for ( iteration = 0; iteration < this.penetrations_max_iterations; iteration++ ) {
 		max_impulse = 0;
-		for ( i = 0; i < this.contact_constraints.length; i++ ) {
-			constraint = this.contact_constraints[i];
-			row = constraint.rows[0];
+		for ( i = 0; i < count; i++ ) {
+			var jb = i * 12;
+			var ba = flatBodyA[i], bb = flatBodyB[i];
 
 			jdot = 0;
-			if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+			if ( ba >= 0 ) {
+				var iba = ba * 3;
 				jdot += (
-					row.jacobian[0] * constraint.object_a.linear_factor.x * constraint.object_a.push_velocity.x +
-					row.jacobian[1] * constraint.object_a.linear_factor.y * constraint.object_a.push_velocity.y +
-					row.jacobian[2] * constraint.object_a.linear_factor.z * constraint.object_a.push_velocity.z +
-					row.jacobian[3] * constraint.object_a.angular_factor.x * constraint.object_a.turn_velocity.x +
-					row.jacobian[4] * constraint.object_a.angular_factor.y * constraint.object_a.turn_velocity.y +
-					row.jacobian[5] * constraint.object_a.angular_factor.z * constraint.object_a.turn_velocity.z
+					flatJacobian[jb] * flatBodyLinearFactor[iba] * flatBodyPush[iba] +
+					flatJacobian[jb + 1] * flatBodyLinearFactor[iba + 1] * flatBodyPush[iba + 1] +
+					flatJacobian[jb + 2] * flatBodyLinearFactor[iba + 2] * flatBodyPush[iba + 2] +
+					flatJacobian[jb + 3] * flatBodyAngularFactor[iba] * flatBodyTurn[iba] +
+					flatJacobian[jb + 4] * flatBodyAngularFactor[iba + 1] * flatBodyTurn[iba + 1] +
+					flatJacobian[jb + 5] * flatBodyAngularFactor[iba + 2] * flatBodyTurn[iba + 2]
 				);
 			}
-			if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+			if ( bb >= 0 ) {
+				var ibb = bb * 3;
 				jdot += (
-					row.jacobian[6] * constraint.object_b.linear_factor.x * constraint.object_b.push_velocity.x +
-					row.jacobian[7] * constraint.object_b.linear_factor.y * constraint.object_b.push_velocity.y +
-					row.jacobian[8] * constraint.object_b.linear_factor.z * constraint.object_b.push_velocity.z +
-					row.jacobian[9] * constraint.object_b.angular_factor.x * constraint.object_b.turn_velocity.x +
-					row.jacobian[10] * constraint.object_b.angular_factor.y * constraint.object_b.turn_velocity.y +
-					row.jacobian[11] * constraint.object_b.angular_factor.z * constraint.object_b.turn_velocity.z
+					flatJacobian[jb + 6] * flatBodyLinearFactor[ibb] * flatBodyPush[ibb] +
+					flatJacobian[jb + 7] * flatBodyLinearFactor[ibb + 1] * flatBodyPush[ibb + 1] +
+					flatJacobian[jb + 8] * flatBodyLinearFactor[ibb + 2] * flatBodyPush[ibb + 2] +
+					flatJacobian[jb + 9] * flatBodyAngularFactor[ibb] * flatBodyTurn[ibb] +
+					flatJacobian[jb + 10] * flatBodyAngularFactor[ibb + 1] * flatBodyTurn[ibb + 1] +
+					flatJacobian[jb + 11] * flatBodyAngularFactor[ibb + 2] * flatBodyTurn[ibb + 2]
 				);
 			}
 
-			delta_lambda = ( constraint.contact.penetration_depth - jdot ) / row.D || 0;
-			var cache = row.multiplier;
-			row.multiplier = Math.max(
-				row.lower_limit,
-				Math.min(
-					cache + delta_lambda,
-					row.upper_limit
-				)
-			);
-			delta_lambda = row.multiplier - cache;
+			delta_lambda = ( flatDepth[i] - jdot ) / flatD[i] || 0;
+			var cache = flatMultiplier[i];
+			var mult = Math.max( flatLower[i], Math.min( cache + delta_lambda, flatUpper[i] ) );
+			flatMultiplier[i] = mult;
+			delta_lambda = mult - cache;
 			max_impulse = Math.max( max_impulse, delta_lambda );
 
-			if ( constraint.object_a && constraint.object_a._mass !== Infinity ) {
-				constraint.object_a.push_velocity.x += delta_lambda * row.B[0];
-				constraint.object_a.push_velocity.y += delta_lambda * row.B[1];
-				constraint.object_a.push_velocity.z += delta_lambda * row.B[2];
-
-				constraint.object_a.turn_velocity.x += delta_lambda * row.B[3];
-				constraint.object_a.turn_velocity.y += delta_lambda * row.B[4];
-				constraint.object_a.turn_velocity.z += delta_lambda * row.B[5];
+			if ( ba >= 0 ) {
+				var wba = ba * 3;
+				flatBodyPush[wba] += delta_lambda * flatB[jb];
+				flatBodyPush[wba + 1] += delta_lambda * flatB[jb + 1];
+				flatBodyPush[wba + 2] += delta_lambda * flatB[jb + 2];
+				flatBodyTurn[wba] += delta_lambda * flatB[jb + 3];
+				flatBodyTurn[wba + 1] += delta_lambda * flatB[jb + 4];
+				flatBodyTurn[wba + 2] += delta_lambda * flatB[jb + 5];
 			}
-			if ( constraint.object_b && constraint.object_b._mass !== Infinity ) {
-				constraint.object_b.push_velocity.x += delta_lambda * row.B[6];
-				constraint.object_b.push_velocity.y += delta_lambda * row.B[7];
-				constraint.object_b.push_velocity.z += delta_lambda * row.B[8];
-
-				constraint.object_b.turn_velocity.x += delta_lambda * row.B[9];
-				constraint.object_b.turn_velocity.y += delta_lambda * row.B[10];
-				constraint.object_b.turn_velocity.z += delta_lambda * row.B[11];
+			if ( bb >= 0 ) {
+				var wbb = bb * 3;
+				flatBodyPush[wbb] += delta_lambda * flatB[jb + 6];
+				flatBodyPush[wbb + 1] += delta_lambda * flatB[jb + 7];
+				flatBodyPush[wbb + 2] += delta_lambda * flatB[jb + 8];
+				flatBodyTurn[wbb] += delta_lambda * flatB[jb + 9];
+				flatBodyTurn[wbb + 1] += delta_lambda * flatB[jb + 10];
+				flatBodyTurn[wbb + 2] += delta_lambda * flatB[jb + 11];
 			}
 		}
 
@@ -11989,16 +13000,43 @@ Goblin.IterativeSolver.prototype.resolveContacts = function() {
 		}
 	}
 
+	this._flushFlatPenetration();
+
+	// With split impulse the LINEAR correction is applied once per body from the accumulated
+	// pseudo-velocity; the per-constraint loop below then handles rotation only.
+	var split_linear = this.split_impulse;
+	if ( split_linear ) {
+		this._applyPseudoVelocity();
+	}
+
 	// Apply position/rotation solver
+	//
+	// The linear part is split into "along the contact normal" (separating the bodies, which is the
+	// point) and "across it" (sliding them, which is not). Only the tangential part is scaled by
+	// tangential_correction, so damping drift does not weaken separation.
+	var tangential_correction = this.tangential_correction;
+	var split_tangential = tangential_correction !== 1;
+
 	for ( i = 0; i < this.contact_constraints.length; i++ ) {
 		constraint = this.contact_constraints[i];
 		row = constraint.rows[0];
 
+		// Contact normal for this row, used to split the correction below.
+		var cn = constraint.contact ? constraint.contact.contact_normal : null;
+
 		if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
 			invmass = constraint.object_a._mass_inverted;
-			constraint.object_a.position.x += invmass * row.jacobian[0] * constraint.object_a.linear_factor.x * row.multiplier * this.relaxation;
-			constraint.object_a.position.y += invmass * row.jacobian[1] * constraint.object_a.linear_factor.y * row.multiplier * this.relaxation;
-			constraint.object_a.position.z += invmass * row.jacobian[2] * constraint.object_a.linear_factor.z * row.multiplier * this.relaxation;
+			_tmp_vec3_2.x = invmass * row.jacobian[0] * constraint.object_a.linear_factor.x * row.multiplier * this.relaxation;
+			_tmp_vec3_2.y = invmass * row.jacobian[1] * constraint.object_a.linear_factor.y * row.multiplier * this.relaxation;
+			_tmp_vec3_2.z = invmass * row.jacobian[2] * constraint.object_a.linear_factor.z * row.multiplier * this.relaxation;
+			if ( split_tangential && cn !== null ) {
+				Goblin.IterativeSolver._dampTangential( _tmp_vec3_2, cn, tangential_correction );
+			}
+			if ( !split_linear ) {
+				constraint.object_a.position.x += _tmp_vec3_2.x;
+				constraint.object_a.position.y += _tmp_vec3_2.y;
+				constraint.object_a.position.z += _tmp_vec3_2.z;
+			}
 
 			_tmp_vec3_1.x = row.jacobian[3] * constraint.object_a.angular_factor.x * row.multiplier * this.relaxation;
 			_tmp_vec3_1.y = row.jacobian[4] * constraint.object_a.angular_factor.y * row.multiplier * this.relaxation;
@@ -12020,9 +13058,17 @@ Goblin.IterativeSolver.prototype.resolveContacts = function() {
 
 		if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
 			invmass = constraint.object_b._mass_inverted;
-			constraint.object_b.position.x += invmass * row.jacobian[6] * constraint.object_b.linear_factor.x * row.multiplier * this.relaxation;
-			constraint.object_b.position.y += invmass * row.jacobian[7] * constraint.object_b.linear_factor.y * row.multiplier * this.relaxation;
-			constraint.object_b.position.z += invmass * row.jacobian[8] * constraint.object_b.linear_factor.z * row.multiplier * this.relaxation;
+			_tmp_vec3_2.x = invmass * row.jacobian[6] * constraint.object_b.linear_factor.x * row.multiplier * this.relaxation;
+			_tmp_vec3_2.y = invmass * row.jacobian[7] * constraint.object_b.linear_factor.y * row.multiplier * this.relaxation;
+			_tmp_vec3_2.z = invmass * row.jacobian[8] * constraint.object_b.linear_factor.z * row.multiplier * this.relaxation;
+			if ( split_tangential && cn !== null ) {
+				Goblin.IterativeSolver._dampTangential( _tmp_vec3_2, cn, tangential_correction );
+			}
+			if ( !split_linear ) {
+				constraint.object_b.position.x += _tmp_vec3_2.x;
+				constraint.object_b.position.y += _tmp_vec3_2.y;
+				constraint.object_b.position.z += _tmp_vec3_2.z;
+			}
 
 			_tmp_vec3_1.x = row.jacobian[9] * constraint.object_b.angular_factor.x * row.multiplier * this.relaxation;
 			_tmp_vec3_1.y = row.jacobian[10] * constraint.object_b.angular_factor.y * row.multiplier * this.relaxation;
@@ -12043,6 +13089,213 @@ Goblin.IterativeSolver.prototype.resolveContacts = function() {
 		}
 
 		row.multiplier = 0;
+	}
+};
+
+/**
+ * Packs every active row of `all_constraints` into flat typed-array SoA buffers, once per step, so
+ * the hot per-iteration loops (`solveConstraints`, `resolveContacts`, `solveNormalBlocks`) never walk
+ * `constraint.object_a.linear_factor.x`-style property chains — those are megamorphic across
+ * RigidBody/RigidBodyProxy and, at ~4000 rows x 10 iterations/step, dominate solver time even though
+ * the underlying math was already using typed arrays (jacobian/B/solver_impulse). This only touches
+ * the repeated-every-iteration read/write path; row construction (computeB/computeD/computeEta,
+ * restitution, warm-start setup) is untouched and still runs exactly as before, once per row per step,
+ * before this flattening happens.
+ *
+ * Per row: jacobian[12], B[12] copied in; D, eta, lower_limit, upper_limit, factor, multiplier copied
+ * in/out. Body state (solver_impulse[6], linear_factor[3], angular_factor[3], "is infinite mass")
+ * is deduplicated per unique body across all rows into a separate per-body block, referenced by index
+ * — a body touched by many contacts (the mesh, a stacked box) only gets one slot, and solver_impulse
+ * writes during the iteration go directly into that shared slot exactly like the object-based version
+ * did (writes are visible across rows referencing the same body within an iteration, matching
+ * Gauss-Seidel semantics of the original code).
+ *
+ * @method _buildFlatConstraints
+ * @private
+ */
+Goblin.IterativeSolver.prototype._buildFlatConstraints = function() {
+	var all = this.all_constraints;
+	var n = all.length;
+
+	// Count active rows and assign each a flat index; assign each unique body a flat body-slot index,
+	// keyed by body.id (a plain object map, not ES6 Map, to match this codebase's existing style —
+	// see existing_contact_ids above).
+	var rowCount = 0;
+	var bodySlots = this._flatBodyMap = {};
+	var bodyCount = 0;
+
+	var i, j, constraint, row, bodyA, bodyB;
+	for ( i = 0; i < n; i++ ) {
+		constraint = all[i];
+		if ( constraint.active === false ) { continue; }
+		for ( j = 0; j < constraint.rows.length; j++ ) {
+			rowCount++;
+		}
+	}
+
+	// (Re)allocate flat buffers only when they need to grow, reused across steps otherwise.
+	if ( !this._flatCap || this._flatCap < rowCount ) {
+		this._flatCap = Math.max( 64, rowCount * 2 );
+		this._flatJacobian = new Float64Array( this._flatCap * 12 );
+		this._flatB = new Float64Array( this._flatCap * 12 );
+		this._flatD = new Float64Array( this._flatCap );
+		this._flatEta = new Float64Array( this._flatCap );
+		this._flatLower = new Float64Array( this._flatCap );
+		this._flatUpper = new Float64Array( this._flatCap );
+		this._flatFactor = new Float64Array( this._flatCap );
+		this._flatMultiplier = new Float64Array( this._flatCap );
+		this._flatBodyA = new Int32Array( this._flatCap );
+		this._flatBodyB = new Int32Array( this._flatCap );
+		this._flatTotalMass = new Float64Array( this._flatCap );
+		this._flatRowRef = new Array( this._flatCap ); // back-reference to the real ConstraintRow, to write results back
+		this._flatConstraintRef = new Array( this._flatCap ); // back-reference to the real Constraint, for .factor/.active
+	}
+	if ( !this._flatBodyCap || this._flatBodyCap < n * 2 + 2 ) {
+		this._flatBodyCap = Math.max( 64, n * 2 + 2 );
+		this._flatBodyImpulse = new Float64Array( this._flatBodyCap * 6 );
+		this._flatBodyLinearFactor = new Float64Array( this._flatBodyCap * 3 );
+		this._flatBodyAngularFactor = new Float64Array( this._flatBodyCap * 3 );
+		this._flatBodyRef = new Array( this._flatBodyCap );
+	}
+
+	var flatJacobian = this._flatJacobian, flatB = this._flatB, flatD = this._flatD, flatEta = this._flatEta,
+		flatLower = this._flatLower, flatUpper = this._flatUpper, flatFactor = this._flatFactor,
+		flatMultiplier = this._flatMultiplier, flatBodyA = this._flatBodyA, flatBodyB = this._flatBodyB,
+		flatRowRef = this._flatRowRef, flatConstraintRef = this._flatConstraintRef,
+		flatBodyImpulse = this._flatBodyImpulse, flatBodyLinearFactor = this._flatBodyLinearFactor,
+		flatBodyAngularFactor = this._flatBodyAngularFactor, flatBodyRef = this._flatBodyRef,
+		flatTotalMass = this._flatTotalMass;
+
+	function bodySlotFor( body ) {
+		if ( body == null || body._mass === Infinity ) {
+			return -1;
+		}
+		// Keyed by body.id, not object identity: a compound child's RigidBodyProxy aliases its
+		// parent's id, and several transient proxies for the same body must share one solver_impulse slot.
+		var slot = bodySlots[ body.id ];
+		if ( slot === undefined ) {
+			slot = bodyCount++;
+			bodySlots[ body.id ] = slot;
+			flatBodyRef[slot] = body;
+			var base3 = slot * 3;
+			flatBodyLinearFactor[base3] = body.linear_factor.x;
+			flatBodyLinearFactor[base3 + 1] = body.linear_factor.y;
+			flatBodyLinearFactor[base3 + 2] = body.linear_factor.z;
+			flatBodyAngularFactor[base3] = body.angular_factor.x;
+			flatBodyAngularFactor[base3 + 1] = body.angular_factor.y;
+			flatBodyAngularFactor[base3 + 2] = body.angular_factor.z;
+			var base6 = slot * 6;
+			flatBodyImpulse[base6] = body.solver_impulse[0];
+			flatBodyImpulse[base6 + 1] = body.solver_impulse[1];
+			flatBodyImpulse[base6 + 2] = body.solver_impulse[2];
+			flatBodyImpulse[base6 + 3] = body.solver_impulse[3];
+			flatBodyImpulse[base6 + 4] = body.solver_impulse[4];
+			flatBodyImpulse[base6 + 5] = body.solver_impulse[5];
+		}
+		return slot;
+	}
+
+	var r = 0;
+	for ( i = 0; i < n; i++ ) {
+		constraint = all[i];
+		if ( constraint.active === false ) { continue; }
+		bodyA = bodySlotFor( constraint.object_a );
+		bodyB = bodySlotFor( constraint.object_b );
+
+		for ( j = 0; j < constraint.rows.length; j++ ) {
+			row = constraint.rows[j];
+			var jb = r * 12;
+			flatJacobian.set( row.jacobian, jb );
+			flatB.set( row.B, jb );
+			flatD[r] = row.D;
+			flatEta[r] = row.eta;
+			flatLower[r] = row.lower_limit;
+			flatUpper[r] = row.upper_limit;
+			flatFactor[r] = constraint.factor;
+			flatMultiplier[r] = row.multiplier;
+			flatBodyA[r] = bodyA;
+			flatBodyB[r] = bodyB;
+			// Used only to normalize max_impulse's convergence check; masses don't change mid-step.
+			flatTotalMass[r] = ( bodyA >= 0 ? constraint.object_a._mass : 0 ) + ( bodyB >= 0 ? constraint.object_b._mass : 0 );
+			flatRowRef[r] = row;
+			flatConstraintRef[r] = constraint;
+			r++;
+		}
+	}
+
+	this._flatRowCount = r;
+	this._flatBodyCount = bodyCount;
+};
+
+/**
+ * Writes flat-buffer state (multiplier, solver_impulse) back onto the real ConstraintRow/RigidBody
+ * objects the rest of the engine (applyConstraints, position solve, warm-start caching) reads from.
+ *
+ * @method _flushFlatConstraints
+ * @private
+ */
+Goblin.IterativeSolver.prototype._flushFlatConstraints = function() {
+	var rowCount = this._flatRowCount,
+		flatMultiplier = this._flatMultiplier,
+		flatRowRef = this._flatRowRef,
+		i;
+	for ( i = 0; i < rowCount; i++ ) {
+		flatRowRef[i].multiplier = flatMultiplier[i];
+	}
+
+	var bodyCount = this._flatBodyCount,
+		flatBodyImpulse = this._flatBodyImpulse,
+		flatBodyRef = this._flatBodyRef;
+	for ( i = 0; i < bodyCount; i++ ) {
+		var body = flatBodyRef[i];
+		var base6 = i * 6;
+		body.solver_impulse[0] = flatBodyImpulse[base6];
+		body.solver_impulse[1] = flatBodyImpulse[base6 + 1];
+		body.solver_impulse[2] = flatBodyImpulse[base6 + 2];
+		body.solver_impulse[3] = flatBodyImpulse[base6 + 3];
+		body.solver_impulse[4] = flatBodyImpulse[base6 + 4];
+		body.solver_impulse[5] = flatBodyImpulse[base6 + 5];
+	}
+};
+
+/**
+ * Cheap variant of _flushFlatConstraints/_buildFlatConstraints used around solveNormalBlocks: only
+ * `multiplier` and `solver_impulse` change during the solve, so only those need to round-trip through
+ * the real objects — jacobian/B/D/eta/lower/upper/factor are set once in prepareConstraints and never
+ * change mid-step, so re-copying them every iteration (what a full rebuild would do) is pure waste.
+ *
+ * @method _syncFlatToReal
+ * @private
+ */
+Goblin.IterativeSolver.prototype._syncFlatToReal = function() {
+	this._flushFlatConstraints();
+};
+
+/**
+ * @method _syncRealToFlat
+ * @private
+ */
+Goblin.IterativeSolver.prototype._syncRealToFlat = function() {
+	var rowCount = this._flatRowCount,
+		flatMultiplier = this._flatMultiplier,
+		flatRowRef = this._flatRowRef,
+		i;
+	for ( i = 0; i < rowCount; i++ ) {
+		flatMultiplier[i] = flatRowRef[i].multiplier;
+	}
+
+	var bodyCount = this._flatBodyCount,
+		flatBodyImpulse = this._flatBodyImpulse,
+		flatBodyRef = this._flatBodyRef;
+	for ( i = 0; i < bodyCount; i++ ) {
+		var body = flatBodyRef[i];
+		var base6 = i * 6;
+		flatBodyImpulse[base6] = body.solver_impulse[0];
+		flatBodyImpulse[base6 + 1] = body.solver_impulse[1];
+		flatBodyImpulse[base6 + 2] = body.solver_impulse[2];
+		flatBodyImpulse[base6 + 3] = body.solver_impulse[3];
+		flatBodyImpulse[base6 + 4] = body.solver_impulse[4];
+		flatBodyImpulse[base6 + 5] = body.solver_impulse[5];
 	}
 };
 
@@ -12092,95 +13345,102 @@ Goblin.IterativeSolver.prototype.solveConstraints = function() {
 		}
 	}
 
+	this._buildFlatConstraints();
+	this._buildNormalBlockPairsFlat();
+	var flatJacobian = this._flatJacobian, flatB = this._flatB, flatD = this._flatD, flatEta = this._flatEta,
+		flatLower = this._flatLower, flatUpper = this._flatUpper, flatFactor = this._flatFactor,
+		flatMultiplier = this._flatMultiplier, flatBodyA = this._flatBodyA, flatBodyB = this._flatBodyB,
+		flatBodyImpulse = this._flatBodyImpulse, flatBodyLinearFactor = this._flatBodyLinearFactor,
+		flatBodyAngularFactor = this._flatBodyAngularFactor,
+		flatConstraintRef = this._flatConstraintRef, flatTotalMass = this._flatTotalMass;
+	var rowCount = this._flatRowCount;
+
+	var debugResiduals = Goblin.IterativeSolver._debugTrackResiduals;
+
 	for ( iteration = 0; iteration < this.max_iterations; iteration++ ) {
 		max_impulse = 0;
-		for ( i = 0; i < num_constraints; i++ ) {
-			constraint = this.all_constraints[i];
-			if ( constraint.active === false ) {
-				continue;
-			}
-			num_rows = constraint.rows.length;
+		var liveRows = 0;
 
-			for ( j = 0; j < num_rows; j++ ) {
-				row = constraint.rows[j];
+		for ( var r = 0; r < rowCount; r++ ) {
+			var jb = r * 12;
+			var ba = flatBodyA[r], bb = flatBodyB[r];
 
-				jdot = 0;
-				if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
-					jdot += (
-						row.jacobian[0] * constraint.object_a.linear_factor.x * constraint.object_a.solver_impulse[0] +
-						row.jacobian[1] * constraint.object_a.linear_factor.y * constraint.object_a.solver_impulse[1] +
-						row.jacobian[2] * constraint.object_a.linear_factor.z * constraint.object_a.solver_impulse[2] +
-						row.jacobian[3] * constraint.object_a.angular_factor.x * constraint.object_a.solver_impulse[3] +
-						row.jacobian[4] * constraint.object_a.angular_factor.y * constraint.object_a.solver_impulse[4] +
-						row.jacobian[5] * constraint.object_a.angular_factor.z * constraint.object_a.solver_impulse[5]
-						);
-				}
-				if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
-					jdot += (
-						row.jacobian[6] * constraint.object_b.linear_factor.x * constraint.object_b.solver_impulse[0] +
-						row.jacobian[7] * constraint.object_b.linear_factor.y * constraint.object_b.solver_impulse[1] +
-						row.jacobian[8] * constraint.object_b.linear_factor.z * constraint.object_b.solver_impulse[2] +
-						row.jacobian[9] * constraint.object_b.angular_factor.x * constraint.object_b.solver_impulse[3] +
-						row.jacobian[10] * constraint.object_b.angular_factor.y * constraint.object_b.solver_impulse[4] +
-						row.jacobian[11] * constraint.object_b.angular_factor.z * constraint.object_b.solver_impulse[5]
-					);
-				}
-
-				delta_lambda = ( ( row.eta - jdot ) / row.D || 0) * constraint.factor;
-				var cache = row.multiplier,
-					multiplier_target = cache + delta_lambda;
-
-
-				// successive over-relaxation
-				multiplier_target = this.sor_weight * multiplier_target + ( 1 - this.sor_weight ) * cache;
-
-				// Clamp to row constraints
-				row.multiplier = Math.max(
-					row.lower_limit,
-					Math.min(
-						multiplier_target,
-						row.upper_limit
-					)
+			jdot = 0;
+			if ( ba >= 0 ) {
+				var iba = ba * 6, lfa = ba * 3, afa = ba * 3;
+				jdot += (
+					flatJacobian[jb] * flatBodyLinearFactor[lfa] * flatBodyImpulse[iba] +
+					flatJacobian[jb + 1] * flatBodyLinearFactor[lfa + 1] * flatBodyImpulse[iba + 1] +
+					flatJacobian[jb + 2] * flatBodyLinearFactor[lfa + 2] * flatBodyImpulse[iba + 2] +
+					flatJacobian[jb + 3] * flatBodyAngularFactor[afa] * flatBodyImpulse[iba + 3] +
+					flatJacobian[jb + 4] * flatBodyAngularFactor[afa + 1] * flatBodyImpulse[iba + 4] +
+					flatJacobian[jb + 5] * flatBodyAngularFactor[afa + 2] * flatBodyImpulse[iba + 5]
 				);
+			}
+			if ( bb >= 0 ) {
+				var ibb = bb * 6, lfb = bb * 3, afb = bb * 3;
+				jdot += (
+					flatJacobian[jb + 6] * flatBodyLinearFactor[lfb] * flatBodyImpulse[ibb] +
+					flatJacobian[jb + 7] * flatBodyLinearFactor[lfb + 1] * flatBodyImpulse[ibb + 1] +
+					flatJacobian[jb + 8] * flatBodyLinearFactor[lfb + 2] * flatBodyImpulse[ibb + 2] +
+					flatJacobian[jb + 9] * flatBodyAngularFactor[afb] * flatBodyImpulse[ibb + 3] +
+					flatJacobian[jb + 10] * flatBodyAngularFactor[afb + 1] * flatBodyImpulse[ibb + 4] +
+					flatJacobian[jb + 11] * flatBodyAngularFactor[afb + 2] * flatBodyImpulse[ibb + 5]
+				);
+			}
 
-				// Find final `delta_lambda`
-				delta_lambda = row.multiplier - cache;
+			delta_lambda = ( ( flatEta[r] - jdot ) / flatD[r] || 0 ) * flatFactor[r];
+			var cache = flatMultiplier[r],
+				multiplier_target = cache + delta_lambda;
 
-				var total_mass = ( constraint.object_a && constraint.object_a._mass !== Infinity ? constraint.object_a._mass : 0 ) +
-					( constraint.object_b && constraint.object_b._mass !== Infinity ? constraint.object_b._mass : 0 );
-				max_impulse = Math.max( max_impulse, Math.abs( delta_lambda ) / total_mass );
+			multiplier_target = this.sor_weight * multiplier_target + ( 1 - this.sor_weight ) * cache;
 
-				if ( constraint.object_a && constraint.object_a._mass !== Infinity ) {
-					constraint.object_a.solver_impulse[0] += delta_lambda * row.B[0];
-					constraint.object_a.solver_impulse[1] += delta_lambda * row.B[1];
-					constraint.object_a.solver_impulse[2] += delta_lambda * row.B[2];
+			var mult = Math.max( flatLower[r], Math.min( multiplier_target, flatUpper[r] ) );
+			flatMultiplier[r] = mult;
 
-					constraint.object_a.solver_impulse[3] += delta_lambda * row.B[3];
-					constraint.object_a.solver_impulse[4] += delta_lambda * row.B[4];
-					constraint.object_a.solver_impulse[5] += delta_lambda * row.B[5];
-				}
-				if ( constraint.object_b && constraint.object_b._mass !== Infinity ) {
-					constraint.object_b.solver_impulse[0] += delta_lambda * row.B[6];
-					constraint.object_b.solver_impulse[1] += delta_lambda * row.B[7];
-					constraint.object_b.solver_impulse[2] += delta_lambda * row.B[8];
+			delta_lambda = mult - cache;
 
-					constraint.object_b.solver_impulse[3] += delta_lambda * row.B[9];
-					constraint.object_b.solver_impulse[4] += delta_lambda * row.B[10];
-					constraint.object_b.solver_impulse[5] += delta_lambda * row.B[11];
-				}
+			var rowImpulse = Math.abs( delta_lambda ) / flatTotalMass[r];
+			max_impulse = Math.max( max_impulse, rowImpulse );
+			if ( debugResiduals && rowImpulse > 0.1 ) { liveRows++; }
+
+			if ( ba >= 0 ) {
+				var wba = ba * 6;
+				flatBodyImpulse[wba] += delta_lambda * flatB[jb];
+				flatBodyImpulse[wba + 1] += delta_lambda * flatB[jb + 1];
+				flatBodyImpulse[wba + 2] += delta_lambda * flatB[jb + 2];
+				flatBodyImpulse[wba + 3] += delta_lambda * flatB[jb + 3];
+				flatBodyImpulse[wba + 4] += delta_lambda * flatB[jb + 4];
+				flatBodyImpulse[wba + 5] += delta_lambda * flatB[jb + 5];
+			}
+			if ( bb >= 0 ) {
+				var wbb = bb * 6;
+				flatBodyImpulse[wbb] += delta_lambda * flatB[jb + 6];
+				flatBodyImpulse[wbb + 1] += delta_lambda * flatB[jb + 7];
+				flatBodyImpulse[wbb + 2] += delta_lambda * flatB[jb + 8];
+				flatBodyImpulse[wbb + 3] += delta_lambda * flatB[jb + 9];
+				flatBodyImpulse[wbb + 4] += delta_lambda * flatB[jb + 10];
+				flatBodyImpulse[wbb + 5] += delta_lambda * flatB[jb + 11];
 			}
 		}
 
-		// Block-solve paired normal contacts (2-point manifolds) as a coupled 2x2 each sweep.
-		// See solveNormalBlocks: sequential Gauss-Seidel on two one-sided normal constraints of the
-		// same body leaves an antisymmetric impulse residual = a phantom torque, which spins a
-		// resting cylinder/capsule up from nothing. This re-couples them.
-		this.solveNormalBlocks();
+		// Block-solve paired normal contacts (2-point manifolds) as a coupled 2x2 each sweep — see
+		// solveNormalBlocksFlat. Its impulses count toward convergence too, otherwise the loop can
+		// exit while the block solve is still making large corrections.
+		max_impulse = Math.max( max_impulse, this.solveNormalBlocksFlat() );
 
-		if ( max_impulse <= 0.1 ) {
+		if ( Goblin.IterativeSolver._debugMaxImpulseTrace ) { Goblin.IterativeSolver._debugMaxImpulseTrace.push( max_impulse ); }
+		if ( debugResiduals && iteration === this.max_iterations - 1 ) {
+			Goblin.IterativeSolver._debugLiveRowsAtEnd = liveRows;
+			Goblin.IterativeSolver._debugTotalRowsAtEnd = rowCount;
+		}
+		if ( max_impulse <= this.convergence_epsilon ) {
 			break;
 		}
 	}
+	Goblin.IterativeSolver._lastIterationCount = iteration + 1;
+
+	this._flushFlatConstraints();
 };
 
 /**
@@ -12189,49 +13449,118 @@ Goblin.IterativeSolver.prototype.solveConstraints = function() {
  * solved sequentially, each one's impulse applies a torque that violates the other, leaving an
  * antisymmetric residual that spins a low-inertia body up from rest and that more iterations only
  * worsen. Solving both normals together, with the [0, inf] one-sided limit enumerated over four
- * cases, cancels the cross-coupling in one shot. Runs each sweep over the shared solver_impulse and
- * row.multiplier state; friction rows stay 1x1.
+ * cases, cancels the cross-coupling in one shot.
  *
- * @method solveNormalBlocks
+ * Operates on the flat typed arrays (_flatJacobian/_flatB/_flatD/_flatEta/_flatMultiplier/
+ * _flatBodyImpulse), addressed by flat row index rather than by Constraint/ConstraintRow object.
+ *
+ * @method solveNormalBlocksFlat
  */
-Goblin.IterativeSolver.prototype.solveNormalBlocks = function() {
+/**
+ * Precomputes, as pairs of FLAT ROW INDICES, which contact_constraints are the two points of one
+ * shape-pair's contact — keyed by the actual sub-shapes involved (see NarrowPhase's _shapeKeyA/B),
+ * not just the top-level body pair, so a compound body's several independent contacts against the
+ * same other body (which all share one manifold) are never wrongly block-paired with each other.
+ *
+ * Must run after _buildFlatConstraints (needs _flatRowRef to map a ConstraintRow back to its flat
+ * index).
+ *
+ * @method _buildNormalBlockPairsFlat
+ */
+Goblin.IterativeSolver.prototype._buildNormalBlockPairsFlat = function() {
 	var cc = this.contact_constraints;
 	var n = cc.length;
-	for ( var a = 0; a < n; a++ ) {
-		var c1 = cc[a];
-		if ( c1.active === false || c1._blockPaired ) {
+	var rowCount = this._flatRowCount;
+	var flatRowRef = this._flatRowRef;
+
+	// Row -> flat index, built fresh each step; only covers active rows already in the flat set.
+	var rowToFlat = {};
+	var i;
+	for ( i = 0; i < rowCount; i++ ) {
+		rowToFlat[ flatRowRef[i]._uid || ( flatRowRef[i]._uid = ++Goblin.IterativeSolver._rowUidCounter ) ] = i;
+	}
+
+	if ( !this._normalBlockPairsCap || this._normalBlockPairsCap < n ) {
+		this._normalBlockPairsCap = Math.max( 64, n * 2 );
+		this._normalBlockPairs = new Int32Array( this._normalBlockPairsCap );
+	}
+	var pairs = this._normalBlockPairs;
+	var pairCount = 0;
+
+	// Only pairs the first two contacts sharing a shape-pair key; a manifold's 3rd/4th point (if any)
+	// falls through to the plain per-row solve.
+	var byKey = {};
+	for ( i = 0; i < n; i++ ) {
+		var c = cc[i];
+		if ( c.active === false || c._shapeKeyA == null || c._shapeKeyB == null ) {
 			continue;
 		}
-		var c2 = null;
-		for ( var b = a + 1; b < n; b++ ) {
-			var cand = cc[b];
-			if ( cand.active === false || cand._blockPaired ) {
-				continue;
-			}
-			if ( cand.object_a === c1.object_a && cand.object_b === c1.object_b ) { c2 = cand; break; }
-		}
-		if ( c2 === null ) {
+		var row0 = c.rows[0];
+		var flatIdx = rowToFlat[ row0._uid ];
+		if ( flatIdx === undefined ) {
 			continue;
 		}
+		// Key on the BODY pair as well as the shape pair. Shape ids alone collide whenever many bodies
+		// share one shape instance (a stack of identical boxes), which would block-pair two contacts
+		// that have no body in common - the 2x2 solve then couples unrelated rows and injects energy.
+		var bodyIdA = c.object_a ? c.object_a.id : -1;
+		var bodyIdB = c.object_b ? c.object_b.id : -1;
+		var bodyKey = bodyIdA < bodyIdB ? ( bodyIdA + ':' + bodyIdB ) : ( bodyIdB + ':' + bodyIdA );
+		var shapeKey = c._shapeKeyA.id < c._shapeKeyB.id ? ( c._shapeKeyA.id + '_' + c._shapeKeyB.id ) : ( c._shapeKeyB.id + '_' + c._shapeKeyA.id );
+		var key = bodyKey + '|' + shapeKey;
+		if ( byKey.hasOwnProperty( key ) ) {
+			var partnerIdx = byKey[key];
+			pairs[pairCount++] = partnerIdx;
+			pairs[pairCount++] = flatIdx;
+			delete byKey[key];
+		} else {
+			byKey[key] = flatIdx;
+		}
+	}
+	this._normalBlockPairCount = pairCount;
+};
+Goblin.IterativeSolver._rowUidCounter = 0;
 
-		var r1 = c1.rows[0], r2 = c2.rows[0];
+Goblin.IterativeSolver.prototype.solveNormalBlocksFlat = function() {
+	var pairs = this._normalBlockPairs;
+	var n = this._normalBlockPairCount;
+	var flatJacobian = this._flatJacobian, flatB = this._flatB, flatD = this._flatD, flatEta = this._flatEta,
+		flatMultiplier = this._flatMultiplier, flatBodyA = this._flatBodyA, flatBodyB = this._flatBodyB,
+		flatBodyImpulse = this._flatBodyImpulse, flatBodyLinearFactor = this._flatBodyLinearFactor,
+		flatBodyAngularFactor = this._flatBodyAngularFactor, flatUpper = this._flatUpper,
+		flatTotalMass = this._flatTotalMass;
 
-		var jdot1 = Goblin.IterativeSolver._rowJdot( c1, r1 );
-		var jdot2 = Goblin.IterativeSolver._rowJdot( c2, r2 );
+	// Largest mass-normalized multiplier change this pass, so solveConstraints can fold it into its
+	// convergence test (same normalization the sequential sweep uses).
+	var maxImpulse = 0;
+	function noteDelta( row, delta ) {
+		var m = flatTotalMass[row];
+		var v = m > 0 ? Math.abs( delta ) / m : Math.abs( delta );
+		if ( v > maxImpulse ) { maxImpulse = v; }
+	}
 
-		var K11 = r1.D, K22 = r2.D;
-		var K12 = Goblin.IterativeSolver._rowCross( r1, r2 );
+	for ( var a = 0; a < n; a += 2 ) {
+		var r1 = pairs[a], r2 = pairs[a + 1];
+		var jb1 = r1 * 12, jb2 = r2 * 12;
+		var ba1 = flatBodyA[r1], bb1 = flatBodyB[r1];
+		var ba2 = flatBodyA[r2], bb2 = flatBodyB[r2];
+
+		var jdot1 = Goblin.IterativeSolver._flatRowJdot( flatJacobian, flatBodyImpulse, flatBodyLinearFactor, flatBodyAngularFactor, jb1, ba1, bb1 );
+		var jdot2 = Goblin.IterativeSolver._flatRowJdot( flatJacobian, flatBodyImpulse, flatBodyLinearFactor, flatBodyAngularFactor, jb2, ba2, bb2 );
+
+		var K11 = flatD[r1], K22 = flatD[r2];
 		if ( K11 <= 0 || K22 <= 0 ) {
 			continue;
 		}
+		var K12 = Goblin.IterativeSolver._flatRowCross( flatJacobian, flatB, jb1, jb2 );
 
-		var x1 = r1.multiplier, x2 = r2.multiplier;
+		var x1 = flatMultiplier[r1], x2 = flatMultiplier[r2];
 		// "velocity if these two rows' impulses were zero"
-		var a1 = jdot1 - ( K11 * x1 + K12 * x2 );
-		var a2 = jdot2 - ( K12 * x1 + K22 * x2 );
+		var av1 = jdot1 - ( K11 * x1 + K12 * x2 );
+		var av2 = jdot2 - ( K12 * x1 + K22 * x2 );
 		// want A x' + a = eta  ->  A x' = (eta - a)
-		var rhs1 = r1.eta - a1;
-		var rhs2 = r2.eta - a2;
+		var rhs1 = flatEta[r1] - av1;
+		var rhs2 = flatEta[r2] - av2;
 
 		var nx1, nx2;
 		var det = K11 * K22 - K12 * K12;
@@ -12240,98 +13569,101 @@ Goblin.IterativeSolver.prototype.solveNormalBlocks = function() {
 		if ( Math.abs( det ) > 1e-12 ) {
 			nx1 = ( rhs1 * K22 - rhs2 * K12 ) / det;
 			nx2 = ( rhs2 * K11 - rhs1 * K12 ) / det;
-			if ( nx1 >= 0 && nx2 >= 0 ) {
-				this._applyBlock( c1, r1, nx1 - x1 );
-				this._applyBlock( c2, r2, nx2 - x2 );
-				r1.multiplier = nx1; r2.multiplier = nx2;
-				c1._blockPaired = c2._blockPaired = true;
+			if ( nx1 >= 0 && nx2 >= 0 && nx1 <= flatUpper[r1] && nx2 <= flatUpper[r2] ) {
+				Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb1, ba1, bb1, nx1 - x1 );
+				Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb2, ba2, bb2, nx2 - x2 );
+				noteDelta( r1, nx1 - x1 ); noteDelta( r2, nx2 - x2 );
+				flatMultiplier[r1] = nx1; flatMultiplier[r2] = nx2;
 				continue;
 			}
 		}
 		// Case 2: only point 1
 		nx1 = rhs1 / K11;
-		if ( nx1 >= 0 && ( K12 * nx1 + a2 ) >= r2.eta ) {
-			this._applyBlock( c1, r1, nx1 - x1 );
-			this._applyBlock( c2, r2, 0 - x2 );
-			r1.multiplier = nx1; r2.multiplier = 0;
-			c1._blockPaired = c2._blockPaired = true;
+		if ( nx1 >= 0 && nx1 <= flatUpper[r1] && ( K12 * nx1 + av2 ) >= flatEta[r2] ) {
+			Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb1, ba1, bb1, nx1 - x1 );
+			Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb2, ba2, bb2, 0 - x2 );
+			noteDelta( r1, nx1 - x1 ); noteDelta( r2, 0 - x2 );
+			flatMultiplier[r1] = nx1; flatMultiplier[r2] = 0;
 			continue;
 		}
 		// Case 3: only point 2
 		nx2 = rhs2 / K22;
-		if ( nx2 >= 0 && ( K12 * nx2 + a1 ) >= r1.eta ) {
-			this._applyBlock( c1, r1, 0 - x1 );
-			this._applyBlock( c2, r2, nx2 - x2 );
-			r1.multiplier = 0; r2.multiplier = nx2;
-			c1._blockPaired = c2._blockPaired = true;
+		if ( nx2 >= 0 && nx2 <= flatUpper[r2] && ( K12 * nx2 + av1 ) >= flatEta[r1] ) {
+			Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb1, ba1, bb1, 0 - x1 );
+			Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb2, ba2, bb2, nx2 - x2 );
+			noteDelta( r1, 0 - x1 ); noteDelta( r2, nx2 - x2 );
+			flatMultiplier[r1] = 0; flatMultiplier[r2] = nx2;
 			continue;
 		}
 		// Case 4: neither
-		if ( a1 >= r1.eta && a2 >= r2.eta ) {
-			this._applyBlock( c1, r1, 0 - x1 );
-			this._applyBlock( c2, r2, 0 - x2 );
-			r1.multiplier = 0; r2.multiplier = 0;
-			c1._blockPaired = c2._blockPaired = true;
+		if ( av1 >= flatEta[r1] && av2 >= flatEta[r2] ) {
+			Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb1, ba1, bb1, 0 - x1 );
+			Goblin.IterativeSolver._flatApplyBlock( flatBodyImpulse, flatB, jb2, ba2, bb2, 0 - x2 );
+			noteDelta( r1, 0 - x1 ); noteDelta( r2, 0 - x2 );
+			flatMultiplier[r1] = 0; flatMultiplier[r2] = 0;
 		}
 	}
-	for ( var k = 0; k < n; k++ ) {
-		cc[k]._blockPaired = false;
-	}
+
+	return maxImpulse;
 };
 
-Goblin.IterativeSolver.prototype._applyBlock = function( constraint, row, delta_lambda ) {
+Goblin.IterativeSolver._flatApplyBlock = function( flatBodyImpulse, flatB, jb, ba, bb, delta_lambda ) {
 	if ( delta_lambda === 0 ) {
 		return;
 	}
-	if ( constraint.object_a && constraint.object_a._mass !== Infinity ) {
-		constraint.object_a.solver_impulse[0] += delta_lambda * row.B[0];
-		constraint.object_a.solver_impulse[1] += delta_lambda * row.B[1];
-		constraint.object_a.solver_impulse[2] += delta_lambda * row.B[2];
-		constraint.object_a.solver_impulse[3] += delta_lambda * row.B[3];
-		constraint.object_a.solver_impulse[4] += delta_lambda * row.B[4];
-		constraint.object_a.solver_impulse[5] += delta_lambda * row.B[5];
+	if ( ba >= 0 ) {
+		var wba = ba * 6;
+		flatBodyImpulse[wba] += delta_lambda * flatB[jb];
+		flatBodyImpulse[wba + 1] += delta_lambda * flatB[jb + 1];
+		flatBodyImpulse[wba + 2] += delta_lambda * flatB[jb + 2];
+		flatBodyImpulse[wba + 3] += delta_lambda * flatB[jb + 3];
+		flatBodyImpulse[wba + 4] += delta_lambda * flatB[jb + 4];
+		flatBodyImpulse[wba + 5] += delta_lambda * flatB[jb + 5];
 	}
-	if ( constraint.object_b && constraint.object_b._mass !== Infinity ) {
-		constraint.object_b.solver_impulse[0] += delta_lambda * row.B[6];
-		constraint.object_b.solver_impulse[1] += delta_lambda * row.B[7];
-		constraint.object_b.solver_impulse[2] += delta_lambda * row.B[8];
-		constraint.object_b.solver_impulse[3] += delta_lambda * row.B[9];
-		constraint.object_b.solver_impulse[4] += delta_lambda * row.B[10];
-		constraint.object_b.solver_impulse[5] += delta_lambda * row.B[11];
+	if ( bb >= 0 ) {
+		var wbb = bb * 6;
+		flatBodyImpulse[wbb] += delta_lambda * flatB[jb + 6];
+		flatBodyImpulse[wbb + 1] += delta_lambda * flatB[jb + 7];
+		flatBodyImpulse[wbb + 2] += delta_lambda * flatB[jb + 8];
+		flatBodyImpulse[wbb + 3] += delta_lambda * flatB[jb + 9];
+		flatBodyImpulse[wbb + 4] += delta_lambda * flatB[jb + 10];
+		flatBodyImpulse[wbb + 5] += delta_lambda * flatB[jb + 11];
 	}
 };
 
-Goblin.IterativeSolver._rowJdot = function( constraint, row ) {
+Goblin.IterativeSolver._flatRowJdot = function( flatJacobian, flatBodyImpulse, flatBodyLinearFactor, flatBodyAngularFactor, jb, ba, bb ) {
 	var jdot = 0;
-	if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+	if ( ba >= 0 ) {
+		var iba = ba * 6, lfa = ba * 3, afa = ba * 3;
 		jdot += (
-			row.jacobian[0] * constraint.object_a.linear_factor.x * constraint.object_a.solver_impulse[0] +
-			row.jacobian[1] * constraint.object_a.linear_factor.y * constraint.object_a.solver_impulse[1] +
-			row.jacobian[2] * constraint.object_a.linear_factor.z * constraint.object_a.solver_impulse[2] +
-			row.jacobian[3] * constraint.object_a.angular_factor.x * constraint.object_a.solver_impulse[3] +
-			row.jacobian[4] * constraint.object_a.angular_factor.y * constraint.object_a.solver_impulse[4] +
-			row.jacobian[5] * constraint.object_a.angular_factor.z * constraint.object_a.solver_impulse[5]
+			flatJacobian[jb] * flatBodyLinearFactor[lfa] * flatBodyImpulse[iba] +
+			flatJacobian[jb + 1] * flatBodyLinearFactor[lfa + 1] * flatBodyImpulse[iba + 1] +
+			flatJacobian[jb + 2] * flatBodyLinearFactor[lfa + 2] * flatBodyImpulse[iba + 2] +
+			flatJacobian[jb + 3] * flatBodyAngularFactor[afa] * flatBodyImpulse[iba + 3] +
+			flatJacobian[jb + 4] * flatBodyAngularFactor[afa + 1] * flatBodyImpulse[iba + 4] +
+			flatJacobian[jb + 5] * flatBodyAngularFactor[afa + 2] * flatBodyImpulse[iba + 5]
 		);
 	}
-	if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+	if ( bb >= 0 ) {
+		var ibb = bb * 6, lfb = bb * 3, afb = bb * 3;
 		jdot += (
-			row.jacobian[6] * constraint.object_b.linear_factor.x * constraint.object_b.solver_impulse[0] +
-			row.jacobian[7] * constraint.object_b.linear_factor.y * constraint.object_b.solver_impulse[1] +
-			row.jacobian[8] * constraint.object_b.linear_factor.z * constraint.object_b.solver_impulse[2] +
-			row.jacobian[9] * constraint.object_b.angular_factor.x * constraint.object_b.solver_impulse[3] +
-			row.jacobian[10] * constraint.object_b.angular_factor.y * constraint.object_b.solver_impulse[4] +
-			row.jacobian[11] * constraint.object_b.angular_factor.z * constraint.object_b.solver_impulse[5]
+			flatJacobian[jb + 6] * flatBodyLinearFactor[lfb] * flatBodyImpulse[ibb] +
+			flatJacobian[jb + 7] * flatBodyLinearFactor[lfb + 1] * flatBodyImpulse[ibb + 1] +
+			flatJacobian[jb + 8] * flatBodyLinearFactor[lfb + 2] * flatBodyImpulse[ibb + 2] +
+			flatJacobian[jb + 9] * flatBodyAngularFactor[afb] * flatBodyImpulse[ibb + 3] +
+			flatJacobian[jb + 10] * flatBodyAngularFactor[afb + 1] * flatBodyImpulse[ibb + 4] +
+			flatJacobian[jb + 11] * flatBodyAngularFactor[afb + 2] * flatBodyImpulse[ibb + 5]
 		);
 	}
 	return jdot;
 };
 
-Goblin.IterativeSolver._rowCross = function( rowA, rowB ) {
+Goblin.IterativeSolver._flatRowCross = function( flatJacobian, flatB, jb1, jb2 ) {
 	return (
-		rowA.jacobian[0] * rowB.B[0] + rowA.jacobian[1] * rowB.B[1] + rowA.jacobian[2] * rowB.B[2] +
-		rowA.jacobian[3] * rowB.B[3] + rowA.jacobian[4] * rowB.B[4] + rowA.jacobian[5] * rowB.B[5] +
-		rowA.jacobian[6] * rowB.B[6] + rowA.jacobian[7] * rowB.B[7] + rowA.jacobian[8] * rowB.B[8] +
-		rowA.jacobian[9] * rowB.B[9] + rowA.jacobian[10] * rowB.B[10] + rowA.jacobian[11] * rowB.B[11]
+		flatJacobian[jb1] * flatB[jb2] + flatJacobian[jb1 + 1] * flatB[jb2 + 1] + flatJacobian[jb1 + 2] * flatB[jb2 + 2] +
+		flatJacobian[jb1 + 3] * flatB[jb2 + 3] + flatJacobian[jb1 + 4] * flatB[jb2 + 4] + flatJacobian[jb1 + 5] * flatB[jb2 + 5] +
+		flatJacobian[jb1 + 6] * flatB[jb2 + 6] + flatJacobian[jb1 + 7] * flatB[jb2 + 7] + flatJacobian[jb1 + 8] * flatB[jb2 + 8] +
+		flatJacobian[jb1 + 9] * flatB[jb2 + 9] + flatJacobian[jb1 + 10] * flatB[jb2 + 10] + flatJacobian[jb1 + 11] * flatB[jb2 + 11]
 	);
 };
 
@@ -12401,15 +13733,18 @@ Goblin.IterativeSolver.prototype.applyConstraints = function( time_delta ) {
 	// Only a body slow (tiny linear AND angular velocity) for several consecutive frames is zeroed, so the
 	// active settling transient and any rolling/spinning body are never touched.
 	var BUZZ_LIN = 0.08, BUZZ_ANG = 0.08, BUZZ_FRAMES = 8;
+	var BUZZ_LIN_SQ = BUZZ_LIN * BUZZ_LIN, BUZZ_ANG_SQ = BUZZ_ANG * BUZZ_ANG;
 	for ( i = 0; i < this.contact_constraints.length; i++ ) {
 		constraint = this.contact_constraints[i];
 		if ( constraint.active === false ) { continue; }
-		var pair = [ constraint.object_a, constraint.object_b ];
+		// Was building a fresh 2-element [object_a, object_b] array here every constraint, every step,
+		// purely to loop over "the two bodies" — 2247 throwaway array allocations/step in this scene for
+		// no reason, since the two sides can just be checked inline without a wrapper array.
 		for ( var pi = 0; pi < 2; pi++ ) {
-			var bod = pair[pi];
+			var bod = pi === 0 ? constraint.object_a : constraint.object_b;
 			if ( bod == null || bod._mass === Infinity ) { continue; }
-			if ( bod.linear_velocity.lengthSquared() < BUZZ_LIN * BUZZ_LIN &&
-				bod.angular_velocity.lengthSquared() < BUZZ_ANG * BUZZ_ANG ) {
+			if ( bod.linear_velocity.lengthSquared() < BUZZ_LIN_SQ &&
+				bod.angular_velocity.lengthSquared() < BUZZ_ANG_SQ ) {
 				bod._buzzSlowFrames = ( bod._buzzSlowFrames || 0 ) + 1;
 				if ( bod._buzzSlowFrames >= BUZZ_FRAMES ) {
 					bod.linear_velocity.x = bod.linear_velocity.y = bod.linear_velocity.z = 0;
@@ -12434,6 +13769,12 @@ Goblin.NarrowPhase = function() {
 	 * @type Goblin.ContactManifoldList
 	 */
 	this.contact_manifolds = new Goblin.ContactManifoldList();
+
+	// Reads this.addContact dynamically so World.shapeIntersect's temporary override still applies.
+	var self = this;
+	this._boundAddContact = function( object_a, object_b, contact ) {
+		self.addContact( object_a, object_b, contact );
+	};
 };
 
 /**
@@ -12449,6 +13790,7 @@ Goblin.NarrowPhase.prototype.updateContactManifolds = function() {
 		current.update();
 
 		if ( current.points.length === 0 ) {
+			this.contact_manifolds.remove( current );
 			Goblin.ObjectPool.freeObject( 'ContactManifold', current );
 			if ( prev == null ) {
 				this.contact_manifolds.first = current.next_manifold;
@@ -12463,7 +13805,11 @@ Goblin.NarrowPhase.prototype.updateContactManifolds = function() {
 	}
 };
 
-Goblin.NarrowPhase.prototype.midPhase = function( object_a, object_b ) {
+Goblin.NarrowPhase.prototype.midPhase = (function(){
+	var node_stack = [];
+	var other_aabb_in_compound = new Goblin.AABB();
+
+	return function( object_a, object_b ) {
 	var compound,
 		other;
 
@@ -12476,53 +13822,121 @@ Goblin.NarrowPhase.prototype.midPhase = function( object_a, object_b ) {
 	}
 
 	var proxy = Goblin.ObjectPool.getObject( 'RigidBodyProxy' ),
-		child_shape, contact;
-	for ( var i = 0; i < compound.shape.child_shapes.length; i++ ) {
-		child_shape = compound.shape.child_shapes[i];
+		child_shapes = compound.shape.child_shapes;
+
+	var self = this;
+	// Shared per-child body: setFrom + getContact/recurse + contact resolution, identical regardless
+	// of whether the candidate child came from the flat scan or the BVH walk below.
+	function testChild( child_shape ) {
 		proxy.setFrom( compound, child_shape );
 
+		var contact;
 		if ( proxy.shape instanceof Goblin.CompoundShape || other.shape instanceof Goblin.CompoundShape ) {
-			this.midPhase( proxy, other );
+			self.midPhase( proxy, other );
+			return;
+		}
+
+		contact = self.getContact( proxy, other );
+		if ( contact == null ) {
+			return;
+		}
+		// Which actual sub-shape generated this, for IterativeSolver's block-pairing (see
+		// NarrowPhase.resolveAndAddContact for the mesh-path equivalent).
+		contact._shapeKeyA = contact.object_a instanceof Goblin.RigidBodyProxy ? contact.object_a.shape_data : contact.object_a;
+		contact._shapeKeyB = contact.object_b instanceof Goblin.RigidBodyProxy ? contact.object_b.shape_data : contact.object_b;
+
+		var parent_a, parent_b;
+		if ( contact.object_a === proxy ) {
+			contact.object_a = compound;
+			parent_a = proxy;
+			parent_b = other;
 		} else {
-			contact = this.getContact( proxy, other );
-			if ( contact != null ) {
-				var parent_a, parent_b;
-				if ( contact.object_a === proxy ) {
-					contact.object_a = compound;
-					parent_a = proxy;
-					parent_b = other;
-				} else {
-					contact.object_b = compound;
-					parent_a = other;
-					parent_b = proxy;
-				}
+			contact.object_b = compound;
+			parent_a = other;
+			parent_b = proxy;
+		}
 
+		if ( parent_a instanceof Goblin.RigidBodyProxy ) {
+			while ( parent_a.parent ) {
 				if ( parent_a instanceof Goblin.RigidBodyProxy ) {
-					while ( parent_a.parent ) {
-						if ( parent_a instanceof Goblin.RigidBodyProxy ) {
-							parent_a.shape_data.transform.transformVector3( contact.contact_point_in_a );
-						}
-						parent_a = parent_a.parent;
-					}
+					parent_a.shape_data.transform.transformVector3( contact.contact_point_in_a );
 				}
-
-				if ( parent_b instanceof Goblin.RigidBodyProxy ) {
-					while ( parent_b.parent ) {
-						if ( parent_b instanceof Goblin.RigidBodyProxy ) {
-							parent_b.shape_data.transform.transformVector3( contact.contact_point_in_b );
-						}
-						parent_b = parent_b.parent;
-					}
-				}
-
-				contact.object_a = parent_a;
-				contact.object_b = parent_b;
-				this.addContact( parent_a, parent_b, contact );
+				parent_a = parent_a.parent;
 			}
 		}
+
+		if ( parent_b instanceof Goblin.RigidBodyProxy ) {
+			while ( parent_b.parent ) {
+				if ( parent_b instanceof Goblin.RigidBodyProxy ) {
+					parent_b.shape_data.transform.transformVector3( contact.contact_point_in_b );
+				}
+				parent_b = parent_b.parent;
+			}
+		}
+
+		contact.object_a = parent_a;
+		contact.object_b = parent_b;
+		self.addContact( parent_a, parent_b, contact );
 	}
+
+	// Built lazily — see CompoundShape.ensureHierarchy.
+	compound.shape.ensureHierarchy();
+
+	if ( compound.shape.hierarchy_flat != null ) {
+		// BVH walk: only visits children whose subtree AABB could contain `other`. `other.aabb` is
+		// world-space; the tree's node AABBs are compound-local, so transform once per call rather
+		// than per node.
+		other_aabb_in_compound.transform( other.aabb, compound.transform_inverse );
+
+		var flat = compound.shape.hierarchy_flat;
+		var aabbs = flat.aabbs, rightOrLeaf = flat.rightOrLeaf, leafObjects = flat.leafObjects;
+		var qminx = other_aabb_in_compound.min.x, qminy = other_aabb_in_compound.min.y, qminz = other_aabb_in_compound.min.z,
+			qmaxx = other_aabb_in_compound.max.x, qmaxy = other_aabb_in_compound.max.y, qmaxz = other_aabb_in_compound.max.z;
+
+		var stack_size = 0;
+		node_stack[stack_size++] = 0;
+		while ( stack_size > 0 ) {
+			var idx = node_stack[--stack_size];
+			var base = idx * 6;
+
+			if ( aabbs[base] > qmaxx || aabbs[base + 3] < qminx ||
+				aabbs[base + 1] > qmaxy || aabbs[base + 4] < qminy ||
+				aabbs[base + 2] > qmaxz || aabbs[base + 5] < qminz ) {
+				continue;
+			}
+
+			var ro = rightOrLeaf[idx];
+			if ( ro <= -1 ) {
+				testChild( leafObjects[idx] );
+			} else {
+				node_stack[stack_size++] = ro; // right
+				node_stack[stack_size++] = idx + 1; // left
+			}
+		}
+	} else {
+		// Too few children to be worth a BVH (see CompoundShape.addChildShape's threshold) — flat
+		// scan with the per-child cached world AABB as the reject, same mechanism either way.
+		for ( var i = 0; i < child_shapes.length; i++ ) {
+			var child_shape = child_shapes[i];
+
+			if ( child_shape._worldAabbVersion !== compound._transformVersion ) {
+				if ( !child_shape._worldAabb ) {
+					child_shape._worldAabb = new Goblin.AABB();
+				}
+				child_shape._worldAabb.transform( child_shape.aabb, compound.transform );
+				child_shape._worldAabbVersion = compound._transformVersion;
+			}
+			if ( !child_shape._worldAabb.intersects( other.aabb ) ) {
+				continue;
+			}
+
+			testChild( child_shape );
+		}
+	}
+
 	Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
-};
+	};
+})();
 
 Goblin.NarrowPhase.prototype.meshCollision = (function(){
 	var b_to_a = new Goblin.Matrix4(),
@@ -12565,9 +13979,12 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 
                     contact.object_a = object_a;
                     contact.object_b = object_b;
+                    contact._shapeKeyA = object_a instanceof Goblin.RigidBodyProxy ? object_a.shape_data : object_a;
+                    contact._shapeKeyB = object_b instanceof Goblin.RigidBodyProxy ? object_b.shape_data : object_b;
 
                     contact.restitution = ( object_a.restitution + object_b.restitution ) / 2;
                     contact.friction = ( object_a.friction + object_b.friction ) / 2;
+                    contact.rolling_friction = ( object_a.rolling_friction + object_b.rolling_friction ) / 2;
                     /*console.log( contact );
                     debugger;*/
 
@@ -12612,67 +14029,228 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 		}
 	}
 
-	function triangleConvex( triangle, mesh, convex ) {
-		// Create proxy to convert convex into mesh's space
-		var proxy = Goblin.ObjectPool.getObject( 'RigidBodyProxy' );
-
-		var child_shape = new Goblin.CompoundShapeChild( triangle, new Goblin.Vector3(), new Goblin.Quaternion() );
-		proxy.setFrom( mesh, child_shape );
+	// Proxy transform is the same for every leaf in a query; only `.shape` changes here.
+	function triangleConvex( triangle, proxy, convex ) {
+		proxy.shape = triangle;
 
 		var simplex = Goblin.GjkEpa.GJK( proxy, convex ),
 			contact;
 		if ( Goblin.GjkEpa.result != null ) {
 			contact = Goblin.GjkEpa.result;
+			if ( simplex != null ) {
+				Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
+			}
 		} else if ( simplex != null ) {
 			contact = Goblin.GjkEpa.EPA( simplex );
 		}
 
-		Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
+		// Stable identity for ContactManifold.addContact to match against across frames — a shape
+		// resting on many triangles (fine mesh) has more real contacts than the manifold's 4 slots,
+		// and without this it picks its "best 4" fresh each frame in whatever order triangles were
+		// tested, discarding still-valid points and their solver warm-start data for no reason.
+		if ( contact != null ) {
+			contact._source_triangle = triangle;
+		}
 
 		return contact;
 	}
 
 	var meshConvex = (function(){
 		var convex_to_mesh = new Goblin.Matrix4(),
-			convex_aabb_in_mesh = new Goblin.AABB();
+			convex_aabb_in_mesh = new Goblin.AABB(),
+			node_stack = [],
+			pos_delta = new Goblin.Vector3();
 
-		return function meshConvex( mesh, convex, addContact ) {
+		// Cache trusted only up to this much linear movement / rotation (quat dot) since captured.
+		var CACHE_POS_EPS = 0.01;
+		var CACHE_ROT_DOT_MIN = 0.9999;
+
+		function cacheStillValid( cache, convex ) {
+			if ( !cache._cacheValid || cache._cachedTriangles === null ) {
+				return false;
+			}
+			pos_delta.subtractVectors( convex.position, cache._cachePosition );
+			if ( pos_delta.lengthSquared() > CACHE_POS_EPS * CACHE_POS_EPS ) {
+				return false;
+			}
+			var r = cache._cacheRotation, q = convex.rotation;
+			var dot = r.x * q.x + r.y * q.y + r.z * q.z + r.w * q.w;
+			if ( Math.abs( dot ) < CACHE_ROT_DOT_MIN ) {
+				return false;
+			}
+			return true;
+		}
+
+		// Resolves mesh/convex up to their real top-level bodies (a side may be a transient
+		// RigidBodyProxy when it's a compound child) and dispatches the finished contact. Shared by
+		// both the cache-hit and full-walk paths so they can never diverge in this resolution again.
+		function resolveAndAddContact( mesh, convex, contact, addContact ) {
+			// Identifies which sub-shape actually generated this contact (the mesh itself is one
+			// shape; a compound child is its own CompoundShapeChild), stamped before resolving proxies
+			// away — see IterativeSolver's use of this to keep two different compound children's
+			// contacts from being block-paired as if they were one contact patch.
+			contact._shapeKeyA = mesh instanceof Goblin.RigidBodyProxy ? mesh.shape_data : mesh;
+			contact._shapeKeyB = convex instanceof Goblin.RigidBodyProxy ? convex.shape_data : convex;
+
+			var _mesh = mesh;
+			while ( _mesh.parent != null ) {
+				_mesh = _mesh.parent;
+			}
+			var _convex = convex;
+			while ( _convex.parent != null ) {
+				if ( _convex instanceof Goblin.RigidBodyProxy ) {
+					_convex.shape_data.transform.transformVector3( contact.contact_point_in_b );
+				}
+				_convex = _convex.parent;
+			}
+			contact.object_a = _mesh;
+			contact.object_b = _convex;
+			addContact( _mesh, _convex, contact );
+		}
+
+		// Resolves the object the leaf cache should live on for this (mesh, convex) pair, or null if
+		// this pair can't be cached. Three cases: a plain-body pair uses the shared ContactManifold (one
+		// exists per pair already); a compound child (RigidBodyProxy) has no stable per-pair manifold
+		// of its own — proxy.id aliases its parent's id, so ContactManifoldList would otherwise collapse
+		// every child of one compound onto the same cached manifold. Its own stable, per-child
+		// CompoundShapeChild object is used instead, holding one small keyed-by-other-body's-id cache —
+		// symmetric whichever side (mesh or convex) is the compound child, since a static CompoundShape
+		// built from many MeshShape children (this engine's actual target scene) puts the mesh side on
+		// the proxy, not the convex side the original single-mesh-body case assumed.
+		function resolveCache( mesh, convex, contact_manifolds ) {
+			if ( mesh._mass !== Infinity ) {
+				return null;
+			}
+			if ( !( mesh instanceof Goblin.RigidBodyProxy ) && !( convex instanceof Goblin.RigidBodyProxy ) ) {
+				return contact_manifolds.getManifoldForObjects( mesh, convex );
+			}
+			if ( mesh instanceof Goblin.RigidBodyProxy ) {
+				// mesh is a compound child (a static CompoundShape built from MeshShape children) vs a
+				// plain convex body. Keyed by the compound child's own stable shape_data, same pattern
+				// as the convex-is-proxy case below, just on the other side.
+				if ( convex instanceof Goblin.RigidBodyProxy ) {
+					// Both sides are compound children: neither has a single stable per-pair identity
+					// cheap to key on here — not yet covered, always take the full walk.
+					return null;
+				}
+				var meshChildShape = mesh.shape_data;
+				if ( !meshChildShape._meshCaches ) {
+					meshChildShape._meshCaches = {};
+				}
+				var meshCache = meshChildShape._meshCaches[ convex.id ];
+				if ( !meshCache ) {
+					meshCache = { _cachedTriangles: null, _cachePosition: null, _cacheRotation: null, _cacheValid: false };
+					meshChildShape._meshCaches[ convex.id ] = meshCache;
+				}
+				return meshCache;
+			}
+			// convex is a RigidBodyProxy (compound child) vs a plain static mesh.
+			var child_shape = convex.shape_data;
+			if ( !child_shape._meshCaches ) {
+				child_shape._meshCaches = {};
+			}
+			var cache = child_shape._meshCaches[ mesh.id ];
+			if ( !cache ) {
+				cache = { _cachedTriangles: null, _cachePosition: null, _cacheRotation: null, _cacheValid: false };
+				child_shape._meshCaches[ mesh.id ] = cache;
+			}
+			return cache;
+		}
+
+		return function meshConvex( mesh, convex, addContact, contact_manifolds ) {
 			// Find matrix that converts convex into mesh space
 			convex_to_mesh.copy( convex.transform );
 			convex_to_mesh.multiply( mesh.transform_inverse );
 
 			convex_aabb_in_mesh.transform( convex.aabb, mesh.transform_inverse );
 
-			// Traverse the BHV in mesh
-			var pending_nodes = [ mesh.shape.hierarchy ],
-				node;
-			while ( ( node = pending_nodes.shift() ) ) {
-				if ( node.aabb.intersects( convex_aabb_in_mesh ) ) {
-					if ( node.isLeaf() ) {
-						// Check node for collision
-						var contact = triangleConvex( node.object, mesh, convex );
-						if ( contact != null ) {
-							var _mesh = mesh;
-							while ( _mesh.parent != null ) {
-								_mesh = _mesh.parent;
-							}
-							// Resolve convex up to its real body too (it is a proxy when the partner is a compound child)
-							var _convex = convex;
-							while ( _convex.parent != null ) {
-								if ( _convex instanceof Goblin.RigidBodyProxy ) {
-									_convex.shape_data.transform.transformVector3( contact.contact_point_in_b );
-								}
-								_convex = _convex.parent;
-							}
-							contact.object_a = _mesh;
-							contact.object_b = _convex;
-							addContact( _mesh, _convex, contact );
+			// Reused across every leaf this query tests; only `.shape` changes per leaf.
+			var proxy = Goblin.ObjectPool.getObject( 'RigidBodyProxy' );
+			proxy.parent = mesh;
+			proxy.id = mesh.id;
+			proxy.shape_data = null;
+			proxy._mass = mesh._mass;
+			proxy.position.copy( mesh.position );
+			proxy.transform.copy( mesh.transform );
+			proxy.transform_inverse.copy( mesh.transform_inverse );
+			proxy.restitution = mesh.restitution;
+			proxy.friction = mesh.friction;
+			proxy.rolling_friction = mesh.rolling_friction;
+
+			// Frame-to-frame leaf cache against a static mesh: a plain body uses its shared
+			// ContactManifold, a compound child uses its own CompoundShapeChild-held cache (see
+			// resolveCache). Dynamic meshes and mesh-shaped compound children always take the full
+			// walk below — always correct, just not cheap for those less common cases.
+			var cache = resolveCache( mesh, convex, contact_manifolds );
+
+			if ( cache !== null && cacheStillValid( cache, convex ) ) {
+				// cacheStillValid proves `convex` hasn't moved past CACHE_POS_EPS/CACHE_ROT_DOT_MIN
+				// since this cache's triangles were captured from a real GJK/EPA walk — the same
+				// guarantee a manifold point's frozen contact_normal needs to still be trusted. The
+				// existing manifold points (already refreshed this step's position/depth by
+				// NarrowPhase.updateContactManifolds, called once before any of this runs) are
+				// therefore still correct as-is: re-deriving them via GJK/EPA here would only produce
+				// an answer ContactManifold.addContact's own proximity dedup immediately discards.
+				// Skip entirely rather than pay for that. This holds for as long as cacheStillValid
+				// keeps returning true — not just "one step stale" — since the cache's own
+				// _cachePosition/_cacheRotation snapshot only updates on a real rebuild below.
+				Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
+				return;
+			}
+
+			var hitTriangles = cache !== null ? [] : null;
+
+			// Flat, index-based BVH walk (see BVH.flatten) instead of chasing .left/.right pointers.
+			var flat = mesh.shape.hierarchy_flat;
+			var aabbs = flat.aabbs,
+				rightOrLeaf = flat.rightOrLeaf,
+				leafObjects = flat.leafObjects;
+			var qminx = convex_aabb_in_mesh.min.x, qminy = convex_aabb_in_mesh.min.y, qminz = convex_aabb_in_mesh.min.z,
+				qmaxx = convex_aabb_in_mesh.max.x, qmaxy = convex_aabb_in_mesh.max.y, qmaxz = convex_aabb_in_mesh.max.z;
+
+			var stack_size = 0;
+			node_stack[stack_size++] = 0;
+			while ( stack_size > 0 ) {
+				var idx = node_stack[--stack_size];
+				var base = idx * 6;
+
+				if ( aabbs[base] > qmaxx || aabbs[base + 3] < qminx ||
+					aabbs[base + 1] > qmaxy || aabbs[base + 4] < qminy ||
+					aabbs[base + 2] > qmaxz || aabbs[base + 5] < qminz ) {
+					continue;
+				}
+
+				var ro = rightOrLeaf[idx];
+				if ( ro <= -1 ) {
+					// Leaf: check node for collision.
+					var contact = triangleConvex( leafObjects[idx], proxy, convex );
+					if ( contact != null ) {
+						if ( hitTriangles !== null ) {
+							hitTriangles.push( leafObjects[idx] );
 						}
-					} else {
-						pending_nodes.push( node.left, node.right );
+						resolveAndAddContact( mesh, convex, contact, addContact );
 					}
+				} else {
+					node_stack[stack_size++] = ro; // right
+					node_stack[stack_size++] = idx + 1; // left
 				}
 			}
+
+			if ( cache !== null ) {
+				// An empty result is cached too. "This convex touches none of the mesh's triangles" is
+				// just as much a fact about a body that hasn't moved as a list of hit triangles is, and
+				// refusing to remember it meant every body resting near the ground - overlapping its
+				// BVH but not contacting it - re-walked the tree and re-ran GJK every tick forever.
+				// Measured on the 500-prop scene, that was 80% of all cache checks.
+				cache._cachedTriangles = hitTriangles;
+				cache._cachePosition = cache._cachePosition || new Goblin.Vector3();
+				cache._cachePosition.copy( convex.position );
+				cache._cacheRotation = cache._cacheRotation || new Goblin.Quaternion();
+				cache._cacheRotation.set( convex.rotation.x, convex.rotation.y, convex.rotation.z, convex.rotation.w );
+				cache._cacheValid = true;
+			}
+
+			Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
 		};
 	})();
 
@@ -12681,12 +14259,12 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 			b_is_mesh = object_b.shape instanceof Goblin.MeshShape;
 
 		if ( a_is_mesh && b_is_mesh ) {
-			meshMesh( object_a, object_b, this.addContact.bind( this ) );
+			meshMesh( object_a, object_b, this._boundAddContact );
 		} else {
 			if ( a_is_mesh ) {
-				meshConvex( object_a, object_b, this.addContact.bind( this ) );
+				meshConvex( object_a, object_b, this._boundAddContact, this.contact_manifolds );
 			} else {
-				meshConvex( object_b, object_a, this.addContact.bind( this ) );
+				meshConvex( object_b, object_a, this._boundAddContact, this.contact_manifolds );
 			}
 		}
 	};
@@ -12726,6 +14304,9 @@ Goblin.NarrowPhase.prototype.getContact = function( object_a, object_b ) {
 		var simplex = Goblin.GjkEpa.GJK( object_a, object_b );
 		if ( Goblin.GjkEpa.result != null ) {
 			contact = Goblin.GjkEpa.result;
+			if ( simplex != null ) {
+				Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
+			}
 		} else if ( simplex != null ) {
 			contact = Goblin.GjkEpa.EPA( simplex );
 		}
@@ -12756,6 +14337,11 @@ Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
 	for ( i = 0; i < possible_contacts_length; i++ ) {
 		contact = this.getContact( possible_contacts[i][0], possible_contacts[i][1] );
 		if ( contact != null ) {
+			// Plain (non-compound) pair: object_a/object_b are the real bodies already, no proxy to
+			// resolve — same shape-key stamping the compound paths do, for IterativeSolver's use.
+			// Stamped unconditionally: a pooled contact still holds the keys from its previous pair.
+			contact._shapeKeyA = contact.object_a;
+			contact._shapeKeyB = contact.object_b;
 			this.addContact( possible_contacts[i][0], possible_contacts[i][1], contact );
 		}
 	}
@@ -13023,11 +14609,1483 @@ Goblin.ObjectPool = {
 Goblin.ObjectPool.registerType( 'ContactDetails', function() { return new Goblin.ContactDetails(); } );
 Goblin.ObjectPool.registerType( 'ContactManifold', function() { return new Goblin.ContactManifold(); } );
 Goblin.ObjectPool.registerType( 'GJK2SupportPoint', function() { return new Goblin.GjkEpa.SupportPoint( new Goblin.Vector3(), new Goblin.Vector3(), new Goblin.Vector3() ); } );
+Goblin.ObjectPool.registerType( 'GjkEpaSimplex', function() { return new Goblin.GjkEpa.Simplex( null, null ); } );
 Goblin.ObjectPool.registerType( 'ConstraintRow', function() { return new Goblin.ConstraintRow(); } );
 Goblin.ObjectPool.registerType( 'ContactConstraint', function() { return new Goblin.ContactConstraint(); } );
 Goblin.ObjectPool.registerType( 'FrictionConstraint', function() { return new Goblin.FrictionConstraint(); } );
 Goblin.ObjectPool.registerType( 'RayIntersection', function() { return new Goblin.RayIntersection(); } );
 Goblin.ObjectPool.registerType( 'RigidBodyProxy', function() { return new Goblin.RigidBodyProxy(); } );
+Goblin.ObjectPool.registerType( 'GjkEpaFace', function() { return new Goblin.GjkEpa.Face(); } );
+Goblin.ObjectPool.registerType( 'GjkEpaPolyhedron', function() { return new Goblin.GjkEpa.Polyhedron(); } );
+/**
+ * Position-based contact solver, an alternative to IterativeSolver's velocity-space PGS. A world step is:
+ *
+ *   1. Position solve: `substeps` Gauss-Seidel passes resolve penetration along each contact normal by
+ *      generalized inverse mass. Position/rotation only - no velocity. Velocity is derived from the
+ *      projection's displacement (see `step`); deriving it from the depenetration push instead makes
+ *      naive position solvers unstable at rest.
+ *   2. Velocity solve (Muller et al. 2020, section 3.6): iterated - drive approaching normal velocity to
+ *      zero, opt-in rolling resistance, then Coulomb friction (after rolling resistance, so it keeps
+ *      re-establishing v = w x r). Bounds use the real normal force N = m*g, not the position lambda.
+ *   3. Restitution: one post-pass reflecting pre-impact approach velocity by the coefficient.
+ *
+ * Joints are not position-based: hinge/point/slider/weld reuse IterativeSolver's velocity-space PGS
+ * machinery with a separate impulse-accumulator array so they don't touch real velocity mid-iteration.
+ *
+ * Also carries a toppling-assist HACK (_assessTipAssist) that works around a blind spot in the
+ * derive-from-position-delta step: gravity torque about a contact edge for a body starting near rest.
+ *
+ * @class PBDSolver
+ * @extends Goblin.Solver
+ * @constructor
+ */
+Goblin.PBDSolver = function() {
+	Goblin.Solver.call( this );
+
+	/**
+	 * Real substeps per world tick: integrate -> detect -> project -> derive velocity runs this many
+	 * times at dt/substeps each (see `step`).
+	 *
+	 * @property substeps
+	 * @type {Number}
+	 */
+	this.substeps = 5;
+
+	/**
+	 * Gauss-Seidel passes of the position solve per substep. One pass propagates load one contact deep,
+	 * so a tall stack needs several before its base feels the weight above. No velocity is produced, so
+	 * extra passes cost time, not stability.
+	 *
+	 * @property position_iterations
+	 * @type {Number}
+	 */
+	this.position_iterations = 2;
+
+	/**
+	 * Successive-over-relaxation factor on each contact's position correction (0 = none, 1 = fully resolve
+	 * penetration in one pass).
+	 *
+	 * @property relaxation
+	 * @type {Number}
+	 */
+	this.relaxation = 1.0;
+
+	/**
+	 * This step's active contacts, rebuilt fresh every step from contact_manifolds.
+	 *
+	 * @property _contacts
+	 * @type {Array}
+	 * @private
+	 */
+	this._contacts = [];
+};
+Goblin.PBDSolver.prototype = Object.create( Goblin.Solver.prototype );
+Goblin.PBDSolver.prototype.constructor = Goblin.PBDSolver;
+
+// Position solve targets this much separation past contact (m), keeping props shallow so GJK avoids EPA.
+Goblin.PBDSolver.PENETRATION_BIAS = 0.001;
+
+// Inverse stiffness of a contact constraint, in metres per Newton. 0 is perfectly rigid, which is what
+// a solid contact wants; a small positive value makes contacts slightly springy. Feeds alphaTilde in
+// _solveContactPosition.
+Goblin.PBDSolver.CONTACT_COMPLIANCE = 0;
+
+// Lever arm, in metres, used to convert a body's linear speed into the spin a contact could impart to it
+// in one substep (see the derived-velocity clamp in `step`). Smaller means more spin is allowed.
+Goblin.PBDSolver.SPIN_LEVER = 1.2;
+
+// Minimum linear speed (squared) before a contact is allowed to convert motion into spin. Below this the
+// body is resting and has no motion to convert.
+Goblin.PBDSolver.SPIN_GAIN_MIN_SPEED_SQ = 0.25 * 0.25;
+
+// File-local scratch, distinct from the shared _tmp_vec3_1.._tmp_vec3_3 globals in libglobals.js: the
+// position solve needs more simultaneously-live temporaries than the shared pool provides.
+var _pbd_vec3_1 = new Goblin.Vector3(),
+	_pbd_vec3_2 = new Goblin.Vector3(),
+	_pbd_vec3_3 = new Goblin.Vector3(),
+	_pbd_vec3_4 = new Goblin.Vector3(),
+	_pbd_vec3_5 = new Goblin.Vector3(),
+	_pbd_vec3_6 = new Goblin.Vector3(),
+	_pbd_vec3_7 = new Goblin.Vector3(),
+	// Friction/rolling tangent direction; kept distinct from _pbd_vec3_6, which _applyPositionCorrection
+	// clobbers via crossVectors(r, normal).
+	_pbd_vec3_8 = new Goblin.Vector3(),
+	_pbd_quat4_1 = new Goblin.Quaternion(),
+	_pbd_quat4_2 = new Goblin.Quaternion(),
+	_pbd_quat4_3 = new Goblin.Quaternion();
+
+/**
+ * The real XPBD tick: integrate -> detect -> project positions -> derive velocity, `substeps` times
+ * per world tick at dt/substeps each. Substepping keeps penetrations shallow enough for the projection
+ * to fully resolve.
+ *
+ * Velocity is DERIVED from the projection's displacement ( v = (x - x_prev)/h, and the quaternion
+ * difference for spin ), not solved separately, so contact normal response has exactly one owner. Only
+ * friction and restitution run in velocity space.
+ *
+ * Broadphase runs once per tick; narrowphase re-runs per substep so contact points track the
+ * projected positions.
+ *
+ * @method step
+ * @param rigid_bodies {Array}
+ * @param gravity {Vector3}
+ * @param time_delta {Number}
+ * @param broadphase {Goblin.Broadphase}
+ * @param narrowphase {Goblin.NarrowPhase}
+ */
+Goblin.PBDSolver.prototype.step = function( rigid_bodies, gravity, time_delta, broadphase, narrowphase ) {
+	var substeps = this.substeps > 0 ? this.substeps : 1;
+	var h = time_delta / substeps;
+	var i, n = rigid_bodies.length, body;
+
+	this._lastTimeDelta = h;
+
+	for ( i = 0; i < n; i++ ) {
+		body = rigid_bodies[i];
+		if ( body._mass === Infinity ) {
+			continue;
+		}
+		body._pbdPrevPos = body._pbdPrevPos || new Goblin.Vector3();
+		body._pbdPrevRot = body._pbdPrevRot || new Goblin.Quaternion();
+	}
+
+	for ( i = 0; i < n; i++ ) {
+		rigid_bodies[i].updateDerived();
+	}
+	broadphase.update();
+
+	for ( var s = 0; s < substeps; s++ ) {
+		for ( i = 0; i < n; i++ ) {
+			body = rigid_bodies[i];
+			if ( body._mass === Infinity ) {
+				continue;
+			}
+			body._pbdPrevPos.copy( body.position );
+			body._pbdPrevRot.x = body.rotation.x;
+			body._pbdPrevRot.y = body.rotation.y;
+			body._pbdPrevRot.z = body.rotation.z;
+			body._pbdPrevRot.w = body.rotation.w;
+
+			_pbd_vec3_6.scaleVector( body.gravity || gravity, body._mass * h );
+			body.accumulated_force.add( _pbd_vec3_6 );
+
+			// Toppling assist (HACK - see _assessTipAssist): gravity torque about the support edge for
+			// a body past its balance point, which the depenetrate-only position solve never applies.
+			if ( body._pbdTipActive && body._pbdTipTorque ) {
+				body.accumulated_torque.x += body._pbdTipTorque.x * h;
+				body.accumulated_torque.y += body._pbdTipTorque.y * h;
+				body.accumulated_torque.z += body._pbdTipTorque.z * h;
+			}
+
+			body.integrate( h );
+		}
+
+		for ( i = 0; i < n; i++ ) {
+			rigid_bodies[i].updateDerived();
+		}
+
+		// Full contact detection once per tick; later substeps just re-transform the body-local
+		// anchor points (no GJK/EPA), which keeps a contact alive across the whole tick.
+		if ( s === 0 ) {
+			narrowphase.generateContacts( broadphase.collision_pairs );
+		} else {
+			for ( var m = narrowphase.contact_manifolds.first; m !== null; m = m.next_manifold ) {
+				m.update();
+			}
+		}
+		this.processContactManifolds( narrowphase.contact_manifolds );
+
+		// Once per tick; the flags it sets are read every substep.
+		if ( s === 0 ) {
+			Goblin.PBDSolver._assessTipAssist( rigid_bodies, n, this._contacts, gravity, ( this._pbdEpoch = this._pbdEpoch + 1 ), ( this._pbdTickCount = ( this._pbdTickCount || 0 ) + 1 ) );
+		}
+
+		// Contact approach velocity before the projection moves anything - restitution and the
+		// derived-velocity clamp both need the pre-solve closing speed.
+		var contacts = this._contacts;
+		for ( i = 0; i < contacts.length; i++ ) {
+			contacts[i]._pbdPreSolveVelocity = contacts[i]._pbdPreSolveVelocity || new Goblin.Vector3();
+			Goblin.PBDSolver._contactPointVelocity( contacts[i], contacts[i]._pbdPreSolveVelocity );
+		}
+
+		for ( i = 0; i < n; i++ ) {
+			body = rigid_bodies[i];
+			if ( body._mass === Infinity ) {
+				continue;
+			}
+			body._pbdPreSolveSpeedSq = body.linear_velocity.lengthSquared();
+			body._pbdPreSolveSpinSq = body.angular_velocity.lengthSquared();
+		}
+
+		this._solvePositions();
+
+		// Derive velocity from the projection's displacement this substep.
+		for ( i = 0; i < n; i++ ) {
+			body = rigid_bodies[i];
+			if ( body._mass === Infinity ) {
+				continue;
+			}
+
+			var dvx = ( body.position.x - body._pbdPrevPos.x ) / h;
+			var dvy = ( body.position.y - body._pbdPrevPos.y ) / h;
+			var dvz = ( body.position.z - body._pbdPrevPos.z ) / h;
+
+			// Cap derived speed at the pre-solve speed so depenetration can stop motion but never
+			// create it (dividing a deep recovery by h would launch the body). Bouncing is restitution's.
+			var derivedSq = dvx * dvx + dvy * dvy + dvz * dvz;
+			var allowedSq = body._pbdPreSolveSpeedSq;
+			if ( derivedSq > allowedSq && derivedSq > 0 ) {
+				var damp = Math.sqrt( allowedSq / derivedSq );
+				dvx *= damp; dvy *= damp; dvz *= damp;
+			}
+
+			body.linear_velocity.x = dvx;
+			body.linear_velocity.y = dvy;
+			body.linear_velocity.z = dvz;
+
+			// Spin from dq = q * q_prev^-1, vector part scaled by 2/h. Below 1e-16 the rotation is
+			// quaternion round-off (the 2/h factor is ~600) - zero it so a resting body can't spin up.
+			// Under tip-assist, keep integrate's angular velocity: re-deriving it from net
+			// displacement would clamp the assist torque back off (the topple stalls).
+			if ( body._pbdTipActive ) {
+				// keep body.angular_velocity as integrate left it
+			} else {
+			_pbd_quat4_2.invertQuaternion( body._pbdPrevRot );
+			_pbd_quat4_3.multiplyQuaternions( body.rotation, _pbd_quat4_2 );
+			var dqLenSq = _pbd_quat4_3.x * _pbd_quat4_3.x + _pbd_quat4_3.y * _pbd_quat4_3.y + _pbd_quat4_3.z * _pbd_quat4_3.z;
+			if ( dqLenSq < 1e-16 ) {
+				body.angular_velocity.x = body.angular_velocity.y = body.angular_velocity.z = 0;
+			} else {
+				var scale = ( _pbd_quat4_3.w >= 0 ? 2 : -2 ) / h;
+				var wx = _pbd_quat4_3.x * scale, wy = _pbd_quat4_3.y * scale, wz = _pbd_quat4_3.z * scale;
+
+				// Cap derived spin, or the projection's overshoot spins the body up. Budget is the
+				// pre-solve spin, raised to the v/r conversion limit (edge-tipping is real) but only
+				// for a body that is actually travelling - a resting pile has no motion to convert.
+				var spinSq = wx * wx + wy * wy + wz * wz;
+				var spinBudgetSq = body._pbdPreSolveSpinSq;
+				if ( body._pbdPreSolveSpeedSq > Goblin.PBDSolver.SPIN_GAIN_MIN_SPEED_SQ ) {
+					var contactSpin = body._pbdPreSolveSpeedSq / ( Goblin.PBDSolver.SPIN_LEVER * Goblin.PBDSolver.SPIN_LEVER );
+					if ( contactSpin > spinBudgetSq ) {
+						spinBudgetSq = contactSpin;
+					}
+				}
+
+				var spinSqLimit = spinBudgetSq;
+				if ( spinSq > spinSqLimit && spinSq > 0 ) {
+					var spinDamp = Math.sqrt( spinSqLimit / spinSq );
+					wx *= spinDamp; wy *= spinDamp; wz *= spinDamp;
+				}
+
+				body.angular_velocity.x = wx;
+				body.angular_velocity.y = wy;
+				body.angular_velocity.z = wz;
+			}
+			}
+		}
+
+		this._solveVelocities( h );
+	}
+
+	for ( i = 0; i < n; i++ ) {
+		rigid_bodies[i].updateDerived();
+	}
+
+	this._solveJoints();
+	this._applyJointResults( time_delta );
+};
+
+/**
+ * The position projection: `relaxation`-weighted Gauss-Seidel passes over every contact, resolving
+ * penetration only. Split out of solveConstraints so the substep loop can call it directly.
+ *
+ * @method _solvePositions
+ * @private
+ */
+Goblin.PBDSolver.prototype._solvePositions = function() {
+	var contacts = this._contacts, n = contacts.length;
+	if ( n === 0 ) {
+		return;
+	}
+
+	var epoch = ( this._pbdEpoch = ( this._pbdEpoch || 0 ) + 1 );
+	for ( var i = 0; i < n; i++ ) {
+		contacts[i]._pbdAccumLambda = 0;
+		Goblin.PBDSolver._countFrictionBody( contacts[i].object_a, epoch );
+		Goblin.PBDSolver._countFrictionBody( contacts[i].object_b, epoch );
+	}
+	for ( i = 0; i < n; i++ ) {
+		Goblin.PBDSolver._preparePositionContact( contacts[i], this._lastTimeDelta );
+	}
+
+	var iterations = this.position_iterations > 0 ? this.position_iterations : 1;
+	for ( var it = 0; it < iterations; it++ ) {
+		for ( i = 0; i < n; i++ ) {
+			Goblin.PBDSolver._solveContactPosition( contacts[i], this.relaxation );
+		}
+	}
+
+	var derivedEpoch = ( this._pbdEpoch = this._pbdEpoch + 1 );
+	for ( i = 0; i < n; i++ ) {
+		Goblin.PBDSolver._refreshDerived( contacts[i].object_a, derivedEpoch );
+		Goblin.PBDSolver._refreshDerived( contacts[i].object_b, derivedEpoch );
+	}
+};
+
+/**
+ * Velocity-space pass for the substep loop: friction and restitution only. Normal response is not
+ * here - it is the position projection, via the derived velocity (see `step`).
+ *
+ * @method _solveVelocities
+ * @param h {Number} the substep timestep
+ * @private
+ */
+Goblin.PBDSolver.prototype._solveVelocities = function( h ) {
+	var contacts = this._contacts, n = contacts.length;
+	if ( n === 0 ) {
+		return;
+	}
+
+	var gravityMag = 9.8;
+	if ( this.world && this.world.gravity ) {
+		var gv = this.world.gravity;
+		gravityMag = Math.sqrt( gv.x * gv.x + gv.y * gv.y + gv.z * gv.z ) || 9.8;
+	}
+
+	var i;
+	for ( i = 0; i < n; i++ ) {
+		var c = contacts[i];
+		Goblin.PBDSolver._prepareVelocityContact( c );
+
+		// Friction's Coulomb bound. The accumulated lambda under-reports a well-resolved resting
+		// contact's load, so floor it at the impulse needed to support the contact's weight share.
+		var lambda = c._pbdAccumLambda;
+		var support = Goblin.PBDSolver._restingNormalImpulse( c, h );
+		c._pbdNormalImpulse = lambda > support ? lambda : support;
+
+		// But not at a rolling contact: the resting bound there brakes the roll to a stop. Rolling
+		// resistance decays a roll; friction only cancels real slip, which the lambda alone sizes.
+		if ( Goblin.PBDSolver._contactIsRolling( c ) ) {
+			c._pbdNormalImpulse = lambda;
+		}
+	}
+	for ( i = 0; i < n; i++ ) {
+		Goblin.PBDSolver._solveRollingResistance( contacts[i], h, gravityMag );
+	}
+	for ( i = 0; i < n; i++ ) {
+		Goblin.PBDSolver._solveContactFrictionVelocity( contacts[i] );
+	}
+	for ( i = 0; i < n; i++ ) {
+		Goblin.PBDSolver._applyRestitution( contacts[i] );
+	}
+
+	Goblin.PBDSolver._killRestingBuzz( contacts, ( this._pbdEpoch = this._pbdEpoch + 1 ) );
+};
+
+/**
+ * Applies gravity and integrates free-flight motion N times at dt/N. Gravity is re-applied each
+ * substep since RigidBody.integrate consumes accumulated_force.
+ *
+ * @method integrate
+ * @param rigid_bodies {Array}
+ * @param gravity {Vector3}
+ * @param time_delta {Number}
+ */
+Goblin.PBDSolver.prototype.integrate = function( rigid_bodies, gravity, time_delta ) {
+	var substeps = this.substeps;
+	var subDt = time_delta / substeps;
+	var i, loop_count, body;
+
+	for ( var s = 0; s < substeps; s++ ) {
+		for ( i = 0, loop_count = rigid_bodies.length; i < loop_count; i++ ) {
+			body = rigid_bodies[i];
+			if ( body._mass !== Infinity ) {
+				_pbd_vec3_6.scaleVector( body.gravity || gravity, body._mass * subDt );
+				body.accumulated_force.add( _pbd_vec3_6 );
+			}
+		}
+		for ( i = 0, loop_count = rigid_bodies.length; i < loop_count; i++ ) {
+			rigid_bodies[i].integrate( subDt );
+		}
+	}
+};
+
+/**
+ * Flattens this step's contact manifolds into a working list of points.
+ *
+ * @method processContactManifolds
+ * @param contact_manifolds {ContactManifoldList}
+ */
+Goblin.PBDSolver.prototype.processContactManifolds = function( contact_manifolds ) {
+	var contacts = this._contacts;
+	contacts.length = 0;
+
+	var manifold = contact_manifolds.first;
+	while ( manifold ) {
+		for ( var i = 0; i < manifold.points.length; i++ ) {
+			contacts.push( manifold.points[i] );
+		}
+		manifold = manifold.next_manifold;
+	}
+};
+
+/**
+ * Records each contact's pre-solve point velocity (for restitution) and precomputes joint rows the
+ * same way IterativeSolver does.
+ *
+ * @method prepareConstraints
+ * @param time_delta {Number}
+ */
+Goblin.PBDSolver.prototype.prepareConstraints = function( time_delta ) {
+	this._lastTimeDelta = time_delta;
+
+	var contacts = this._contacts;
+	for ( var i = 0; i < contacts.length; i++ ) {
+		var contact = contacts[i];
+		contact._pbdPreSolveVelocity = contact._pbdPreSolveVelocity || new Goblin.Vector3();
+		Goblin.PBDSolver._contactPointVelocity( contact, contact._pbdPreSolveVelocity );
+	}
+
+	var joints = this.constraints;
+	for ( var c = 0; c < joints.length; c++ ) {
+		var constraint = joints[c];
+		if ( constraint.active === false ) {
+			continue;
+		}
+		constraint.update( time_delta );
+		for ( var j = 0; j < constraint.rows.length; j++ ) {
+			var row = constraint.rows[j];
+			row.multiplier = 0;
+			row.computeB( constraint );
+			row.computeD();
+			row.computeEta( constraint, time_delta );
+		}
+	}
+};
+
+/**
+ * No-op: penetration is resolved directly in solveConstraints, no separate pass needed.
+ *
+ * @method resolveContacts
+ */
+Goblin.PBDSolver.prototype.resolveContacts = function() {};
+
+/**
+ * Two-stage contact solve (see class docstring): first `substeps` Gauss-Seidel passes of position-only
+ * penetration recovery, then an iterated velocity solve (normal velocity, rolling resistance, friction),
+ * then restitution once. Joints are solved separately at the end.
+ *
+ * @method solveConstraints
+ */
+Goblin.PBDSolver.prototype.solveConstraints = function() {
+	var contacts = this._contacts;
+	var n = contacts.length;
+
+	if ( n > 0 ) {
+		var substeps = this.substeps;
+		var dt = this._lastTimeDelta;
+		var relaxation = this.relaxation;
+
+		// Per-body scratch keyed by a step epoch on the body itself, not a {} map keyed by body.id
+		// (which is a megamorphic keyed load - the hottest builtin in this loop).
+		var epoch = ( this._pbdEpoch = ( this._pbdEpoch || 0 ) + 1 );
+		for ( var i0 = 0; i0 < n; i0++ ) {
+			contacts[i0]._pbdAccumLambda = 0;
+			Goblin.PBDSolver._countFrictionBody( contacts[i0].object_a, epoch );
+			Goblin.PBDSolver._countFrictionBody( contacts[i0].object_b, epoch );
+		}
+		for ( var pp = 0; pp < n; pp++ ) {
+			Goblin.PBDSolver._preparePositionContact( contacts[pp] );
+		}
+
+		// Penetration recovery only; all velocity change is owned by the velocity pass below.
+		for ( var s = 0; s < substeps; s++ ) {
+			for ( var i = 0; i < n; i++ ) {
+				Goblin.PBDSolver._solveContactPosition( contacts[i], relaxation );
+			}
+		}
+
+		// Position corrections only rebuilt transforms; refresh full derived state once now.
+		var derivedEpoch = ( this._pbdEpoch = this._pbdEpoch + 1 );
+		for ( var ud = 0; ud < n; ud++ ) {
+			Goblin.PBDSolver._refreshDerived( contacts[ud].object_a, derivedEpoch );
+			Goblin.PBDSolver._refreshDerived( contacts[ud].object_b, derivedEpoch );
+		}
+
+		var gravityMag = 9.8;
+		if ( this.world && this.world.gravity ) {
+			var gv = this.world.gravity;
+			gravityMag = Math.sqrt( gv.x * gv.x + gv.y * gv.y + gv.z * gv.z ) || 9.8;
+		}
+
+		// Cache per-contact velocity-solve invariants once; constant across the iterations below.
+		for ( var pc = 0; pc < n; pc++ ) {
+			Goblin.PBDSolver._prepareVelocityContact( contacts[pc] );
+		}
+
+		// Iterated: normal velocity to the restitution target, rolling resistance, then friction.
+		var velIterations = 4;
+		var subDtBudget = dt / velIterations;
+		for ( var vp = 0; vp < velIterations; vp++ ) {
+			for ( var nz = 0; nz < n; nz++ ) {
+				contacts[nz]._pbdNormalImpulse = 0;
+			}
+			for ( var vc = 0; vc < n; vc++ ) {
+				Goblin.PBDSolver._solveContactNormalVelocity( contacts[vc] );
+			}
+			for ( var rr = 0; rr < n; rr++ ) {
+				Goblin.PBDSolver._solveRollingResistance( contacts[rr], subDtBudget, gravityMag );
+			}
+			for ( var fr = 0; fr < n; fr++ ) {
+				Goblin.PBDSolver._solveContactFrictionVelocity( contacts[fr] );
+			}
+		}
+
+		for ( var r = 0; r < n; r++ ) {
+			Goblin.PBDSolver._applyRestitution( contacts[r] );
+		}
+
+		Goblin.PBDSolver._killRestingBuzz( contacts, ( this._pbdEpoch = this._pbdEpoch + 1 ) );
+	}
+
+	this._solveJoints();
+};
+
+/**
+ * Velocity-space PGS joint solve. Impulses accumulate into a scratch per-body array during
+ * iteration; _applyJointResults bakes the converged multiplier into real velocity.
+ *
+ * @method _solveJoints
+ * @private
+ */
+Goblin.PBDSolver.prototype._solveJoints = function() {
+	var joints = this.constraints;
+	if ( joints.length === 0 ) {
+		return;
+	}
+
+	var c, constraint;
+	for ( c = 0; c < joints.length; c++ ) {
+		constraint = joints[c];
+		Goblin.PBDSolver._zeroJointBodyImpulse( constraint.object_a );
+		Goblin.PBDSolver._zeroJointBodyImpulse( constraint.object_b );
+	}
+
+	for ( var iter = 0; iter < 8; iter++ ) {
+		var max_impulse = 0;
+		for ( c = 0; c < joints.length; c++ ) {
+			constraint = joints[c];
+			if ( constraint.active === false ) {
+				continue;
+			}
+			for ( var j = 0; j < constraint.rows.length; j++ ) {
+				var row = constraint.rows[j];
+
+				var jdotv = Goblin.PBDSolver._jointRowJdotV( row, constraint );
+				var delta_lambda = ( row.eta - jdotv ) / row.D || 0;
+				var cache = row.multiplier;
+				var new_multiplier = Math.max( row.lower_limit, Math.min( cache + delta_lambda, row.upper_limit ) );
+				row.multiplier = new_multiplier;
+				delta_lambda = new_multiplier - cache;
+				max_impulse = Math.max( max_impulse, Math.abs( delta_lambda ) );
+
+				Goblin.PBDSolver._applyJointRowImpulse( row, constraint, delta_lambda );
+			}
+		}
+		if ( max_impulse <= 0.1 ) {
+			break;
+		}
+	}
+};
+
+Goblin.PBDSolver._zeroJointBodyImpulse = function( body ) {
+	if ( body == null || body._mass === Infinity ) {
+		return;
+	}
+	body._pbdJointImpulse = body._pbdJointImpulse || new Float64Array( 6 );
+	body._pbdJointImpulse[0] = body._pbdJointImpulse[1] = body._pbdJointImpulse[2] =
+	body._pbdJointImpulse[3] = body._pbdJointImpulse[4] = body._pbdJointImpulse[5] = 0;
+};
+
+Goblin.PBDSolver._jointRowJdotV = function( row, constraint ) {
+	var jdotv = 0;
+	if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+		var ia = constraint.object_a._pbdJointImpulse;
+		jdotv +=
+			row.jacobian[0] * ia[0] + row.jacobian[1] * ia[1] + row.jacobian[2] * ia[2] +
+			row.jacobian[3] * ia[3] + row.jacobian[4] * ia[4] + row.jacobian[5] * ia[5];
+	}
+	if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+		var ib = constraint.object_b._pbdJointImpulse;
+		jdotv +=
+			row.jacobian[6] * ib[0] + row.jacobian[7] * ib[1] + row.jacobian[8] * ib[2] +
+			row.jacobian[9] * ib[3] + row.jacobian[10] * ib[4] + row.jacobian[11] * ib[5];
+	}
+	return jdotv;
+};
+
+Goblin.PBDSolver._applyJointRowImpulse = function( row, constraint, delta_lambda ) {
+	if ( delta_lambda === 0 ) {
+		return;
+	}
+	if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+		var ia = constraint.object_a._pbdJointImpulse;
+		ia[0] += delta_lambda * row.B[0];
+		ia[1] += delta_lambda * row.B[1];
+		ia[2] += delta_lambda * row.B[2];
+		ia[3] += delta_lambda * row.B[3];
+		ia[4] += delta_lambda * row.B[4];
+		ia[5] += delta_lambda * row.B[5];
+	}
+	if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+		var ib = constraint.object_b._pbdJointImpulse;
+		ib[0] += delta_lambda * row.B[6];
+		ib[1] += delta_lambda * row.B[7];
+		ib[2] += delta_lambda * row.B[8];
+		ib[3] += delta_lambda * row.B[9];
+		ib[4] += delta_lambda * row.B[10];
+		ib[5] += delta_lambda * row.B[11];
+	}
+};
+
+/**
+ * Contacts are fully resolved inside solveConstraints; only joints need finalizing here.
+ *
+ * @method applyConstraints
+ * @param time_delta {Number}
+ */
+Goblin.PBDSolver.prototype.applyConstraints = function( time_delta ) {
+	this._applyJointResults( time_delta );
+};
+
+/**
+ * Zeroes linear_velocity once a body has been under the rest threshold for BUZZ_FRAMES ticks.
+ * Leaves angular_velocity to the velocity solve and rolling resistance.
+ *
+ * @method _killRestingBuzz
+ * @static
+ * @private
+ */
+Goblin.PBDSolver._killRestingBuzz = function( contacts, epoch ) {
+	var BUZZ_LIN_SQ = 0.08 * 0.08, BUZZ_ANG_SQ = 0.08 * 0.08, BUZZ_FRAMES = 8;
+	for ( var i = 0; i < contacts.length; i++ ) {
+		Goblin.PBDSolver._killBodyBuzz( contacts[i].object_a, BUZZ_LIN_SQ, BUZZ_ANG_SQ, BUZZ_FRAMES, epoch );
+		Goblin.PBDSolver._killBodyBuzz( contacts[i].object_b, BUZZ_LIN_SQ, BUZZ_ANG_SQ, BUZZ_FRAMES, epoch );
+	}
+};
+
+Goblin.PBDSolver._killBodyBuzz = function( body, BUZZ_LIN_SQ, BUZZ_ANG_SQ, BUZZ_FRAMES, epoch ) {
+	if ( body == null || body._mass === Infinity || body._pbdBuzzEpoch === epoch ) {
+		return;
+	}
+	body._pbdBuzzEpoch = epoch;
+
+	if ( body.linear_velocity.lengthSquared() < BUZZ_LIN_SQ && body.angular_velocity.lengthSquared() < BUZZ_ANG_SQ ) {
+		body._buzzSlowFrames = ( body._buzzSlowFrames || 0 ) + 1;
+		if ( body._buzzSlowFrames >= BUZZ_FRAMES ) {
+			body.linear_velocity.x = body.linear_velocity.y = body.linear_velocity.z = 0;
+		}
+	} else {
+		body._buzzSlowFrames = 0;
+	}
+};
+
+/**
+ * Finalizes joints: caches each row's multiplier for next step's warm start, trips breaking_threshold.
+ *
+ * @method _applyJointResults
+ * @private
+ */
+Goblin.PBDSolver.prototype._applyJointResults = function( time_delta ) {
+	var joints = this.constraints;
+	for ( var c = 0; c < joints.length; c++ ) {
+		var constraint = joints[c];
+		if ( constraint.active === false ) {
+			continue;
+		}
+		constraint.last_impulse.x = constraint.last_impulse.y = constraint.last_impulse.z = 0;
+
+		for ( var j = 0; j < constraint.rows.length; j++ ) {
+			var row = constraint.rows[j];
+			row.multiplier_cached = row.multiplier;
+
+			if ( constraint.object_a != null && constraint.object_a._mass !== Infinity ) {
+				var invA = constraint.object_a._mass_inverted;
+				_pbd_vec3_6.x = invA * time_delta * row.jacobian[0] * constraint.object_a.linear_factor.x * row.multiplier;
+				_pbd_vec3_6.y = invA * time_delta * row.jacobian[1] * constraint.object_a.linear_factor.y * row.multiplier;
+				_pbd_vec3_6.z = invA * time_delta * row.jacobian[2] * constraint.object_a.linear_factor.z * row.multiplier;
+				constraint.object_a.linear_velocity.add( _pbd_vec3_6 );
+				constraint.last_impulse.add( _pbd_vec3_6 );
+
+				_pbd_vec3_7.x = time_delta * row.jacobian[3] * constraint.object_a.angular_factor.x * row.multiplier;
+				_pbd_vec3_7.y = time_delta * row.jacobian[4] * constraint.object_a.angular_factor.y * row.multiplier;
+				_pbd_vec3_7.z = time_delta * row.jacobian[5] * constraint.object_a.angular_factor.z * row.multiplier;
+				constraint.object_a.inverseInertiaTensorWorldFrame.transformVector3( _pbd_vec3_7 );
+				constraint.object_a.angular_velocity.add( _pbd_vec3_7 );
+				constraint.last_impulse.add( _pbd_vec3_7 );
+			}
+			if ( constraint.object_b != null && constraint.object_b._mass !== Infinity ) {
+				var invB = constraint.object_b._mass_inverted;
+				_pbd_vec3_6.x = invB * time_delta * row.jacobian[6] * constraint.object_b.linear_factor.x * row.multiplier;
+				_pbd_vec3_6.y = invB * time_delta * row.jacobian[7] * constraint.object_b.linear_factor.y * row.multiplier;
+				_pbd_vec3_6.z = invB * time_delta * row.jacobian[8] * constraint.object_b.linear_factor.z * row.multiplier;
+				constraint.object_b.linear_velocity.add( _pbd_vec3_6 );
+				constraint.last_impulse.add( _pbd_vec3_6 );
+
+				_pbd_vec3_7.x = time_delta * row.jacobian[9] * constraint.object_b.angular_factor.x * row.multiplier;
+				_pbd_vec3_7.y = time_delta * row.jacobian[10] * constraint.object_b.angular_factor.y * row.multiplier;
+				_pbd_vec3_7.z = time_delta * row.jacobian[11] * constraint.object_b.angular_factor.z * row.multiplier;
+				constraint.object_b.inverseInertiaTensorWorldFrame.transformVector3( _pbd_vec3_7 );
+				constraint.object_b.angular_velocity.add( _pbd_vec3_7 );
+				constraint.last_impulse.add( _pbd_vec3_7 );
+			}
+		}
+
+		if ( constraint.breaking_threshold > 0 ) {
+			if ( constraint.last_impulse.lengthSquared() >= constraint.breaking_threshold * constraint.breaking_threshold ) {
+				constraint.active = false;
+			}
+		}
+	}
+};
+
+// HACK (toppling assist): works around XPBD's blind spot for gravity torque about a contact edge
+// when a body starts near rest - the derive-from-position-delta step never picks it up, so a body
+// past its balance point stalls mid-fall instead of toppling. Not a standard technique; a proper
+// fix would be an XPBD angular contact constraint or a less aggressive derived-spin clamp. Thresholds
+// below are hand-tuned to the test suite.
+//
+// Flags bodies that are toppling: COM outside the support-contact hull, still losing height and
+// rotating further over. Sets _pbdTipTorque / _pbdTipActive; runs once per tick in three passes
+// (cheap gate over bodies, point gather over contacts, hull test over survivors).
+Goblin.PBDSolver._assessTipAssist = function( bodies, n, contacts, gravity, epoch, tickNo ) {
+	var cand = Goblin.PBDSolver._tipCandidates;
+	cand.length = 0;
+	for ( var i = 0; i < n; i++ ) {
+		var body = bodies[i];
+		if ( body._mass === Infinity ) { continue; }
+		if ( Goblin.PBDSolver._tipCheapGate( body, gravity, epoch, tickNo ) ) {
+			cand.push( body );
+		}
+	}
+	if ( cand.length === 0 ) { return; }
+	for ( i = 0; i < contacts.length; i++ ) {
+		var c = contacts[i];
+		if ( c.object_a != null && c.object_a._pbdTipCandidate === epoch ) { c.object_a._pbdTipPts.push( c.contact_point.x, c.contact_point.y, c.contact_point.z ); }
+		if ( c.object_b != null && c.object_b._pbdTipCandidate === epoch ) { c.object_b._pbdTipPts.push( c.contact_point.x, c.contact_point.y, c.contact_point.z ); }
+	}
+	for ( i = 0; i < cand.length; i++ ) {
+		Goblin.PBDSolver._tipHullTest( cand[i], gravity, epoch );
+	}
+};
+Goblin.PBDSolver._tipCandidates = [];
+
+// Cheap onset gates (no hull). Returns true if the body still needs the hull test, or is latched.
+Goblin.PBDSolver._tipCheapGate = function( body, gravity, epoch, tickNo ) {
+	var latched = body._pbdTipActive && body._pbdTipRefRot != null;
+
+	// Reject moving/spinning bodies before any trig - the common path in a settling scene.
+	if ( !latched ) {
+		if ( body.linear_velocity.lengthSquared() > 0.09 * 0.09 ||
+			body.angular_velocity.lengthSquared() > 0.03 * 0.03 ) {
+			body._pbdTipDwell = 0;
+			body._pbdTipActive = false;
+			return false;
+		}
+	}
+
+	body._pbdTipPts = body._pbdTipPts || [];
+	body._pbdTipPts.length = 0;
+	body._pbdTipTorque = body._pbdTipTorque || new Goblin.Vector3();
+
+	var g = body.gravity || gravity;
+	var gl = Math.sqrt( g.x * g.x + g.y * g.y + g.z * g.z ) || 1;
+	var height = -( body.position.x * g.x + body.position.y * g.y + body.position.z * g.z ) / gl;
+	var qw = body.rotation.w; if ( qw < 0 ) { qw = -qw; } if ( qw > 1 ) { qw = 1; }
+	var tilt = 2 * Math.acos( qw );
+	// Height/tilt trend measured over a window, not one tick, so buzz jitter on a resting body
+	// doesn't clear the thresholds.
+	var TIP_TREND_WINDOW = 8;
+	if ( body._pbdTipWinTick === undefined || ( tickNo - body._pbdTipWinTick ) >= TIP_TREND_WINDOW ) {
+		body._pbdTipDHeight = ( body._pbdTipBaseHeight === undefined ) ? 0 : ( height - body._pbdTipBaseHeight );
+		body._pbdTipDTilt = ( body._pbdTipBaseTilt === undefined ) ? 0 : ( tilt - body._pbdTipBaseTilt );
+		body._pbdTipBaseHeight = height;
+		body._pbdTipBaseTilt = tilt;
+		body._pbdTipWinTick = tickNo;
+	}
+
+	if ( latched ) {
+		body._pbdTipCandidate = epoch;
+		return true;
+	}
+
+	var DESCEND_RATE = -2e-5, TILT_RATE = 1e-5;
+	if ( body._pbdTipDHeight >= DESCEND_RATE || body._pbdTipDTilt <= TILT_RATE ) {
+		body._pbdTipDwell = 0;
+		body._pbdTipActive = false;
+		return false;
+	}
+	body._pbdTipCandidate = epoch;
+	return true;
+};
+
+// Basis (u,v) spanning the plane perpendicular to gravity.
+Goblin.PBDSolver._tipBasis = { ux:0, uy:0, uz:0, vx:0, vy:0, vz:0 };
+Goblin.PBDSolver._tipComputeBasis = function( g ) {
+	var gl = Math.sqrt( g.x * g.x + g.y * g.y + g.z * g.z ) || 1;
+	var nx = g.x / gl, ny = g.y / gl, nz = g.z / gl;
+	var ax = Math.abs( nx ) < 0.9 ? 1 : 0;
+	var ay = Math.abs( nx ) < 0.9 ? 0 : 1;
+	var d = ax * nx + ay * ny;
+	var ux = ax - d * nx, uy = ay - d * ny, uz = -d * nz;
+	var ul = Math.sqrt( ux * ux + uy * uy + uz * uz ) || 1;
+	ux /= ul; uy /= ul; uz /= ul;
+	var b = Goblin.PBDSolver._tipBasis;
+	b.ux = ux; b.uy = uy; b.uz = uz;
+	b.vx = ny * uz - nz * uy;
+	b.vy = nz * ux - nx * uz;
+	b.vz = nx * uy - ny * ux;
+};
+
+// Signed distance of 2D point (qu,qv) to the CCW hull in `hp` (flat [u0,v0,...], m points).
+// > 0 inside, < 0 outside; degenerate hulls (0/1/2 pts) return a negative proximity.
+Goblin.PBDSolver._tipInsideDist = function( hp, m, qu, qv ) {
+	if ( m === 0 ) { return -1e9; }
+	if ( m === 1 ) {
+		var dx = qu - hp[0], dy = qv - hp[1];
+		return -Math.sqrt( dx * dx + dy * dy );
+	}
+	if ( m === 2 ) {
+		var ax = hp[0], ay = hp[1], bx = hp[2], by = hp[3];
+		var abx = bx - ax, aby = by - ay;
+		var t = ( ( qu - ax ) * abx + ( qv - ay ) * aby ) / ( abx * abx + aby * aby || 1 );
+		if ( t < 0 ) { t = 0; } else if ( t > 1 ) { t = 1; }
+		var cx = ax + t * abx, cy = ay + t * aby;
+		var ex = qu - cx, ey = qv - cy;
+		return -Math.sqrt( ex * ex + ey * ey );
+	}
+	var minD = 1e9;
+	for ( var i = 0; i < m; i++ ) {
+		var i2 = i * 2, j2 = ( ( i + 1 ) % m ) * 2;
+		var e0 = hp[j2] - hp[i2], e1 = hp[j2 + 1] - hp[i2 + 1];
+		var nl = Math.sqrt( e0 * e0 + e1 * e1 ) || 1;
+		var dd = ( -e1 * ( qu - hp[i2] ) + e0 * ( qv - hp[i2 + 1] ) ) / nl;
+		if ( dd < minD ) { minD = dd; }
+	}
+	return minD;
+};
+
+Goblin.PBDSolver._tipSortIdx = [];
+Goblin.PBDSolver._tipHullTmp = [];
+Goblin.PBDSolver._tip2D = [];
+Goblin.PBDSolver._tipHullOut = [];
+
+// Monotone-chain convex hull of n 2D points `src` (flat [u,v,...]) into `out` (flat, CCW).
+// Returns the hull point count.
+Goblin.PBDSolver._tipHull = function( src, n, out ) {
+	if ( n <= 2 ) {
+		for ( var k = 0; k < n * 2; k++ ) { out[k] = src[k]; }
+		return n;
+	}
+	var idx = Goblin.PBDSolver._tipSortIdx;
+	idx.length = 0;
+	for ( var i = 0; i < n; i++ ) { idx.push( i ); }
+	idx.sort( function ( a, b ) {
+		return ( src[a * 2] - src[b * 2] ) || ( src[a * 2 + 1] - src[b * 2 + 1] );
+	} );
+	var cross = function ( ox, oy, ax, ay, bx, by ) {
+		return ( ax - ox ) * ( by - oy ) - ( ay - oy ) * ( bx - ox );
+	};
+	var hull = Goblin.PBDSolver._tipHullTmp;
+	hull.length = 0;
+	for ( i = 0; i < n; i++ ) {
+		var p = idx[i], pu = src[p * 2], pv = src[p * 2 + 1];
+		while ( hull.length >= 4 &&
+			cross( hull[hull.length - 4], hull[hull.length - 3], hull[hull.length - 2], hull[hull.length - 1], pu, pv ) <= 0 ) {
+			hull.length -= 2;
+		}
+		hull.push( pu, pv );
+	}
+	var lowerLen = hull.length + 2;
+	for ( i = n - 2; i >= 0; i-- ) {
+		var p2 = idx[i], pu2 = src[p2 * 2], pv2 = src[p2 * 2 + 1];
+		while ( hull.length >= lowerLen &&
+			cross( hull[hull.length - 4], hull[hull.length - 3], hull[hull.length - 2], hull[hull.length - 1], pu2, pv2 ) <= 0 ) {
+			hull.length -= 2;
+		}
+		hull.push( pu2, pv2 );
+	}
+	hull.length -= 2;
+	for ( var q = 0; q < hull.length; q++ ) { out[q] = hull[q]; }
+	return hull.length / 2;
+};
+
+// Convex-hull static-stability test + latch bookkeeping, for candidates from _tipCheapGate.
+Goblin.PBDSolver._tipHullTest = function( body, gravity, epoch ) {
+	if ( body._pbdTipCandidate !== epoch ) { return; }
+
+	var pts = body._pbdTipPts;
+	var np = pts.length / 3;
+	if ( np === 0 ) {
+		body._pbdTipActive = false;
+		body._pbdTipRefRot = null;
+		return;
+	}
+
+	var g = body.gravity || gravity;
+	Goblin.PBDSolver._tipComputeBasis( g );
+	var b = Goblin.PBDSolver._tipBasis;
+	var p2 = Goblin.PBDSolver._tip2D;
+	for ( var i = 0; i < np; i++ ) {
+		var x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2];
+		p2[i * 2] = x * b.ux + y * b.uy + z * b.uz;
+		p2[i * 2 + 1] = x * b.vx + y * b.vy + z * b.vz;
+	}
+	var comU = body.position.x * b.ux + body.position.y * b.uy + body.position.z * b.uz;
+	var comV = body.position.x * b.vx + body.position.y * b.vy + body.position.z * b.vz;
+	var hp = Goblin.PBDSolver._tipHullOut;
+	var m = Goblin.PBDSolver._tipHull( p2, np, hp );
+	var dist = Goblin.PBDSolver._tipInsideDist( hp, m, comU, comV );
+
+	var UNSTABLE_MARGIN = -0.05, COMMIT_SWING = 0.35, TIP_DWELL_TICKS = 12;
+
+	if ( body._pbdTipActive && body._pbdTipRefRot != null ) {
+		var rq = body._pbdTipRefRot;
+		var dq = rq.x * body.rotation.x + rq.y * body.rotation.y + rq.z * body.rotation.z + rq.w * body.rotation.w;
+		if ( dq < 0 ) { dq = -dq; }
+		if ( dq > 1 ) { dq = 1; }
+		// Release once the swing has committed or the body is stable again.
+		if ( 2 * Math.acos( dq ) > COMMIT_SWING || dist >= UNSTABLE_MARGIN ) {
+			body._pbdTipActive = false;
+			body._pbdTipRefRot = null;
+			return;
+		}
+	} else if ( dist < UNSTABLE_MARGIN ) {
+		body._pbdTipDwell = ( body._pbdTipDwell || 0 ) + 1;
+		if ( body._pbdTipDwell >= TIP_DWELL_TICKS ) {
+			body._pbdTipActive = true;
+			body._pbdTipRefRot = body._pbdTipRefRot || new Goblin.Quaternion();
+			body._pbdTipRefRot.x = body.rotation.x;
+			body._pbdTipRefRot.y = body.rotation.y;
+			body._pbdTipRefRot.z = body.rotation.z;
+			body._pbdTipRefRot.w = body.rotation.w;
+		} else {
+			body._pbdTipActive = false;
+			return;
+		}
+	} else {
+		body._pbdTipDwell = 0;
+		body._pbdTipActive = false;
+		return;
+	}
+
+	// Tip torque h x (m*g), h = footprint-centroid -> COM (horizontal), capped so it can't run away.
+	var cu = 0, cv = 0;
+	for ( i = 0; i < np; i++ ) { cu += p2[i * 2]; cv += p2[i * 2 + 1]; }
+	cu /= np; cv /= np;
+	var du = comU - cu, dv = comV - cv;
+	var hx = du * b.ux + dv * b.vx;
+	var hy = du * b.uy + dv * b.vy;
+	var hz = du * b.uz + dv * b.vz;
+	_pbd_vec3_7.x = body._mass * g.x;
+	_pbd_vec3_7.y = body._mass * g.y;
+	_pbd_vec3_7.z = body._mass * g.z;
+	_pbd_vec3_6.x = hx; _pbd_vec3_6.y = hy; _pbd_vec3_6.z = hz;
+	body._pbdTipTorque.crossVectors( _pbd_vec3_6, _pbd_vec3_7 );
+	var TIP_TORQUE_MAX = 4.0 * body._mass;
+	var ttLen = body._pbdTipTorque.length();
+	if ( ttLen > TIP_TORQUE_MAX && ttLen > 0 ) {
+		var ttScale = TIP_TORQUE_MAX / ttLen;
+		body._pbdTipTorque.x *= ttScale;
+		body._pbdTipTorque.y *= ttScale;
+		body._pbdTipTorque.z *= ttScale;
+	}
+};
+
+Goblin.PBDSolver._contactPointVelocity = function( contact, out ) {
+	var relVelocity = _pbd_vec3_1;
+	relVelocity.x = relVelocity.y = relVelocity.z = 0;
+
+	if ( contact.object_a._mass !== Infinity ) {
+		_pbd_vec3_2.subtractVectors( contact.contact_point, contact.object_a.position );
+		_pbd_vec3_3.crossVectors( contact.object_a.angular_velocity, _pbd_vec3_2 );
+		_pbd_vec3_3.add( contact.object_a.linear_velocity );
+		relVelocity.subtract( _pbd_vec3_3 );
+	}
+	if ( contact.object_b._mass !== Infinity ) {
+		_pbd_vec3_2.subtractVectors( contact.contact_point, contact.object_b.position );
+		_pbd_vec3_3.crossVectors( contact.object_b.angular_velocity, _pbd_vec3_2 );
+		_pbd_vec3_3.add( contact.object_b.linear_velocity );
+		relVelocity.add( _pbd_vec3_3 );
+	}
+	out.copy( relVelocity );
+};
+
+// Same as _contactPointVelocity but reuses the cached lever arms (contact._pbdRA/_pbdRB) instead of
+// recomputing contact_point - position. For the velocity solve, which runs after _prepareVelocityContact.
+Goblin.PBDSolver._contactPointVelocityCached = function( contact, out ) {
+	var a = contact.object_a, b = contact.object_b;
+	out.x = out.y = out.z = 0;
+
+	if ( a._mass !== Infinity ) {
+		_pbd_vec3_3.crossVectors( a.angular_velocity, contact._pbdRA );
+		_pbd_vec3_3.add( a.linear_velocity );
+		out.subtract( _pbd_vec3_3 );
+	}
+	if ( b._mass !== Infinity ) {
+		_pbd_vec3_3.crossVectors( b.angular_velocity, contact._pbdRB );
+		_pbd_vec3_3.add( b.linear_velocity );
+		out.add( _pbd_vec3_3 );
+	}
+};
+
+// Caches velocity-solve invariants on the contact (lever arms rA/rB, inverse masses, normal wSum,
+// point divisor). Run once per step after the position solve; constant across velocity iterations.
+Goblin.PBDSolver._prepareVelocityContact = function( contact ) {
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+
+	var rA = contact._pbdRA || ( contact._pbdRA = new Goblin.Vector3() );
+	var rB = contact._pbdRB || ( contact._pbdRB = new Goblin.Vector3() );
+	rA.subtractVectors( contact.contact_point, a.position );
+	rB.subtractVectors( contact.contact_point, b.position );
+
+	contact._pbdInvMassA = a._mass === Infinity ? 0 : a._mass_inverted;
+	contact._pbdInvMassB = b._mass === Infinity ? 0 : b._mass_inverted;
+
+	var wA = Goblin.PBDSolver._angularInvMass( a, rA, normal );
+	var wB = Goblin.PBDSolver._angularInvMass( b, rB, normal );
+	contact._pbdNormalWSum = contact._pbdInvMassA + wA + contact._pbdInvMassB + wB;
+
+	var countA = Goblin.PBDSolver._pointCountOf( a );
+	var countB = Goblin.PBDSolver._pointCountOf( b );
+	contact._pbdPointDiv = ( countA > countB ? countA : countB );
+};
+
+// Drive the contact point's relative normal velocity toward zero (approaching side only), with full
+// angular coupling. Records the normal impulse for friction's Coulomb bound. (Muller 2020, 3.6.)
+Goblin.PBDSolver._solveContactNormalVelocity = function( contact ) {
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+
+	Goblin.PBDSolver._contactPointVelocityCached( contact, _pbd_vec3_1 );
+	var relNormal = _pbd_vec3_1.dot( normal );
+	if ( relNormal >= 0 ) {
+		return;
+	}
+
+	var wSum = contact._pbdNormalWSum;
+	if ( wSum <= 0 ) {
+		return;
+	}
+
+	var jn = ( -relNormal / wSum ) / contact._pbdPointDiv;
+	contact._pbdNormalImpulse += jn;
+
+	if ( contact._pbdInvMassA > 0 ) {
+		Goblin.PBDSolver._applyVelocityImpulse( a, contact._pbdRA, normal, -jn );
+	}
+	if ( contact._pbdInvMassB > 0 ) {
+		Goblin.PBDSolver._applyVelocityImpulse( b, contact._pbdRB, normal, jn );
+	}
+};
+
+// True when a body at this contact is rolling (real spin, near-zero contact-point slip).
+Goblin.PBDSolver._contactIsRolling = function( contact ) {
+	var ROLL_SPIN_SQ = 0.05 * 0.05;
+	var a = contact.object_a, b = contact.object_b;
+	if ( a._mass !== Infinity && a.angular_velocity.lengthSquared() > ROLL_SPIN_SQ ) {
+		return true;
+	}
+	if ( b._mass !== Infinity && b.angular_velocity.lengthSquared() > ROLL_SPIN_SQ ) {
+		return true;
+	}
+	return false;
+};
+
+// Impulse needed over `h` to hold this contact's dynamic side(s) against gravity, divided by the number
+// of points sharing the load so an N-point footprint doesn't multiply the body's weight by N.
+Goblin.PBDSolver._restingNormalImpulse = function( contact, h ) {
+	var a = contact.object_a, b = contact.object_b;
+	var mass = 0;
+	if ( a._mass !== Infinity ) { mass += a._mass; }
+	if ( b._mass !== Infinity ) { mass += b._mass; }
+	if ( mass === 0 ) {
+		return 0;
+	}
+
+	var gravity = 9.8;
+	var world = ( a.world || b.world );
+	if ( world && world.gravity ) {
+		var g = world.gravity;
+		gravity = Math.sqrt( g.x * g.x + g.y * g.y + g.z * g.z ) || 9.8;
+	}
+
+	var countA = Goblin.PBDSolver._pointCountOf( a );
+	var countB = Goblin.PBDSolver._pointCountOf( b );
+	var share = ( countA > countB ? countA : countB );
+
+	return ( mass * gravity * h ) / share;
+};
+
+// Cancel contact-point tangential slip, Coulomb-bounded by friction * this contact's normal impulse.
+// Runs after the normal solve and rolling resistance, so it keeps re-establishing v = w x r.
+Goblin.PBDSolver._solveContactFrictionVelocity = function( contact ) {
+	var friction = contact.friction;
+	if ( friction <= 0 ) {
+		return;
+	}
+	// Skip a tip-assisted contact: friction here would cancel the pivot slip and bleed the assist.
+	if ( ( contact.object_a && contact.object_a._pbdTipActive ) || ( contact.object_b && contact.object_b._pbdTipActive ) ) {
+		return;
+	}
+	var maxImpulse = friction * ( contact._pbdNormalImpulse || 0 );
+	if ( maxImpulse <= 0 ) {
+		return;
+	}
+
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+
+	Goblin.PBDSolver._contactPointVelocityCached( contact, _pbd_vec3_1 );
+	var alongNormal = _pbd_vec3_1.dot( normal );
+	var tx = _pbd_vec3_1.x - alongNormal * normal.x;
+	var ty = _pbd_vec3_1.y - alongNormal * normal.y;
+	var tz = _pbd_vec3_1.z - alongNormal * normal.z;
+	var tangentSpeed = Math.sqrt( tx * tx + ty * ty + tz * tz );
+	if ( tangentSpeed < 1e-8 ) {
+		return;
+	}
+
+	var tangent = _pbd_vec3_8;
+	tangent.x = tx / tangentSpeed;
+	tangent.y = ty / tangentSpeed;
+	tangent.z = tz / tangentSpeed;
+
+	var rA = contact._pbdRA, rB = contact._pbdRB;
+	var wA = Goblin.PBDSolver._angularInvMass( a, rA, tangent );
+	var wB = Goblin.PBDSolver._angularInvMass( b, rB, tangent );
+	var wSum = contact._pbdInvMassA + wA + contact._pbdInvMassB + wB;
+	if ( wSum <= 0 ) {
+		return;
+	}
+
+	var jt = ( tangentSpeed / wSum ) / contact._pbdPointDiv;
+	if ( jt > maxImpulse ) {
+		jt = maxImpulse;
+	}
+
+	if ( contact._pbdInvMassA > 0 ) {
+		Goblin.PBDSolver._applyVelocityImpulse( a, rA, tangent, jt );
+	}
+	if ( contact._pbdInvMassB > 0 ) {
+		Goblin.PBDSolver._applyVelocityImpulse( b, rB, tangent, -jt );
+	}
+};
+
+/**
+ * Velocity-space impulse `signed * normal` at lever arm `r` (linear + angular). Counterpart to
+ * _applyPositionCorrection.
+ *
+ * @method _applyVelocityImpulse
+ * @static
+ * @private
+ */
+Goblin.PBDSolver._applyVelocityImpulse = function( body, r, normal, signed ) {
+	var invMass = body._mass_inverted;
+	body.linear_velocity.x += invMass * normal.x * signed;
+	body.linear_velocity.y += invMass * normal.y * signed;
+	body.linear_velocity.z += invMass * normal.z * signed;
+
+	_pbd_vec3_6.crossVectors( r, normal );
+	_pbd_vec3_6.scale( signed );
+	body.inverseInertiaTensorWorldFrame.transformVector3( _pbd_vec3_6 );
+	body.angular_velocity.add( _pbd_vec3_6 );
+};
+
+// Full updateDerived once per dynamic body (deduped by epoch) - called after the position solve, which
+// only did transform-only rebuilds.
+Goblin.PBDSolver._refreshDerived = function( body, epoch ) {
+	if ( body == null || body._mass === Infinity || body._pbdDerivedEpoch === epoch ) {
+		return;
+	}
+	body._pbdDerivedEpoch = epoch;
+	body.updateDerived();
+};
+
+// Caches position-solve invariants (lever arms, inverse masses, normal wSum, point divisor) from the
+// step's contact geometry. Bodies drift slightly as they depenetrate over the substep passes, but the
+// change is negligible for the correction, so these are computed once.
+Goblin.PBDSolver._preparePositionContact = function( contact, h ) {
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+
+	a.transform.transformVector3Into( contact.contact_point_in_a, _pbd_vec3_1 );
+	b.transform.transformVector3Into( contact.contact_point_in_b, _pbd_vec3_2 );
+
+	var rA = contact._pbdPosRA || ( contact._pbdPosRA = new Goblin.Vector3() );
+	var rB = contact._pbdPosRB || ( contact._pbdPosRB = new Goblin.Vector3() );
+	rA.subtractVectors( _pbd_vec3_1, a.position );
+	rB.subtractVectors( _pbd_vec3_2, b.position );
+
+	contact._pbdPosInvMassA = a._mass === Infinity ? 0 : a._mass_inverted;
+	contact._pbdPosInvMassB = b._mass === Infinity ? 0 : b._mass_inverted;
+
+	var wA = Goblin.PBDSolver._angularInvMass( a, rA, normal );
+	var wB = Goblin.PBDSolver._angularInvMass( b, rB, normal );
+	contact._pbdPosWSum = contact._pbdPosInvMassA + wA + contact._pbdPosInvMassB + wB;
+
+	// alphaTilde = compliance / h^2, computed once per substep since h is fixed within it.
+	var compliance = Goblin.PBDSolver.CONTACT_COMPLIANCE;
+	contact._pbdAlphaTilde = compliance > 0 ? compliance / ( h * h ) : 0;
+};
+
+// One penetration-recovery correction: live separation along the normal, distributed by the cached
+// generalized inverse mass. Point divisor keeps an N-point contact from overcorrecting ~Nx.
+Goblin.PBDSolver._solveContactPosition = function( contact, relaxation ) {
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+	var wSum = contact._pbdPosWSum;
+	if ( wSum <= 0 ) {
+		return;
+	}
+
+	a.transform.transformVector3Into( contact.contact_point_in_a, _pbd_vec3_1 );
+	b.transform.transformVector3Into( contact.contact_point_in_b, _pbd_vec3_2 );
+	_pbd_vec3_3.subtractVectors( _pbd_vec3_1, _pbd_vec3_2 );
+	// Bias the target a hair past contact so gravity's next-frame re-penetration still lands shallow -
+	// keeps GJK reporting "touching" instead of triggering the ~7x-costlier EPA every frame.
+	var separation = _pbd_vec3_3.dot( normal ) + Goblin.PBDSolver.PENETRATION_BIAS;
+	if ( separation <= 0 ) {
+		return;
+	}
+
+	// XPBD: dLambda = (separation - alphaTilde * lambda) / (wSum + alphaTilde), alphaTilde =
+	// compliance / h^2. The accumulated-lambda feedback gives timestep-independent stiffness; at
+	// compliance 0 this reduces to PBD's dLambda = separation / wSum. That feedback also subsumes the
+	// old per-point divisor, so there is none here.
+	var alphaTilde = contact._pbdAlphaTilde;
+	var lambda = ( separation - alphaTilde * contact._pbdAccumLambda ) / ( wSum + alphaTilde );
+	lambda = lambda * relaxation;
+	contact._pbdAccumLambda += lambda;
+
+	if ( contact._pbdPosInvMassA > 0 ) {
+		Goblin.PBDSolver._applyPositionCorrection( a, contact._pbdPosRA, normal, -lambda );
+	}
+	if ( contact._pbdPosInvMassB > 0 ) {
+		Goblin.PBDSolver._applyPositionCorrection( b, contact._pbdPosRB, normal, lambda );
+	}
+};
+
+// Counts contact points per dynamic body into body._pbdPointCount (reset on first touch this epoch),
+// used as the per-point divisor so an N-point contact doesn't overcorrect ~Nx.
+Goblin.PBDSolver._countFrictionBody = function( body, epoch ) {
+	if ( body == null || body._mass === Infinity ) {
+		return;
+	}
+	if ( body._pbdCountEpoch !== epoch ) {
+		body._pbdCountEpoch = epoch;
+		body._pbdPointCount = 0;
+	}
+	body._pbdPointCount++;
+};
+
+// Point divisor for a body: its contact-point count this step, or 1 for static/uncounted.
+Goblin.PBDSolver._pointCountOf = function( body ) {
+	return ( body._mass !== Infinity && body._pbdPointCount ) ? body._pbdPointCount : 1;
+};
+
+/**
+ * Rolling resistance (opt-in via RigidBody.rolling_friction): impulse of magnitude
+ * rolling_friction * N opposing the contact point's travel, applied AT the contact point so linear
+ * and angular velocity decay together (v = w x r stays intact - a roll doesn't become a skid).
+ * Distinct from Coulomb friction, which needs real slip and so can't arrest a roll.
+ *
+ * @method _solveRollingResistance
+ * @static
+ * @private
+ */
+Goblin.PBDSolver._solveRollingResistance = function( contact, dt, gravityMag ) {
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+	var rolling_friction = contact.rolling_friction;
+	if ( !rolling_friction || rolling_friction <= 0 ) {
+		return;
+	}
+
+	var mA = a._mass, mB = b._mass;
+	var rollBody = ( mA !== Infinity && ( mB === Infinity || mA <= mB ) ) ? a : b;
+	var restMass = rollBody._mass;
+	if ( restMass === Infinity ) {
+		return;
+	}
+
+	var r = _pbd_vec3_4;
+	r.subtractVectors( contact.contact_point, rollBody.position );
+
+	// Roll rate: body spin perpendicular to the contact normal. Keyed off spin, not centre
+	// velocity, so a spin-in-place still gets bled.
+	_pbd_vec3_1.copy( rollBody.angular_velocity );
+	var wAlong = _pbd_vec3_1.dot( normal );
+	_pbd_vec3_1.x -= wAlong * normal.x;
+	_pbd_vec3_1.y -= wAlong * normal.y;
+	_pbd_vec3_1.z -= wAlong * normal.z;
+	var rollRate = _pbd_vec3_1.length();
+	if ( rollRate < 1e-6 ) {
+		return;
+	}
+
+	// Contact-point travel from the roll is w_perp x r; the resistive impulse opposes it.
+	var travel = _pbd_vec3_8;
+	travel.crossVectors( _pbd_vec3_1, r );
+	var travelSpeed = travel.length();
+	if ( travelSpeed < 1e-6 ) {
+		return;
+	}
+	travel.x /= travelSpeed;
+	travel.y /= travelSpeed;
+	travel.z /= travelSpeed;
+
+	// rolling_friction * N * dt, capped so it decelerates the roll without reversing it.
+	var maxImpulse = rolling_friction * restMass * gravityMag * dt;
+	var stopImpulse = travelSpeed * restMass;
+	var jImpulse = Math.min( maxImpulse, stopImpulse );
+	if ( jImpulse <= 0 ) {
+		return;
+	}
+
+	Goblin.PBDSolver._applyVelocityImpulseWorld( rollBody, r, travel, -jImpulse );
+};
+
+/**
+ * Like _applyVelocityImpulse but `dir` is an arbitrary world direction, not the contact normal.
+ *
+ * @method _applyVelocityImpulseWorld
+ * @static
+ * @private
+ */
+Goblin.PBDSolver._applyVelocityImpulseWorld = function( body, r, dir, signed ) {
+	var invMass = body._mass_inverted;
+	body.linear_velocity.x += invMass * dir.x * signed;
+	body.linear_velocity.y += invMass * dir.y * signed;
+	body.linear_velocity.z += invMass * dir.z * signed;
+
+	_pbd_vec3_7.crossVectors( r, dir );
+	_pbd_vec3_7.scale( signed );
+	body.inverseInertiaTensorWorldFrame.transformVector3( _pbd_vec3_7 );
+	body.angular_velocity.add( _pbd_vec3_7 );
+};
+
+Goblin.PBDSolver._angularAxisInvMass = function( body, axis ) {
+	if ( body._mass === Infinity ) {
+		return 0;
+	}
+	body.inverseInertiaTensorWorldFrame.transformVector3Into( axis, _pbd_vec3_7 );
+	return _pbd_vec3_7.dot( axis );
+};
+
+Goblin.PBDSolver._angularInvMass = function( body, r, normal ) {
+	if ( body._mass === Infinity ) {
+		return 0;
+	}
+	_pbd_vec3_6.crossVectors( r, normal );
+	body.inverseInertiaTensorWorldFrame.transformVector3Into( _pbd_vec3_6, _pbd_vec3_7 );
+	_pbd_vec3_6.crossVectors( _pbd_vec3_7, r );
+	return _pbd_vec3_6.dot( normal );
+};
+
+/**
+ * Position/rotation correction `signedLambda * normal` at lever arm `r`: small-angle quaternion
+ * update, then renormalize.
+ *
+ * @method _applyPositionCorrection
+ * @static
+ * @private
+ */
+Goblin.PBDSolver._applyPositionCorrection = function( body, r, normal, signedLambda ) {
+	var invMass = body._mass_inverted;
+	body.position.x += invMass * normal.x * signedLambda;
+	body.position.y += invMass * normal.y * signedLambda;
+	body.position.z += invMass * normal.z * signedLambda;
+
+	_pbd_vec3_6.crossVectors( r, normal );
+	_pbd_vec3_6.scale( signedLambda );
+	body.inverseInertiaTensorWorldFrame.transformVector3( _pbd_vec3_6 );
+
+	_pbd_quat4_1.x = _pbd_vec3_6.x;
+	_pbd_quat4_1.y = _pbd_vec3_6.y;
+	_pbd_quat4_1.z = _pbd_vec3_6.z;
+	_pbd_quat4_1.w = 0;
+	_pbd_quat4_1.multiply( body.rotation );
+
+	body.rotation.x += 0.5 * _pbd_quat4_1.x;
+	body.rotation.y += 0.5 * _pbd_quat4_1.y;
+	body.rotation.z += 0.5 * _pbd_quat4_1.z;
+	body.rotation.w += 0.5 * _pbd_quat4_1.w;
+	body.rotation.normalize();
+
+	// Transform-only rebuild; world inertia and AABB are refreshed once after the solve.
+	body.transform.makeTransform( body.rotation, body.position );
+};
+
+/**
+ * Post-solve normal velocity correction from pre- vs post-solve contact-point velocity. Run once,
+ * not iterated - a resting contact shows approach velocity almost every tick and iterating that
+ * injects spin.
+ *
+ * @method _applyRestitution
+ * @static
+ * @private
+ */
+Goblin.PBDSolver._applyRestitution = function( contact ) {
+	var a = contact.object_a, b = contact.object_b;
+	var normal = contact.contact_normal;
+
+	Goblin.PBDSolver._contactPointVelocityCached( contact, _pbd_vec3_1 );
+	var postNormalVel = _pbd_vec3_1.dot( normal );
+	var preNormalVel = contact._pbdPreSolveVelocity.dot( normal );
+
+	// Only correct a genuinely approaching contact - one already separating pre-solve is real motion,
+	// left untouched.
+	if ( preNormalVel >= 0 ) {
+		return;
+	}
+	var target = -preNormalVel * contact.restitution;
+
+	var delta = target - postNormalVel;
+	if ( delta === 0 ) {
+		return;
+	}
+
+	// wSum needs the angular term too, or a lever-arm contact gets too large an impulse.
+	var invMassA = a._mass === Infinity ? 0 : a._mass_inverted;
+	var invMassB = b._mass === Infinity ? 0 : b._mass_inverted;
+	var rA = _pbd_vec3_4, rB = _pbd_vec3_5;
+	a.transform.transformVector3Into( contact.contact_point_in_a, _pbd_vec3_2 );
+	b.transform.transformVector3Into( contact.contact_point_in_b, _pbd_vec3_3 );
+	rA.subtractVectors( _pbd_vec3_2, a.position );
+	rB.subtractVectors( _pbd_vec3_3, b.position );
+	var wA = Goblin.PBDSolver._angularInvMass( a, rA, normal );
+	var wB = Goblin.PBDSolver._angularInvMass( b, rB, normal );
+	var wSum = invMassA + wA + invMassB + wB;
+	if ( wSum <= 0 ) {
+		return;
+	}
+	var impulse = delta / wSum;
+
+	// Linear only: applying it to angular_velocity as well injects spin over many ticks.
+	if ( a._mass !== Infinity ) {
+		a.linear_velocity.x -= invMassA * normal.x * impulse;
+		a.linear_velocity.y -= invMassA * normal.y * impulse;
+		a.linear_velocity.z -= invMassA * normal.z * impulse;
+	}
+	if ( b._mass !== Infinity ) {
+		b.linear_velocity.x += invMassB * normal.x * impulse;
+		b.linear_velocity.y += invMassB * normal.y * impulse;
+		b.linear_velocity.z += invMassB * normal.z * impulse;
+	}
+};
+
 Goblin.RigidBodyProxy = function() {
 	this.parent = null;
 	this.id = null;
@@ -13047,6 +16105,7 @@ Goblin.RigidBodyProxy = function() {
 
 	this.restitution = null;
 	this.friction = null;
+	this.rolling_friction = null;
 };
 
 Object.defineProperty(
@@ -13066,24 +16125,42 @@ Object.defineProperty(
 
 Goblin.RigidBodyProxy.prototype.setFrom = function( parent, shape_data ) {
 	this.parent = parent;
-
 	this.id = parent.id;
-
 	this.shape = shape_data.shape;
 	this.shape_data = shape_data;
-
 	this._mass = parent._mass;
 
-	parent.transform.transformVector3Into( shape_data.position, this.position );
-	this.rotation.multiplyQuaternions( parent.rotation, shape_data.rotation );
+	// The child's world pose (parent * child-local) only changes when the parent moves. Cache it on the
+	// child keyed by parent._transformVersion so a static compound (this scene's 3000-child ground) skips
+	// the per-frame makeTransform + invert + aabb.transform - the dominant compound-narrowphase cost.
+	var pv = parent._transformVersion;
+	if ( shape_data._worldPoseVersion === pv && pv !== undefined ) {
+		this.position.copy( shape_data._worldPosition );
+		this.rotation.copy( shape_data._worldRotation );
+		this.transform.copy( shape_data._worldTransform );
+		this.transform_inverse.copy( shape_data._worldTransformInverse );
+		this.aabb.copy( shape_data._worldChildAabb );
+	} else {
+		parent.transform.transformVector3Into( shape_data.position, this.position );
+		this.rotation.multiplyQuaternions( parent.rotation, shape_data.rotation );
+		this.transform.makeTransform( this.rotation, this.position );
+		this.transform.invertInto( this.transform_inverse );
+		this.aabb.transform( this.shape.aabb, this.transform );
 
-	this.transform.makeTransform( this.rotation, this.position );
-	this.transform.invertInto( this.transform_inverse );
-
-	this.aabb.transform( this.shape.aabb, this.transform );
+		if ( pv !== undefined ) {
+			( shape_data._worldPosition || ( shape_data._worldPosition = new Goblin.Vector3() ) ).copy( this.position );
+			( shape_data._worldRotation || ( shape_data._worldRotation = new Goblin.Quaternion() ) ).copy( this.rotation );
+			( shape_data._worldTransform || ( shape_data._worldTransform = new Goblin.Matrix4() ) ).copy( this.transform );
+			( shape_data._worldTransformInverse || ( shape_data._worldTransformInverse = new Goblin.Matrix4() ) ).copy( this.transform_inverse );
+			( shape_data._worldChildAabb || ( shape_data._worldChildAabb = new Goblin.AABB() ) ).copy( this.aabb );
+			shape_data._worldPoseVersion = pv;
+		}
+	}
 
 	this.restitution = parent.restitution;
 	this.friction = parent.friction;
+	this.rolling_friction = parent.rolling_friction;
+	this._transformVersion = ( this._transformVersion || 0 ) + 1;
 };
 
 Goblin.RigidBodyProxy.prototype.findSupportPoint = Goblin.RigidBody.prototype.findSupportPoint;
@@ -13200,27 +16277,32 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
 
 		this.emit( 'stepStart', this.ticks, delta );
 
-		// Apply gravity
-        for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-            body = this.rigid_bodies[i];
-
-            // Objects of infinite mass don't move
-            if ( body._mass !== Infinity ) {
-				_tmp_vec3_1.scaleVector( body.gravity || this.gravity, body._mass * delta );
-                body.accumulated_force.add( _tmp_vec3_1 );
-            }
-        }
-
-        // Apply force generators
+		// Apply force generators - always once per world tick regardless of how the solver integrates
+		// (they're continuous forces accumulated into accumulated_force/accumulated_torque; a solver
+		// that integrates in substeps, like PBDSolver, re-applies gravity per substep itself but still
+		// only sees force-generator output once, same as IterativeSolver).
         for ( i = 0, loop_count = this.force_generators.length; i < loop_count; i++ ) {
             this.force_generators[i].applyForce();
         }
 
-		// Integrate rigid bodies
-		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-			body = this.rigid_bodies[i];
-			body.integrate( delta );
+		// A solver that defines `step` owns the whole tick - integration, collision detection and
+		// solving - because its algorithm needs them interleaved rather than run once each in a fixed
+		// order (see Solver.step; XPBD substepping is the case that needs this). Everything below is
+		// the standard path for solvers that don't.
+		if ( this.solver.step != null ) {
+			this.solver.step( this.rigid_bodies, this.gravity, delta, this.broadphase, this.narrowphase );
+
+			for ( i = 0; i < this.ghost_bodies.length; i++ ) {
+				this.ghost_bodies[i].checkForEndedContacts();
+			}
+
+			this.emit( 'stepEnd', this.ticks, delta );
+			continue;
 		}
+
+		// Gravity + integration is owned by the solver, not World, so a solver can integrate in however
+		// many internal steps its algorithm needs.
+		this.solver.integrate( this.rigid_bodies, this.gravity, delta );
 
 		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
 			this.rigid_bodies[i].updateDerived();
