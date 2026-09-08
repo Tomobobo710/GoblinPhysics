@@ -14,6 +14,13 @@ Goblin.Quaternion.prototype = {
 		this.w = w;
 	},
 
+	copy: function( q ) {
+		this.x = q.x;
+		this.y = q.y;
+		this.z = q.z;
+		this.w = q.w;
+	},
+
 	multiply: function( q ) {
 		var x = this.x, y = this.y, z = this.z, w = this.w,
 			qx = q.x, qy = q.y, qz = q.z, qw = q.w;

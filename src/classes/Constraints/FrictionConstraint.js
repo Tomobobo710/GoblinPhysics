@@ -26,6 +26,10 @@ Goblin.FrictionConstraint.prototype = Object.create( Goblin.Constraint.prototype
 Goblin.FrictionConstraint.prototype.buildFromContact = function( contact ) {
 	this.rows[0] = this.rows[0] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	this.rows[1] = this.rows[1] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
+	// A pooled row still holds the previous contact's impulse; warm starting would apply it to this
+	// unrelated body pair.
+	this.rows[0].multiplier = this.rows[0].multiplier_cached = 0;
+	this.rows[1].multiplier = this.rows[1].multiplier_cached = 0;
 
 	this.object_a = contact.object_a;
 	this.object_b = contact.object_b;

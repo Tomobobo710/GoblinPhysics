@@ -36,6 +36,10 @@ Goblin.ContactConstraint.prototype.buildFromContact = function( contact ) {
 	var row = this.rows[0] || Goblin.ObjectPool.getObject( 'ConstraintRow' );
 	row.lower_limit = 0;
 	row.upper_limit = Infinity;
+	// A pooled row still holds the previous contact's impulse; warm starting would apply it to this
+	// unrelated body pair.
+	row.multiplier = 0;
+	row.multiplier_cached = 0;
 	this.rows[0] = row;
 
 	this.update();

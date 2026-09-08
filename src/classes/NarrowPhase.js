@@ -13,10 +13,7 @@ Goblin.NarrowPhase = function() {
 	 */
 	this.contact_manifolds = new Goblin.ContactManifoldList();
 
-	// Built once instead of per meshCollision() call (every resting mesh contact, every frame).
-	// Calls through `this.addContact` dynamically (not a frozen bound reference) because callers like
-	// World.shapeIntersect temporarily override narrowphase.addContact to intercept mesh/compound
-	// contacts for transient queries, and expect meshCollision to see that override.
+	// Reads this.addContact dynamically so World.shapeIntersect's temporary override still applies.
 	var self = this;
 	this._boundAddContact = function( object_a, object_b, contact ) {
 		self.addContact( object_a, object_b, contact );
@@ -51,7 +48,11 @@ Goblin.NarrowPhase.prototype.updateContactManifolds = function() {
 	}
 };
 
-Goblin.NarrowPhase.prototype.midPhase = function( object_a, object_b ) {
+Goblin.NarrowPhase.prototype.midPhase = (function(){
+	var node_stack = [];
+	var other_aabb_in_compound = new Goblin.AABB();
+
+	return function( object_a, object_b ) {
 	var compound,
 		other;
 
@@ -64,53 +65,121 @@ Goblin.NarrowPhase.prototype.midPhase = function( object_a, object_b ) {
 	}
 
 	var proxy = Goblin.ObjectPool.getObject( 'RigidBodyProxy' ),
-		child_shape, contact;
-	for ( var i = 0; i < compound.shape.child_shapes.length; i++ ) {
-		child_shape = compound.shape.child_shapes[i];
+		child_shapes = compound.shape.child_shapes;
+
+	var self = this;
+	// Shared per-child body: setFrom + getContact/recurse + contact resolution, identical regardless
+	// of whether the candidate child came from the flat scan or the BVH walk below.
+	function testChild( child_shape ) {
 		proxy.setFrom( compound, child_shape );
 
+		var contact;
 		if ( proxy.shape instanceof Goblin.CompoundShape || other.shape instanceof Goblin.CompoundShape ) {
-			this.midPhase( proxy, other );
+			self.midPhase( proxy, other );
+			return;
+		}
+
+		contact = self.getContact( proxy, other );
+		if ( contact == null ) {
+			return;
+		}
+		// Which actual sub-shape generated this, for IterativeSolver's block-pairing (see
+		// NarrowPhase.resolveAndAddContact for the mesh-path equivalent).
+		contact._shapeKeyA = contact.object_a instanceof Goblin.RigidBodyProxy ? contact.object_a.shape_data : contact.object_a;
+		contact._shapeKeyB = contact.object_b instanceof Goblin.RigidBodyProxy ? contact.object_b.shape_data : contact.object_b;
+
+		var parent_a, parent_b;
+		if ( contact.object_a === proxy ) {
+			contact.object_a = compound;
+			parent_a = proxy;
+			parent_b = other;
 		} else {
-			contact = this.getContact( proxy, other );
-			if ( contact != null ) {
-				var parent_a, parent_b;
-				if ( contact.object_a === proxy ) {
-					contact.object_a = compound;
-					parent_a = proxy;
-					parent_b = other;
-				} else {
-					contact.object_b = compound;
-					parent_a = other;
-					parent_b = proxy;
-				}
+			contact.object_b = compound;
+			parent_a = other;
+			parent_b = proxy;
+		}
 
+		if ( parent_a instanceof Goblin.RigidBodyProxy ) {
+			while ( parent_a.parent ) {
 				if ( parent_a instanceof Goblin.RigidBodyProxy ) {
-					while ( parent_a.parent ) {
-						if ( parent_a instanceof Goblin.RigidBodyProxy ) {
-							parent_a.shape_data.transform.transformVector3( contact.contact_point_in_a );
-						}
-						parent_a = parent_a.parent;
-					}
+					parent_a.shape_data.transform.transformVector3( contact.contact_point_in_a );
 				}
-
-				if ( parent_b instanceof Goblin.RigidBodyProxy ) {
-					while ( parent_b.parent ) {
-						if ( parent_b instanceof Goblin.RigidBodyProxy ) {
-							parent_b.shape_data.transform.transformVector3( contact.contact_point_in_b );
-						}
-						parent_b = parent_b.parent;
-					}
-				}
-
-				contact.object_a = parent_a;
-				contact.object_b = parent_b;
-				this.addContact( parent_a, parent_b, contact );
+				parent_a = parent_a.parent;
 			}
 		}
+
+		if ( parent_b instanceof Goblin.RigidBodyProxy ) {
+			while ( parent_b.parent ) {
+				if ( parent_b instanceof Goblin.RigidBodyProxy ) {
+					parent_b.shape_data.transform.transformVector3( contact.contact_point_in_b );
+				}
+				parent_b = parent_b.parent;
+			}
+		}
+
+		contact.object_a = parent_a;
+		contact.object_b = parent_b;
+		self.addContact( parent_a, parent_b, contact );
 	}
+
+	// Built lazily — see CompoundShape.ensureHierarchy.
+	compound.shape.ensureHierarchy();
+
+	if ( compound.shape.hierarchy_flat != null ) {
+		// BVH walk: only visits children whose subtree AABB could contain `other`. `other.aabb` is
+		// world-space; the tree's node AABBs are compound-local, so transform once per call rather
+		// than per node.
+		other_aabb_in_compound.transform( other.aabb, compound.transform_inverse );
+
+		var flat = compound.shape.hierarchy_flat;
+		var aabbs = flat.aabbs, rightOrLeaf = flat.rightOrLeaf, leafObjects = flat.leafObjects;
+		var qminx = other_aabb_in_compound.min.x, qminy = other_aabb_in_compound.min.y, qminz = other_aabb_in_compound.min.z,
+			qmaxx = other_aabb_in_compound.max.x, qmaxy = other_aabb_in_compound.max.y, qmaxz = other_aabb_in_compound.max.z;
+
+		var stack_size = 0;
+		node_stack[stack_size++] = 0;
+		while ( stack_size > 0 ) {
+			var idx = node_stack[--stack_size];
+			var base = idx * 6;
+
+			if ( aabbs[base] > qmaxx || aabbs[base + 3] < qminx ||
+				aabbs[base + 1] > qmaxy || aabbs[base + 4] < qminy ||
+				aabbs[base + 2] > qmaxz || aabbs[base + 5] < qminz ) {
+				continue;
+			}
+
+			var ro = rightOrLeaf[idx];
+			if ( ro <= -1 ) {
+				testChild( leafObjects[idx] );
+			} else {
+				node_stack[stack_size++] = ro; // right
+				node_stack[stack_size++] = idx + 1; // left
+			}
+		}
+	} else {
+		// Too few children to be worth a BVH (see CompoundShape.addChildShape's threshold) — flat
+		// scan with the per-child cached world AABB as the reject, same mechanism either way.
+		for ( var i = 0; i < child_shapes.length; i++ ) {
+			var child_shape = child_shapes[i];
+
+			if ( child_shape._worldAabbVersion !== compound._transformVersion ) {
+				if ( !child_shape._worldAabb ) {
+					child_shape._worldAabb = new Goblin.AABB();
+				}
+				child_shape._worldAabb.transform( child_shape.aabb, compound.transform );
+				child_shape._worldAabbVersion = compound._transformVersion;
+			}
+			if ( !child_shape._worldAabb.intersects( other.aabb ) ) {
+				continue;
+			}
+
+			testChild( child_shape );
+		}
+	}
+
 	Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
-};
+	};
+})();
 
 Goblin.NarrowPhase.prototype.meshCollision = (function(){
 	var b_to_a = new Goblin.Matrix4(),
@@ -153,9 +222,12 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 
                     contact.object_a = object_a;
                     contact.object_b = object_b;
+                    contact._shapeKeyA = object_a instanceof Goblin.RigidBodyProxy ? object_a.shape_data : object_a;
+                    contact._shapeKeyB = object_b instanceof Goblin.RigidBodyProxy ? object_b.shape_data : object_b;
 
                     contact.restitution = ( object_a.restitution + object_b.restitution ) / 2;
                     contact.friction = ( object_a.friction + object_b.friction ) / 2;
+                    contact.rolling_friction = ( object_a.rolling_friction + object_b.rolling_friction ) / 2;
                     /*console.log( contact );
                     debugger;*/
 
@@ -208,8 +280,19 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 			contact;
 		if ( Goblin.GjkEpa.result != null ) {
 			contact = Goblin.GjkEpa.result;
+			if ( simplex != null ) {
+				Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
+			}
 		} else if ( simplex != null ) {
 			contact = Goblin.GjkEpa.EPA( simplex );
+		}
+
+		// Stable identity for ContactManifold.addContact to match against across frames — a shape
+		// resting on many triangles (fine mesh) has more real contacts than the manifold's 4 slots,
+		// and without this it picks its "best 4" fresh each frame in whatever order triangles were
+		// tested, discarding still-valid points and their solver warm-start data for no reason.
+		if ( contact != null ) {
+			contact._source_triangle = triangle;
 		}
 
 		return contact;
@@ -218,9 +301,106 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 	var meshConvex = (function(){
 		var convex_to_mesh = new Goblin.Matrix4(),
 			convex_aabb_in_mesh = new Goblin.AABB(),
-			node_stack = [];
+			node_stack = [],
+			pos_delta = new Goblin.Vector3();
 
-		return function meshConvex( mesh, convex, addContact ) {
+		// Cache trusted only up to this much linear movement / rotation (quat dot) since captured.
+		var CACHE_POS_EPS = 0.01;
+		var CACHE_ROT_DOT_MIN = 0.9999;
+
+		function cacheStillValid( cache, convex ) {
+			if ( !cache._cacheValid || cache._cachedTriangles === null ) {
+				return false;
+			}
+			pos_delta.subtractVectors( convex.position, cache._cachePosition );
+			if ( pos_delta.lengthSquared() > CACHE_POS_EPS * CACHE_POS_EPS ) {
+				return false;
+			}
+			var r = cache._cacheRotation, q = convex.rotation;
+			var dot = r.x * q.x + r.y * q.y + r.z * q.z + r.w * q.w;
+			if ( Math.abs( dot ) < CACHE_ROT_DOT_MIN ) {
+				return false;
+			}
+			return true;
+		}
+
+		// Resolves mesh/convex up to their real top-level bodies (a side may be a transient
+		// RigidBodyProxy when it's a compound child) and dispatches the finished contact. Shared by
+		// both the cache-hit and full-walk paths so they can never diverge in this resolution again.
+		function resolveAndAddContact( mesh, convex, contact, addContact ) {
+			// Identifies which sub-shape actually generated this contact (the mesh itself is one
+			// shape; a compound child is its own CompoundShapeChild), stamped before resolving proxies
+			// away — see IterativeSolver's use of this to keep two different compound children's
+			// contacts from being block-paired as if they were one contact patch.
+			contact._shapeKeyA = mesh instanceof Goblin.RigidBodyProxy ? mesh.shape_data : mesh;
+			contact._shapeKeyB = convex instanceof Goblin.RigidBodyProxy ? convex.shape_data : convex;
+
+			var _mesh = mesh;
+			while ( _mesh.parent != null ) {
+				_mesh = _mesh.parent;
+			}
+			var _convex = convex;
+			while ( _convex.parent != null ) {
+				if ( _convex instanceof Goblin.RigidBodyProxy ) {
+					_convex.shape_data.transform.transformVector3( contact.contact_point_in_b );
+				}
+				_convex = _convex.parent;
+			}
+			contact.object_a = _mesh;
+			contact.object_b = _convex;
+			addContact( _mesh, _convex, contact );
+		}
+
+		// Resolves the object the leaf cache should live on for this (mesh, convex) pair, or null if
+		// this pair can't be cached. Three cases: a plain-body pair uses the shared ContactManifold (one
+		// exists per pair already); a compound child (RigidBodyProxy) has no stable per-pair manifold
+		// of its own — proxy.id aliases its parent's id, so ContactManifoldList would otherwise collapse
+		// every child of one compound onto the same cached manifold. Its own stable, per-child
+		// CompoundShapeChild object is used instead, holding one small keyed-by-other-body's-id cache —
+		// symmetric whichever side (mesh or convex) is the compound child, since a static CompoundShape
+		// built from many MeshShape children (this engine's actual target scene) puts the mesh side on
+		// the proxy, not the convex side the original single-mesh-body case assumed.
+		function resolveCache( mesh, convex, contact_manifolds ) {
+			if ( mesh._mass !== Infinity ) {
+				return null;
+			}
+			if ( !( mesh instanceof Goblin.RigidBodyProxy ) && !( convex instanceof Goblin.RigidBodyProxy ) ) {
+				return contact_manifolds.getManifoldForObjects( mesh, convex );
+			}
+			if ( mesh instanceof Goblin.RigidBodyProxy ) {
+				// mesh is a compound child (a static CompoundShape built from MeshShape children) vs a
+				// plain convex body. Keyed by the compound child's own stable shape_data, same pattern
+				// as the convex-is-proxy case below, just on the other side.
+				if ( convex instanceof Goblin.RigidBodyProxy ) {
+					// Both sides are compound children: neither has a single stable per-pair identity
+					// cheap to key on here — not yet covered, always take the full walk.
+					return null;
+				}
+				var meshChildShape = mesh.shape_data;
+				if ( !meshChildShape._meshCaches ) {
+					meshChildShape._meshCaches = {};
+				}
+				var meshCache = meshChildShape._meshCaches[ convex.id ];
+				if ( !meshCache ) {
+					meshCache = { _cachedTriangles: null, _cachePosition: null, _cacheRotation: null, _cacheValid: false };
+					meshChildShape._meshCaches[ convex.id ] = meshCache;
+				}
+				return meshCache;
+			}
+			// convex is a RigidBodyProxy (compound child) vs a plain static mesh.
+			var child_shape = convex.shape_data;
+			if ( !child_shape._meshCaches ) {
+				child_shape._meshCaches = {};
+			}
+			var cache = child_shape._meshCaches[ mesh.id ];
+			if ( !cache ) {
+				cache = { _cachedTriangles: null, _cachePosition: null, _cacheRotation: null, _cacheValid: false };
+				child_shape._meshCaches[ mesh.id ] = cache;
+			}
+			return cache;
+		}
+
+		return function meshConvex( mesh, convex, addContact, contact_manifolds ) {
 			// Find matrix that converts convex into mesh space
 			convex_to_mesh.copy( convex.transform );
 			convex_to_mesh.multiply( mesh.transform_inverse );
@@ -238,39 +418,79 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 			proxy.transform_inverse.copy( mesh.transform_inverse );
 			proxy.restitution = mesh.restitution;
 			proxy.friction = mesh.friction;
+			proxy.rolling_friction = mesh.rolling_friction;
 
-			// Index-based stack (not shift()/push() on a growing array) reused across calls.
-			var stack_size = 0,
-				node;
-			node_stack[stack_size++] = mesh.shape.hierarchy;
+			// Frame-to-frame leaf cache against a static mesh: a plain body uses its shared
+			// ContactManifold, a compound child uses its own CompoundShapeChild-held cache (see
+			// resolveCache). Dynamic meshes and mesh-shaped compound children always take the full
+			// walk below — always correct, just not cheap for those less common cases.
+			var cache = resolveCache( mesh, convex, contact_manifolds );
+
+			if ( cache !== null && cacheStillValid( cache, convex ) ) {
+				// cacheStillValid proves `convex` hasn't moved past CACHE_POS_EPS/CACHE_ROT_DOT_MIN
+				// since this cache's triangles were captured from a real GJK/EPA walk — the same
+				// guarantee a manifold point's frozen contact_normal needs to still be trusted. The
+				// existing manifold points (already refreshed this step's position/depth by
+				// NarrowPhase.updateContactManifolds, called once before any of this runs) are
+				// therefore still correct as-is: re-deriving them via GJK/EPA here would only produce
+				// an answer ContactManifold.addContact's own proximity dedup immediately discards.
+				// Skip entirely rather than pay for that. This holds for as long as cacheStillValid
+				// keeps returning true — not just "one step stale" — since the cache's own
+				// _cachePosition/_cacheRotation snapshot only updates on a real rebuild below.
+				Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
+				return;
+			}
+
+			var hitTriangles = cache !== null ? [] : null;
+
+			// Flat, index-based BVH walk (see BVH.flatten) instead of chasing .left/.right pointers.
+			var flat = mesh.shape.hierarchy_flat;
+			var aabbs = flat.aabbs,
+				rightOrLeaf = flat.rightOrLeaf,
+				leafObjects = flat.leafObjects;
+			var qminx = convex_aabb_in_mesh.min.x, qminy = convex_aabb_in_mesh.min.y, qminz = convex_aabb_in_mesh.min.z,
+				qmaxx = convex_aabb_in_mesh.max.x, qmaxy = convex_aabb_in_mesh.max.y, qmaxz = convex_aabb_in_mesh.max.z;
+
+			var stack_size = 0;
+			node_stack[stack_size++] = 0;
 			while ( stack_size > 0 ) {
-				node = node_stack[--stack_size];
-				if ( node.aabb.intersects( convex_aabb_in_mesh ) ) {
-					if ( node.isLeaf() ) {
-						// Check node for collision
-						var contact = triangleConvex( node.object, proxy, convex );
-						if ( contact != null ) {
-							var _mesh = mesh;
-							while ( _mesh.parent != null ) {
-								_mesh = _mesh.parent;
-							}
-							// Resolve convex up to its real body too (it is a proxy when the partner is a compound child)
-							var _convex = convex;
-							while ( _convex.parent != null ) {
-								if ( _convex instanceof Goblin.RigidBodyProxy ) {
-									_convex.shape_data.transform.transformVector3( contact.contact_point_in_b );
-								}
-								_convex = _convex.parent;
-							}
-							contact.object_a = _mesh;
-							contact.object_b = _convex;
-							addContact( _mesh, _convex, contact );
-						}
-					} else {
-						node_stack[stack_size++] = node.left;
-						node_stack[stack_size++] = node.right;
-					}
+				var idx = node_stack[--stack_size];
+				var base = idx * 6;
+
+				if ( aabbs[base] > qmaxx || aabbs[base + 3] < qminx ||
+					aabbs[base + 1] > qmaxy || aabbs[base + 4] < qminy ||
+					aabbs[base + 2] > qmaxz || aabbs[base + 5] < qminz ) {
+					continue;
 				}
+
+				var ro = rightOrLeaf[idx];
+				if ( ro <= -1 ) {
+					// Leaf: check node for collision.
+					var contact = triangleConvex( leafObjects[idx], proxy, convex );
+					if ( contact != null ) {
+						if ( hitTriangles !== null ) {
+							hitTriangles.push( leafObjects[idx] );
+						}
+						resolveAndAddContact( mesh, convex, contact, addContact );
+					}
+				} else {
+					node_stack[stack_size++] = ro; // right
+					node_stack[stack_size++] = idx + 1; // left
+				}
+			}
+
+			if ( cache !== null ) {
+				// An empty result is cached too. "This convex touches none of the mesh's triangles" is
+				// just as much a fact about a body that hasn't moved as a list of hit triangles is, and
+				// refusing to remember it meant every body resting near the ground - overlapping its
+				// BVH but not contacting it - re-walked the tree and re-ran GJK every tick forever.
+				// Measured on the 500-prop scene, that was 80% of all cache checks.
+				cache._cachedTriangles = hitTriangles;
+				cache._cachePosition = cache._cachePosition || new Goblin.Vector3();
+				cache._cachePosition.copy( convex.position );
+				cache._cacheRotation = cache._cacheRotation || new Goblin.Quaternion();
+				cache._cacheRotation.set( convex.rotation.x, convex.rotation.y, convex.rotation.z, convex.rotation.w );
+				cache._cacheValid = true;
 			}
 
 			Goblin.ObjectPool.freeObject( 'RigidBodyProxy', proxy );
@@ -285,9 +505,9 @@ Goblin.NarrowPhase.prototype.meshCollision = (function(){
 			meshMesh( object_a, object_b, this._boundAddContact );
 		} else {
 			if ( a_is_mesh ) {
-				meshConvex( object_a, object_b, this._boundAddContact );
+				meshConvex( object_a, object_b, this._boundAddContact, this.contact_manifolds );
 			} else {
-				meshConvex( object_b, object_a, this._boundAddContact );
+				meshConvex( object_b, object_a, this._boundAddContact, this.contact_manifolds );
 			}
 		}
 	};
@@ -327,6 +547,9 @@ Goblin.NarrowPhase.prototype.getContact = function( object_a, object_b ) {
 		var simplex = Goblin.GjkEpa.GJK( object_a, object_b );
 		if ( Goblin.GjkEpa.result != null ) {
 			contact = Goblin.GjkEpa.result;
+			if ( simplex != null ) {
+				Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
+			}
 		} else if ( simplex != null ) {
 			contact = Goblin.GjkEpa.EPA( simplex );
 		}
@@ -357,6 +580,11 @@ Goblin.NarrowPhase.prototype.generateContacts = function( possible_contacts ) {
 	for ( i = 0; i < possible_contacts_length; i++ ) {
 		contact = this.getContact( possible_contacts[i][0], possible_contacts[i][1] );
 		if ( contact != null ) {
+			// Plain (non-compound) pair: object_a/object_b are the real bodies already, no proxy to
+			// resolve — same shape-key stamping the compound paths do, for IterativeSolver's use.
+			// Stamped unconditionally: a pooled contact still holds the keys from its previous pair.
+			contact._shapeKeyA = contact.object_a;
+			contact._shapeKeyB = contact.object_b;
 			this.addContact( possible_contacts[i][0], possible_contacts[i][1], contact );
 		}
 	}

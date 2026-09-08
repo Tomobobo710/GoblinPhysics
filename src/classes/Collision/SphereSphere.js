@@ -45,6 +45,7 @@ Goblin.SphereSphere = function( object_a, object_b ) {
 
 	contact.restitution = ( object_a.restitution + object_b.restitution ) / 2;
 	contact.friction = ( object_a.friction + object_b.friction ) / 2;
+	contact.rolling_friction = ( object_a.rolling_friction + object_b.rolling_friction ) / 2;
 
 	return contact;
 };

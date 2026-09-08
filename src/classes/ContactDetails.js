@@ -79,6 +79,18 @@ Goblin.ContactDetails = function() {
 	 */
 	this.friction = 0;
 
+	/**
+	 * amount of rolling resistance between the objects in contact - see RigidBody.rolling_friction
+	 *
+	 * @property rolling_friction
+	 * @type {*}
+	 */
+	this.rolling_friction = 0;
+
+	// Set only for mesh-triangle contacts (see NarrowPhase.triangleConvex) — lets ContactManifold
+	// match a refreshed contact back to the same manifold point across frames by triangle identity.
+	this._source_triangle = null;
+
 	this.listeners = {};
 };
 Goblin.EventEmitter.apply( Goblin.ContactDetails );

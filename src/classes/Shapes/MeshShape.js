@@ -34,7 +34,11 @@ Goblin.MeshShape = function( vertices, faces ) {
 	 */
 	this._integral = new Float32Array( 10 );
 
-	this.hierarchy = new Goblin.BVH( this.triangles ).tree;
+	var bvh = new Goblin.BVH( this.triangles );
+	this.hierarchy = bvh.tree;
+	// Flat, cache-friendly BVH layout for the mesh-vs-convex hot path (see NarrowPhase.meshConvex);
+	// .hierarchy (pointer tree) stays around for mesh-mesh/ray-intersect, which aren't the bottleneck.
+	this.hierarchy_flat = bvh.flat;
 
 	var polygon_faces = this.triangles.map(
 		function( triangle ) {
@@ -60,8 +64,10 @@ Goblin.MeshShape = function( vertices, faces ) {
  * @param aabb {AABB}
  */
 Goblin.MeshShape.prototype.calculateLocalAABB = function( aabb ) {
-	aabb.min.x = aabb.min.y = aabb.min.z = 0;
-	aabb.max.x = aabb.max.y = aabb.max.z = 0;
+	// Must start from +/-Infinity, not 0: a mesh entirely on one side of an axis would otherwise
+	// have that bound clamped at 0 forever, inflating its AABB to always include the origin.
+	aabb.min.x = aabb.min.y = aabb.min.z = Infinity;
+	aabb.max.x = aabb.max.y = aabb.max.z = -Infinity;
 
 	for ( var i = 0; i < this.vertices.length; i++ ) {
 		aabb.min.x = Math.min( aabb.min.x, this.vertices[i].x );

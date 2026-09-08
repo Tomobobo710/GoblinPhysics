@@ -20,6 +20,29 @@ Goblin.CompoundShape = function() {
 Goblin.CompoundShape.prototype.addChildShape = function( shape, position, rotation ) {
 	this.child_shapes.push( new Goblin.CompoundShapeChild( shape, position, rotation ) );
 	this.calculateLocalAABB( this.aabb );
+
+	// Invalidate any previously-built child BVH; deferred rebuild (see ensureHierarchy) avoids an
+	// O(n^2) rebuild-per-call when children are added one at a time.
+	this.hierarchy = null;
+	this.hierarchy_flat = null;
+};
+
+/**
+ * Lazily builds (or rebuilds, if invalidated by a since-added child) the BVH over this compound's
+ * children — see addChildShape's doc for why this can't happen eagerly there. A no-op if the current
+ * tree is already valid (this.hierarchy_flat is non-null and nothing has been added since).
+ *
+ * @method ensureHierarchy
+ */
+Goblin.CompoundShape.prototype.ensureHierarchy = function() {
+	if ( this.hierarchy_flat != null || this.child_shapes.length < 4 ) {
+		// Either already built, or below BVH.AAC's effective cluster-building threshold and not worth
+		// the construction cost — NarrowPhase.midPhase falls back to a flat scan when this is unset.
+		return;
+	}
+	var bvh = new Goblin.BVH( this.child_shapes );
+	this.hierarchy = bvh.tree;
+	this.hierarchy_flat = bvh.flat;
 };
 
 /**
@@ -64,17 +87,18 @@ Goblin.CompoundShape.prototype.getInertiaTensor = function( mass ) {
 
 		_tmp_vec3_1.subtract( child.position );
 
-		j.e00 = mass * -( _tmp_vec3_1.y * _tmp_vec3_1.y + _tmp_vec3_1.z * _tmp_vec3_1.z );
-		j.e10 = mass * _tmp_vec3_1.x * _tmp_vec3_1.y;
-		j.e20 = mass * _tmp_vec3_1.x * _tmp_vec3_1.z;
+		// Parallel axis theorem: diagonal terms ADD m*d^2, off-diagonal terms SUBTRACT m*d_i*d_j — both signs were backwards.
+		j.e00 = mass * ( _tmp_vec3_1.y * _tmp_vec3_1.y + _tmp_vec3_1.z * _tmp_vec3_1.z );
+		j.e10 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.y );
+		j.e20 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.z );
 
-		j.e01 = mass * _tmp_vec3_1.x * _tmp_vec3_1.y;
-		j.e11 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.z * _tmp_vec3_1.z );
-		j.e21 = mass * _tmp_vec3_1.y * _tmp_vec3_1.z;
+		j.e01 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.y );
+		j.e11 = mass * ( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.z * _tmp_vec3_1.z );
+		j.e21 = mass * -( _tmp_vec3_1.y * _tmp_vec3_1.z );
 
-		j.e02 = mass * _tmp_vec3_1.x * _tmp_vec3_1.z;
-		j.e12 = mass * _tmp_vec3_1.y * _tmp_vec3_1.z;
-		j.e22 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.y * _tmp_vec3_1.y );
+		j.e02 = mass * -( _tmp_vec3_1.x * _tmp_vec3_1.z );
+		j.e12 = mass * -( _tmp_vec3_1.y * _tmp_vec3_1.z );
+		j.e22 = mass * ( _tmp_vec3_1.x * _tmp_vec3_1.x + _tmp_vec3_1.y * _tmp_vec3_1.y );
 
 		_tmp_mat3_1.fromMatrix4( child.transform );
 		child_tensor = child.shape.getInertiaTensor( mass );

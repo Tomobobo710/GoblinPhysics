@@ -51,10 +51,61 @@ Goblin.GjkEpa = {
 	testCollision: function( object_a, object_b ) {
 		var simplex = Goblin.GjkEpa.GJK( object_a, object_b );
 		if ( Goblin.GjkEpa.result != null ) {
+			if ( simplex != null ) {
+				Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
+			}
 			return Goblin.GjkEpa.result;
 		} else if ( simplex != null ) {
 			return Goblin.GjkEpa.EPA( simplex );
 		}
+	},
+
+	/**
+	 * Sphere-vs-sphere exact answer for the collinear GJK degeneracy; null (declines) otherwise.
+	 *
+	 * @method _resolveCollinearDegenerate
+	 * @param simplex {Goblin.GjkEpa.Simplex}
+	 * @return {Goblin.ContactDetails|null}
+	 */
+	_resolveCollinearDegenerate: function( simplex ) {
+		var object_a = simplex.object_a,
+			object_b = simplex.object_b;
+
+		if ( !( object_a.shape instanceof Goblin.SphereShape ) || !( object_b.shape instanceof Goblin.SphereShape ) ) {
+			return null;
+		}
+
+		_tmp_vec3_1.subtractVectors( object_b.position, object_a.position );
+		var distance = _tmp_vec3_1.length();
+		if ( distance === 0 ) {
+			// Exactly coincident centers: no well-defined direction at all, not even analytically.
+			return null;
+		}
+
+		var contact = Goblin.ObjectPool.getObject( 'ContactDetails' );
+		contact.object_a = object_a;
+		contact.object_b = object_b;
+
+		contact.contact_normal.scaleVector( _tmp_vec3_1, 1 / distance );
+
+		contact.penetration_depth = object_a.shape.radius + object_b.shape.radius - distance;
+
+		contact.contact_point_in_a.scaleVector( contact.contact_normal, object_a.shape.radius );
+		contact.contact_point_in_a.add( object_a.position );
+		contact.contact_point_in_b.scaleVector( contact.contact_normal, -object_b.shape.radius );
+		contact.contact_point_in_b.add( object_b.position );
+
+		contact.contact_point.addVectors( contact.contact_point_in_a, contact.contact_point_in_b );
+		contact.contact_point.scale( 0.5 );
+
+		contact.object_a.transform_inverse.transformVector3( contact.contact_point_in_a );
+		contact.object_b.transform_inverse.transformVector3( contact.contact_point_in_b );
+
+		contact.restitution = ( object_a.restitution + object_b.restitution ) / 2;
+		contact.friction = ( object_a.friction + object_b.friction ) / 2;
+		contact.rolling_friction = ( object_a.rolling_friction + object_b.rolling_friction ) / 2;
+
+		return contact;
 	},
 
     /**
@@ -67,7 +118,7 @@ Goblin.GjkEpa = {
      */
 	GJK: (function(){
         return function( object_a, object_b ) {
-            var simplex = new Goblin.GjkEpa.Simplex( object_a, object_b ),
+            var simplex = Goblin.ObjectPool.getObject( 'GjkEpaSimplex' ).reset( object_a, object_b ),
                 last_point;
 
 			Goblin.GjkEpa.result = null;
@@ -89,6 +140,12 @@ Goblin.GjkEpa = {
 		for ( var i = 0, points_length = simplex.points.length; i < points_length; i++ ) {
 			Goblin.ObjectPool.freeObject( 'GJK2SupportPoint', simplex.points[i] );
 		}
+		Goblin.ObjectPool.freeObject( 'GjkEpaSimplex', simplex );
+	},
+
+	// Frees the Simplex wrapper only, not its .points (which Polyhedron.reset may still own).
+	freeSimplexWrapperOnly: function( simplex ) {
+		Goblin.ObjectPool.freeObject( 'GjkEpaSimplex', simplex );
 	},
 
 	freePolyhedron: function( polyhedron ) {
@@ -131,6 +188,7 @@ Goblin.GjkEpa = {
             // Time to convert the simplex to real faces
             // @TODO this should be a priority queue where the position in the queue is ordered by distance from face to origin
 			var polyhedron = Goblin.ObjectPool.getObject( 'GjkEpaPolyhedron' ).reset( simplex );
+			Goblin.GjkEpa.freeSimplexWrapperOnly( simplex );
 
 			var i = 0;
 			var prev_closest_face_distance = -1;
@@ -154,14 +212,7 @@ Goblin.GjkEpa = {
                 _tmp_vec3_1.subtractVectors( support_point.point, polyhedron.closest_point );
                 var gap = _tmp_vec3_1.lengthSquared();
 
-				// A round shape's support point in a near-tangent direction is ambiguous — it can keep
-				// landing on a different, near-equidistant point of the curved surface every iteration
-				// (e.g. hopping around a cylinder's rim), so `gap` never shrinks below epa_condition even
-				// though the polytope's actual answer, closest_face_distance, already converged several
-				// iterations ago and is no longer moving. Require several consecutive near-zero-delta
-				// iterations (not just one) before treating that as converged — a single small delta can
-				// happen mid-convergence for flat-faced shapes (e.g. box/box) too, so one sample isn't a
-				// reliable signal on its own; a genuine plateau holds for many iterations in a row.
+				// Round shapes can plateau in closest_face_distance without gap shrinking; require a streak.
 				var STABLE_EPS = Goblin.GjkEpa.epa_condition * 0.01;
 				var STABLE_STREAK_REQUIRED = 5;
 				if ( prev_closest_face_distance >= 0 &&
@@ -171,9 +222,7 @@ Goblin.GjkEpa = {
 					stable_streak = 0;
 				}
 				prev_closest_face_distance = polyhedron.closest_face_distance;
-				var face_distance_stable =
-					stable_streak >= STABLE_STREAK_REQUIRED &&
-					polyhedron.closest_face_distance > Goblin.EPSILON;
+				var face_distance_stable = stable_streak >= STABLE_STREAK_REQUIRED;
 
 				if ( i === Goblin.GjkEpa.max_iterations || face_distance_stable ||
 					( gap < Goblin.GjkEpa.epa_condition && polyhedron.closest_face_distance > Goblin.EPSILON ) ) {
@@ -188,6 +237,40 @@ Goblin.GjkEpa = {
 						contact.contact_normal.subtractVectors( contact.object_b.position, contact.object_a.position );
 					}
 					contact.contact_normal.normalize();
+
+					// A TriangleShape is genuinely zero-thickness (a flat, degenerate convex shape), so
+					// its own findSupportPoint has no notion of "front" vs "back" - both sides of the
+					// triangle give identical GJK support points. That leaves EPA's derived normal
+					// (above, purely the direction from the Minkowski difference's closest point to the
+					// origin) numerically free to resolve to either side of the triangle's plane for a
+					// near-touching query, since the true closest-point direction is genuinely ambiguous
+					// at zero thickness - unlike a real solid shape, where the Minkowski difference has
+					// real volume and only one side is ever actually closest. The triangle's own vertex
+					// winding already encodes which way is "up" reliably (see TriangleShape's
+					// constructor) - but ONLY for a STATIC triangle mesh (a ground/level built from
+					// MeshShape tiles), which is a genuine one-sided solid boundary. A dynamic mesh body
+					// (e.g. this project's own trophy/rocket test shapes) can legitimately include
+					// explicitly double-sided triangles (a thin decorative shell, no "inside"), where the
+					// winding-derived normal is not a reliable ground truth to reconcile against - gating
+					// on infinite mass keeps this fix scoped to the case it actually corrects (confirmed
+					// via instrumentation: a box resting on a tiled static MeshShape floor got contact
+					// manifold points whose normal pointed straight down instead of up on a subset of
+					// ticks, launching/dropping the body; applying the same reconciliation unconditionally
+					// to a dynamic double-sided mesh body instead flipped an already-correct normal and
+					// broke that separate scene).
+					if ( contact.object_a.shape instanceof Goblin.TriangleShape && contact.object_a._mass === Infinity ) {
+						_tmp_vec3_1.copy( contact.object_a.shape.normal );
+						contact.object_a.transform.rotateVector3( _tmp_vec3_1 );
+						if ( _tmp_vec3_1.dot( contact.contact_normal ) < 0 ) {
+							contact.contact_normal.scale( -1 );
+						}
+					} else if ( contact.object_b.shape instanceof Goblin.TriangleShape && contact.object_b._mass === Infinity ) {
+						_tmp_vec3_1.copy( contact.object_b.shape.normal );
+						contact.object_b.transform.rotateVector3( _tmp_vec3_1 );
+						if ( _tmp_vec3_1.dot( contact.contact_normal ) > 0 ) {
+							contact.contact_normal.scale( -1 );
+						}
+					}
 
 					Goblin.GeometryMethods.findBarycentricCoordinates( polyhedron.closest_point, polyhedron.faces[polyhedron.closest_face].a.point, polyhedron.faces[polyhedron.closest_face].b.point, polyhedron.faces[polyhedron.closest_face].c.point, barycentric );
 
@@ -226,6 +309,7 @@ Goblin.GjkEpa = {
 
 					contact.restitution = ( simplex.object_a.restitution + simplex.object_b.restitution ) / 2;
 					contact.friction = ( simplex.object_a.friction + simplex.object_b.friction ) / 2;
+					contact.rolling_friction = ( simplex.object_a.rolling_friction + simplex.object_b.rolling_friction ) / 2;
 
 					Goblin.GjkEpa.freePolyhedron( polyhedron );
 
@@ -248,11 +332,22 @@ Goblin.GjkEpa = {
     }
 };
 
+Goblin.GjkEpa.HeapEntry = function( value, index ) {
+	this.value = value;
+	this.index = index;
+};
+Goblin.GjkEpa.HeapEntry.prototype.valueOf = function() {
+	return this.value;
+};
+
 Goblin.GjkEpa.Polyhedron = function( simplex ) {
 	this.closest_face = null;
 	this.closest_face_distance = null;
 	this.closest_point = new Goblin.Vector3();
 	this.faces = [];
+	// Lazy-deletion min-heap over this.faces by closest_point_distance (fixed at Face construction,
+	// so no decrease-key needed) — avoids findFaceClosestToOrigin's O(faces) rescan every EPA iteration.
+	this._heap = new Goblin.MinHeap();
 	this.reset( simplex || null );
 };
 Goblin.GjkEpa.Polyhedron.prototype = {
@@ -261,6 +356,7 @@ Goblin.GjkEpa.Polyhedron.prototype = {
 			Goblin.ObjectPool.freeObject( 'GjkEpaFace', this.faces[i] );
 		}
 		this.faces.length = 0;
+		this._heap.heap.length = 0;
 		this.closest_face = null;
 		this.closest_face_distance = null;
 
@@ -280,6 +376,10 @@ Goblin.GjkEpa.Polyhedron.prototype = {
 		this.faces[1].neighbors.push( this.faces[2], this.faces[0], this.faces[3] );
 		this.faces[2].neighbors.push( this.faces[1], this.faces[3], this.faces[0] );
 		this.faces[3].neighbors.push( this.faces[2], this.faces[1], this.faces[0] );
+
+		for ( var f = 0; f < 4; f++ ) {
+			this._heap.push( new Goblin.GjkEpa.HeapEntry( this.faces[f].closest_point_distance, f ) );
+		}
 
 		return this;
 	},
@@ -337,28 +437,36 @@ Goblin.GjkEpa.Polyhedron.prototype = {
             faces[i].neighbors[1] = faces[ i - 1 < 0 ? faces.length - 1 : i - 1 ];
         }
 
+		var base_index = this.faces.length;
 		Array.prototype.push.apply( this.faces, faces );
+		for ( i = 0; i < faces.length; i++ ) {
+			this._heap.push( new Goblin.GjkEpa.HeapEntry( faces[i].closest_point_distance, base_index + i ) );
+		}
 
         return edges;
     },
 
 	findFaceClosestToOrigin: function() {
-		this.closest_face_distance = Infinity;
-
-		var i, face;
-
-		for ( i = 0; i < this.faces.length; i++ ) {
-			face = this.faces[i];
-			if ( face.active === false ) {
+		// Discard stale entries (faces deactivated since being pushed) from the top of the heap.
+		var entry;
+		while ( ( entry = this._heap.peek() ) !== null ) {
+			if ( this.faces[entry.index].active === false ) {
+				this._heap.pop();
 				continue;
 			}
-
-			if ( face.closest_point_distance < this.closest_face_distance ) {
-				this.closest_face_distance = face.closest_point_distance;
-				this.closest_face = i;
-				this.closest_point.copy( face.closest_point );
-			}
+			break;
 		}
+
+		if ( entry === null ) {
+			this.closest_face_distance = Infinity;
+			this.closest_face = null;
+			return;
+		}
+
+		var face = this.faces[entry.index];
+		this.closest_face_distance = face.closest_point_distance;
+		this.closest_face = entry.index;
+		this.closest_point.copy( face.closest_point );
 	}
 };
 
@@ -445,7 +553,13 @@ Goblin.GjkEpa.Face.prototype = (function() {
 			a: new Goblin.Vector3(),
 			b: new Goblin.Vector3(),
 			c: new Goblin.Vector3()
-		};
+		},
+		// Scratch for the degenerate-triangle fallback in addPoint; reused, never held across calls.
+		_degenerate_edge_0 = new Goblin.Vector3(),
+		_degenerate_edge_1 = new Goblin.Vector3(),
+		// Interpolation weight along a 2-point simplex, shared between the margin test and the witness
+		// point it implies.
+		segment_t = 0;
 
     Goblin.GjkEpa.Simplex = function( object_a, object_b ) {
         this.object_a = object_a;
@@ -453,9 +567,20 @@ Goblin.GjkEpa.Face.prototype = (function() {
         this.points = [];
         this.iterations = 0;
         this.next_direction = new Goblin.Vector3();
-        this.updateDirection();
+        // Pool factory constructs with (null, null); reset() always follows before use.
+        if ( object_a != null && object_b != null ) {
+            this.updateDirection();
+        }
     };
     Goblin.GjkEpa.Simplex.prototype = {
+        reset: function( object_a, object_b ) {
+            this.object_a = object_a;
+            this.object_b = object_b;
+            this.points.length = 0;
+            this.iterations = 0;
+            this.updateDirection();
+            return this;
+        },
         addPoint: function() {
             if ( ++this.iterations === Goblin.GjkEpa.max_iterations ) {
                 return false;
@@ -466,8 +591,11 @@ Goblin.GjkEpa.Face.prototype = (function() {
             this.points.push( support_point );
 
 			if ( support_point.point.dot( this.next_direction ) < 0 && this.points.length > 1 ) {
-				// Check the margins first
-				// @TODO this can be expanded to support 1-simplex (2 points)
+				// Check the margins first. The simplex may be a triangle or just a segment: GJK stops as
+				// soon as it can prove the origin is outside, and for shapes resting flush that can
+				// happen before a third support is added. Only handling the triangle left those pairs
+				// reporting no contact at all despite sitting inside the margin.
+				var distanceSquared;
 				if ( this.points.length >= 3 ) {
 					Goblin.GeometryMethods.findClosestPointInTriangle(
 						origin,
@@ -476,8 +604,23 @@ Goblin.GjkEpa.Face.prototype = (function() {
 						this.points[2].point,
 						_tmp_vec3_1
 					);
-					var distanceSquared = _tmp_vec3_1.lengthSquared();
+					distanceSquared = _tmp_vec3_1.lengthSquared();
+				} else {
+					// Closest point on segment [p0, p1] to the origin, clamped to the segment.
+					_degenerate_edge_0.subtractVectors( this.points[1].point, this.points[0].point );
+					var segLengthSquared = _degenerate_edge_0.lengthSquared();
+					segment_t = 0;
+					if ( segLengthSquared > 0 ) {
+						_degenerate_edge_1.scaleVector( this.points[0].point, -1 );
+						segment_t = _degenerate_edge_1.dot( _degenerate_edge_0 ) / segLengthSquared;
+						if ( segment_t < 0 ) { segment_t = 0; } else if ( segment_t > 1 ) { segment_t = 1; }
+					}
+					_tmp_vec3_1.scaleVector( _degenerate_edge_0, segment_t );
+					_tmp_vec3_1.add( this.points[0].point );
+					distanceSquared = _tmp_vec3_1.lengthSquared();
+				}
 
+				{
 					if ( distanceSquared <= Goblin.GjkEpa.margins * Goblin.GjkEpa.margins ) {
 						// Get a ContactDetails object and fill out its details
 						var contact = Goblin.ObjectPool.getObject( 'ContactDetails' );
@@ -493,19 +636,60 @@ Goblin.GjkEpa.Face.prototype = (function() {
 
 						contact.penetration_depth = Goblin.GjkEpa.margins - Math.sqrt( distanceSquared );
 
+						if ( this.points.length < 3 ) {
+							confirm.a.scaleVector( this.points[0].witness_a, 1 - segment_t );
+							confirm.b.scaleVector( this.points[1].witness_a, segment_t );
+							contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+						} else {
+
 						Goblin.GeometryMethods.findBarycentricCoordinates( _tmp_vec3_1, this.points[0].point, this.points[1].point, this.points[2].point, barycentric );
 
 						if ( isNaN( barycentric.x ) ) {
-							//debugger;
-							return false;
-						}
+							// Degenerate triangle: the three support points are collinear, so it has no
+							// area and barycentric coordinates are undefined. This is the normal result
+							// for two shapes resting exactly flush - the supports all land on the same
+							// touching face - and discarding the contact here is why such a pair
+							// reported nothing at all despite sitting well inside the margin (two boxes
+							// 0.0001 apart, against a margin of 0.01). In a stack that is every flush
+							// support at once: a box straddling four neighbours kept one of them and
+							// balanced on a single off-centre corner, torquing it about the vertical by
+							// 9 to 16 degrees in one tick. The simplex still pins down the closest
+							// feature, so fall back to interpolating along its longest edge.
+							var e0 = _degenerate_edge_0, e1 = _degenerate_edge_1, best_a = this.points[0], best_b = this.points[1];
+							e0.subtractVectors( this.points[1].point, this.points[0].point );
+							var bestLengthSquared = e0.lengthSquared();
+							e1.subtractVectors( this.points[2].point, this.points[0].point );
+							if ( e1.lengthSquared() > bestLengthSquared ) {
+								bestLengthSquared = e1.lengthSquared();
+								best_b = this.points[2];
+							}
+							e1.subtractVectors( this.points[2].point, this.points[1].point );
+							if ( e1.lengthSquared() > bestLengthSquared ) {
+								bestLengthSquared = e1.lengthSquared();
+								best_a = this.points[1];
+								best_b = this.points[2];
+							}
 
-						// Contact coordinates of object a
-						confirm.a.scaleVector( this.points[0].witness_a, barycentric.x );
-						confirm.b.scaleVector( this.points[1].witness_a, barycentric.y );
-						confirm.c.scaleVector( this.points[2].witness_a, barycentric.z );
-						contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
-						contact.contact_point_in_a.add( confirm.c );
+							var edge_t = 0;
+							if ( bestLengthSquared > 0 ) {
+								e0.subtractVectors( best_b.point, best_a.point );
+								e1.scaleVector( best_a.point, -1 );
+								edge_t = e1.dot( e0 ) / bestLengthSquared;
+								if ( edge_t < 0 ) { edge_t = 0; } else if ( edge_t > 1 ) { edge_t = 1; }
+							}
+
+							confirm.a.scaleVector( best_a.witness_a, 1 - edge_t );
+							confirm.b.scaleVector( best_b.witness_a, edge_t );
+							contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+						} else {
+							// Contact coordinates of object a
+							confirm.a.scaleVector( this.points[0].witness_a, barycentric.x );
+							confirm.b.scaleVector( this.points[1].witness_a, barycentric.y );
+							confirm.c.scaleVector( this.points[2].witness_a, barycentric.z );
+							contact.contact_point_in_a.addVectors( confirm.a, confirm.b );
+							contact.contact_point_in_a.add( confirm.c );
+						}
+						}
 
 						// Contact coordinates of object b
 						contact.contact_point_in_b.scaleVector( contact.contact_normal, -contact.penetration_depth );
@@ -521,6 +705,7 @@ Goblin.GjkEpa.Face.prototype = (function() {
 
 						contact.restitution = ( this.object_a.restitution + this.object_b.restitution ) / 2;
 						contact.friction = ( this.object_a.friction + this.object_b.friction ) / 2;
+						contact.rolling_friction = ( this.object_a.rolling_friction + this.object_b.rolling_friction ) / 2;
 
 						//Goblin.GjkEpa.freePolyhedron( polyhedron );
 
@@ -563,6 +748,13 @@ Goblin.GjkEpa.Face.prototype = (function() {
                     this.next_direction.y === 0 &&
                     this.next_direction.z === 0
                 ) {
+                    // Try the analytic shortcut before the arbitrary perpendicular fallback below.
+                    var result = Goblin.GjkEpa._resolveCollinearDegenerate( this );
+                    if ( result !== null ) {
+                        Goblin.GjkEpa.result = result;
+                        return true;
+                    }
+
                     ab.normalize();
                     this.next_direction.x = 1 - Math.abs( ab.x );
                     this.next_direction.y = 1 - Math.abs( ab.y );
@@ -808,7 +1000,7 @@ Goblin.GjkEpa.Face.prototype = (function() {
 
             } else if ( this.points.length === 2 ) {
 
-                this.findDirectionFromLine();
+                return this.findDirectionFromLine();
 
             } else if ( this.points.length === 3 ) {
 

@@ -133,6 +133,23 @@ Goblin.RigidBody = (function() {
 		this.friction = 0.5;
 
 		/**
+		 * Rolling resistance coefficient: a torque opposing spin at a rolling contact, distinct from
+		 * `friction` (which opposes SLIDING - the contact point's own tangential velocity, near-zero
+		 * for a round shape rolling without slip, so Coulomb friction alone cannot arrest rolling
+		 * motion). Defaults to 0 (no rolling resistance, matching every physics engine's convention of
+		 * treating it as an opt-in material property, since most simulated contacts either aren't
+		 * round or don't need it modeled). 0.01-0.05 is a typical real-world range (much smaller than
+		 * `friction`'s 0-1+ range) for a rubber-like material; 0 leaves round shapes rolling forever on
+		 * a frictionless-in-the-rolling-direction surface, which is physically correct for a perfect
+		 * rigid cylinder/sphere on a perfectly rigid floor.
+		 *
+		 * @property rolling_friction
+		 * @type {Number}
+		 * @default 0
+		 */
+		this.rolling_friction = 0;
+
+		/**
 		 * bitmask indicating what collision groups this object belongs to
 		 *
 		 * @property collision_groups
@@ -442,20 +459,32 @@ Goblin.RigidBody.prototype.updateDerived = function() {
 	// normalize rotation
 	this.rotation.normalize();
 
-	// update this.transform and this.transform_inverse
-	this.transform.makeTransform( this.rotation, this.position );
-	this.transform.invertInto( this.transform_inverse );
+	// Only bump _transformVersion when position/rotation actually changed, so caches keyed on it
+	// (e.g. a static compound's per-child world AABB) stay valid across steps a body doesn't move.
+	var moved = this._transformVersion === undefined ||
+		this.position.x !== this._lastPos_x || this.position.y !== this._lastPos_y || this.position.z !== this._lastPos_z ||
+		this.rotation.x !== this._lastRot_x || this.rotation.y !== this._lastRot_y || this.rotation.z !== this._lastRot_z || this.rotation.w !== this._lastRot_w;
 
-	// Update the world frame inertia tensor and inverse
-	if ( this._mass !== Infinity ) {
-		_tmp_mat3_1.fromMatrix4( this.transform_inverse );
-		_tmp_mat3_1.transposeInto( _tmp_mat3_2 );
-		_tmp_mat3_2.multiply( this.inertiaTensor );
-		this.inertiaTensorWorldFrame.multiplyFrom( _tmp_mat3_2, _tmp_mat3_1 );
+	// Transform rebuild, inertia tensor world-frame update, and AABB transform only run when moved.
+	if ( moved ) {
+		this.transform.makeTransform( this.rotation, this.position );
+		this.transform.invertInto( this.transform_inverse );
 
-		this.inertiaTensorWorldFrame.invertInto( this.inverseInertiaTensorWorldFrame );
+		this._transformVersion = ( this._transformVersion || 0 ) + 1;
+		this._lastPos_x = this.position.x; this._lastPos_y = this.position.y; this._lastPos_z = this.position.z;
+		this._lastRot_x = this.rotation.x; this._lastRot_y = this.rotation.y; this._lastRot_z = this.rotation.z; this._lastRot_w = this.rotation.w;
+
+		// Update the world frame inertia tensor and inverse
+		if ( this._mass !== Infinity ) {
+			_tmp_mat3_1.fromMatrix4( this.transform_inverse );
+			_tmp_mat3_1.transposeInto( _tmp_mat3_2 );
+			_tmp_mat3_2.multiply( this.inertiaTensor );
+			this.inertiaTensorWorldFrame.multiplyFrom( _tmp_mat3_2, _tmp_mat3_1 );
+
+			this.inertiaTensorWorldFrame.invertInto( this.inverseInertiaTensorWorldFrame );
+		}
+
+		// Update AABB
+		this.aabb.transform( this.shape.aabb, this.transform );
 	}
-
-	// Update AABB
-	this.aabb.transform( this.shape.aabb, this.transform );
 };

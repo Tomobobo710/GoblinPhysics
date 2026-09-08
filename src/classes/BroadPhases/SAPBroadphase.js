@@ -113,10 +113,7 @@
 			if ( this.overlap_counter[key] === 0 ) {
 				delete this.overlap_counter[key];
 			} else if ( this.overlap_counter[key] === 2 ) {
-				// These are no longer touching, remove from potential contacts. Find-and-splice the one
-				// matching pair instead of filter()'s full-array reallocation — this fires ~40+/step with
-				// hundreds of resting bodies (markers jitter near their rest position), and collision_pairs
-				// can be 500+ long, so a fresh filtered copy every call was real per-step churn.
+				// No longer touching; find-and-splice instead of filter()'s full-array reallocation.
 				for ( var i = 0; i < this.collision_pairs.length; i++ ) {
 					var pair = this.collision_pairs[i];
 					if ( ( pair[0] === body_a && pair[1] === body_b ) || ( pair[0] === body_b && pair[1] === body_a ) ) {

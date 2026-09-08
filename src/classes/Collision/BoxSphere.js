@@ -90,6 +90,7 @@ Goblin.BoxSphere = function( object_a, object_b ) {
 
 	contact.restitution = ( sphere.restitution + box.restitution ) / 2;
 	contact.friction = ( sphere.friction + box.friction ) / 2;
+	contact.rolling_friction = ( sphere.rolling_friction + box.rolling_friction ) / 2;
 
 	return contact;
 };

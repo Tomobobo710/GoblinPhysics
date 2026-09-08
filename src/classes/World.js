@@ -103,27 +103,32 @@ Goblin.World.prototype.step = function( time_delta, max_step ) {
 
 		this.emit( 'stepStart', this.ticks, delta );
 
-		// Apply gravity
-        for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-            body = this.rigid_bodies[i];
-
-            // Objects of infinite mass don't move
-            if ( body._mass !== Infinity ) {
-				_tmp_vec3_1.scaleVector( body.gravity || this.gravity, body._mass * delta );
-                body.accumulated_force.add( _tmp_vec3_1 );
-            }
-        }
-
-        // Apply force generators
+		// Apply force generators - always once per world tick regardless of how the solver integrates
+		// (they're continuous forces accumulated into accumulated_force/accumulated_torque; a solver
+		// that integrates in substeps, like PBDSolver, re-applies gravity per substep itself but still
+		// only sees force-generator output once, same as IterativeSolver).
         for ( i = 0, loop_count = this.force_generators.length; i < loop_count; i++ ) {
             this.force_generators[i].applyForce();
         }
 
-		// Integrate rigid bodies
-		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
-			body = this.rigid_bodies[i];
-			body.integrate( delta );
+		// A solver that defines `step` owns the whole tick - integration, collision detection and
+		// solving - because its algorithm needs them interleaved rather than run once each in a fixed
+		// order (see Solver.step; XPBD substepping is the case that needs this). Everything below is
+		// the standard path for solvers that don't.
+		if ( this.solver.step != null ) {
+			this.solver.step( this.rigid_bodies, this.gravity, delta, this.broadphase, this.narrowphase );
+
+			for ( i = 0; i < this.ghost_bodies.length; i++ ) {
+				this.ghost_bodies[i].checkForEndedContacts();
+			}
+
+			this.emit( 'stepEnd', this.ticks, delta );
+			continue;
 		}
+
+		// Gravity + integration is owned by the solver, not World, so a solver can integrate in however
+		// many internal steps its algorithm needs.
+		this.solver.integrate( this.rigid_bodies, this.gravity, delta );
 
 		for ( i = 0, loop_count = this.rigid_bodies.length; i < loop_count; i++ ) {
 			this.rigid_bodies[i].updateDerived();

@@ -93,8 +93,10 @@
 
 			// Sort leaves based on morton code
 			leaves.sort( AAC.mortonSort );
-			var tree = AAC.buildTree( leaves, 29 ); // @TODO smaller starting bit, log4N or log2N or log10N ?
-			//var tree = AAC.buildTree( leaves, 20 ); // @TODO smaller starting bit, log4N or log2N or log10N ?
+			// Each axis is quantized to 9 bits, interleaved into bits [0..26] — 26 is the highest bit
+			// that can differ between two leaves; starting higher wastes early recursion levels on
+			// no-op splits.
+			var tree = AAC.buildTree( leaves, 26 );
 			AAC.combineCluster( tree, 1 );
 			return tree;
 		};
@@ -107,9 +109,10 @@
 				return 0;
 			}
 		};
+		// Gu et al. 2013's reduction function: f(n) = C * n^alpha (C=0.5, alpha=0.5) — combineCluster
+		// should shrink a bucket to ~0.5*sqrt(n) clusters, not n/2.
 		AAC.clusterReductionCount = function( cluster_size ) {
-			var c = Math.pow( cluster_size, 0.5 ) / 2,
-				a = 0.5;
+			var c = 0.5, a = 0.5;
 			return Math.max( c * Math.pow( cluster_size, a ), 1 );
 		};
 		AAC.buildTree = function( nodes, bit ) {
@@ -222,6 +225,84 @@
 		}
 
 		this.tree = AAC( global_aabb, leaves )[0];
+
+		this.flat = Goblin.BVH.flatten( this.tree );
+	};
+
+	/**
+	 * Flattens a BVHNode tree into a cache-friendly, index-based layout for hot traversal loops
+	 * (`Float32Array` of AABBs + `Int32Array` of child indices, instead of chasing `.left`/`.right`
+	 * object pointers scattered across the heap). Traversing 2M individual GC'd node objects for a
+	 * 1M-triangle mesh means every node visit during a BVH walk is a fresh cache miss; a flat array
+	 * walk streams through contiguous memory instead. The original pointer-based `.tree` is left
+	 * intact and still used by the mesh-mesh/ray-intersect paths — this is purely an additive fast
+	 * path for the convex-vs-mesh hot loop, so a bug here can't affect the already-correct tree walk.
+	 *
+	 * Leaf/internal distinction is encoded in `children`: a leaf stores `-1 - leafIndex` (always < -1
+	 * counting from -1, so index 0 encodes as -1, distinguishable from "no node"); an internal node
+	 * stores its right-child flat index directly (>= 0) with the left child always immediately
+	 * following its parent in the array (standard depth-first flattening), so only one child index
+	 * needs to be stored per node.
+	 *
+	 * @method flatten
+	 * @static
+	 * @param root {BVHNode}
+	 * @return {Object} { aabbs: Float32Array, rightOrLeaf: Int32Array, leafObjects: Array, nodeCount: Number }
+	 */
+	Goblin.BVH.flatten = function( root ) {
+		// Iterative, not recursive: a large mesh's node count is O(N) even though depth is O(log N),
+		// and a naive recursive walk blows the JS call stack on a large tree.
+
+		// First pass: count nodes so the typed arrays can be allocated exactly once.
+		var nodeCount = 0;
+		var stack = [ root ];
+		while ( stack.length > 0 ) {
+			var n = stack.pop();
+			nodeCount++;
+			if ( !n.isLeaf() ) {
+				stack.push( n.left, n.right );
+			}
+		}
+
+		var aabbs = new Float32Array( nodeCount * 6 );
+		var rightOrLeaf = new Int32Array( nodeCount );
+		var leafObjects = new Array( nodeCount );
+
+		// Second pass: depth-first pre-order assignment of flat indices, so each internal node's left
+		// child always lands at parentIndex + 1 (only the right child's index needs to be stored).
+		// Uses an explicit stack of {node, index, rightPending} frames to stay iterative; `rightOrLeaf`
+		// for an internal node is patched in once its right subtree's root index is known, via a
+		// pending-patch list keyed by the parent's flat index.
+		var next = 0;
+		var pendingParent = []; // parallel arrays: flat index of parent awaiting its right child's index
+		var workStack = [ { node: root, parent: -1 } ];
+		while ( workStack.length > 0 ) {
+			var frame = workStack.pop();
+			var node = frame.node;
+			var i = next++;
+			var base = i * 6;
+			aabbs[base] = node.aabb.min.x;
+			aabbs[base + 1] = node.aabb.min.y;
+			aabbs[base + 2] = node.aabb.min.z;
+			aabbs[base + 3] = node.aabb.max.x;
+			aabbs[base + 4] = node.aabb.max.y;
+			aabbs[base + 5] = node.aabb.max.z;
+
+			if ( frame.parent >= 0 && frame.isRightChild ) {
+				rightOrLeaf[frame.parent] = i;
+			}
+
+			if ( node.isLeaf() ) {
+				rightOrLeaf[i] = -1 - i;
+				leafObjects[i] = node.object;
+			} else {
+				// Push right first so left is processed next (pop = LIFO), landing left at i + 1.
+				workStack.push( { node: node.right, parent: i, isRightChild: true } );
+				workStack.push( { node: node.left, parent: i, isRightChild: false } );
+			}
+		}
+
+		return { aabbs: aabbs, rightOrLeaf: rightOrLeaf, leafObjects: leafObjects, nodeCount: nodeCount };
 	};
 
 	Goblin.BVH.AAC = AAC;

@@ -13,8 +13,7 @@ Goblin.ContactManifoldList = function() {
 	 */
 	this.first = null;
 
-	// Pair-id -> manifold, kept alongside the linked list so getManifoldForObjects is O(1) instead of
-	// scanning every active manifold (hundreds of resting bodies means hundreds of calls per frame).
+	// Pair-id -> manifold, kept alongside the list for O(1) getManifoldForObjects lookup.
 	this._byKey = {};
 };
 
@@ -36,9 +35,7 @@ Goblin.ContactManifoldList.prototype.insert = function( contact_manifold ) {
 };
 
 /**
- * Removes a ContactManifold from the key index. Callers that unlink a manifold from the linked list
- * directly (e.g. NarrowPhase.updateContactManifolds) must also call this so the index doesn't hand back
- * a freed/reused manifold on the next getManifoldForObjects lookup for that pair.
+ * Removes a ContactManifold from the key index. Callers unlinking from the list directly must also call this.
  *
  * @method remove
  * @param {ContactManifold} contact_manifold
@@ -63,6 +60,9 @@ Goblin.ContactManifoldList.prototype.getManifoldForObjects = function( object_a,
 		manifold = Goblin.ObjectPool.getObject( 'ContactManifold' );
 		manifold.object_a = object_a;
 		manifold.object_b = object_b;
+		// A pooled manifold may carry a stale mesh-leaf cache from its previous pairing; clear it.
+		manifold._cachedTriangles = null;
+		manifold._cacheValid = false;
 		this.insert( manifold );
 	}
 

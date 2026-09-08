@@ -5,6 +5,8 @@
  * @constructor
  */
 Goblin.ContactManifold = function() {
+	this.id = Goblin.Utility.getUid();
+
 	/**
 	 * first body in the contact
 	 *
@@ -36,6 +38,12 @@ Goblin.ContactManifold = function() {
 	 * @type {ContactManifold}
 	 */
 	this.next_manifold = null;
+
+	// Mesh-narrowphase leaf cache (static mesh vs convex only) — see NarrowPhase.meshConvex.
+	this._cachedTriangles = null;
+	this._cachePosition = null;
+	this._cacheRotation = null;
+	this._cacheValid = false;
 };
 
 /**
@@ -112,10 +120,32 @@ Goblin.ContactManifold.prototype.findWeakestContact = function( new_contact ) {
  * @param contact {ContactDetails} the contact to add
  */
 Goblin.ContactManifold.prototype.addContact = function( contact ) {
-	//@TODO add feature-ids to detect duplicate contacts
 	var i;
 	var is_sphere_contact = contact.object_a.shape instanceof Goblin.SphereShape ||
 		contact.object_b.shape instanceof Goblin.SphereShape;
+
+	// Mesh-triangle contacts carry a stable per-frame triangle identity (see NarrowPhase.triangleConvex),
+	// letting an already-seated point stay seated (keeping its warm-start data) instead of losing a
+	// footrace against whichever triangle got tested first this frame. Proximity (0.02 threshold) is
+	// still required alongside identity: one triangle can generate several genuinely distinct contact
+	// points (e.g. all 4 corners of a resting box touching one large triangle), and identity alone would
+	// collapse them into one slot that teleports between corners frame to frame — injecting a phantom
+	// lever-arm swing that keeps a flat multi-point footprint from ever settling.
+	if ( contact._source_triangle != null ) {
+		for ( i = 0; i < this.points.length; i++ ) {
+			if ( this.points[i]._source_triangle === contact._source_triangle &&
+				this.points[i].contact_point.distanceTo( contact.contact_point ) <= 0.02 ) {
+				this.points[i].contact_point.copy( contact.contact_point );
+				this.points[i].contact_point_in_a.copy( contact.contact_point_in_a );
+				this.points[i].contact_point_in_b.copy( contact.contact_point_in_b );
+				this.points[i].contact_normal.copy( contact.contact_normal );
+				this.points[i].penetration_depth = contact.penetration_depth;
+				contact.destroy();
+				return;
+			}
+		}
+	}
+
 	for ( i = 0; i < this.points.length; i++ ) {
 		if ( this.points[i].contact_point.distanceTo( contact.contact_point ) <= 0.02 ) {
 			if ( is_sphere_contact ) {
@@ -163,10 +193,52 @@ Goblin.ContactManifold.prototype.addContact = function( contact ) {
  *
  * @method update
  */
+/**
+ * Recomputes each point's world position and penetration depth from the bodies' current transforms,
+ * without the staleness culling `update` does. For refreshing an existing manifold several times inside
+ * one tick (see PBDSolver substepping): `update`'s job is to retire points that have drifted apart
+ * between ticks, and running that judgement 5x per tick retires points that are merely mid-substep -
+ * measured on the 385-box pyramid, 38 of 1210 manifolds were emptied this way, and a box that lost the
+ * contacts under one side balanced on its remaining corner and yawed.
+ *
+ * @method refresh
+ */
+Goblin.ContactManifold.prototype.refresh = (function() {
+	var object_a_world_coords = new Goblin.Vector3(),
+		object_b_world_coords = new Goblin.Vector3(),
+		vector_difference = new Goblin.Vector3();
+
+	return function() {
+		for ( var i = 0; i < this.points.length; i++ ) {
+			var point = this.points[i];
+
+			point.object_a.transform.transformVector3Into( point.contact_point_in_a, object_a_world_coords );
+			point.object_b.transform.transformVector3Into( point.contact_point_in_b, object_b_world_coords );
+
+			point.contact_point.addVectors( object_a_world_coords, object_b_world_coords );
+			point.contact_point.scale( 0.5 );
+
+			vector_difference.subtractVectors( object_a_world_coords, object_b_world_coords );
+			point.penetration_depth = vector_difference.dot( point.contact_normal );
+
+			// Retire a point only once the surfaces have genuinely separated along the normal. The
+			// orthogonal-drift test `update` also applies is deliberately not repeated here: sliding is
+			// exactly what a substep is meant to resolve, and judging it mid-tick discards points that
+			// the next substep would have pulled back into place.
+			if ( point.penetration_depth < -0.02 ) {
+				point.destroy();
+				for ( var j = i; j < this.points.length - 1; j++ ) {
+					this.points[j] = this.points[j + 1];
+				}
+				this.points.length = this.points.length - 1;
+				i--;
+			}
+		}
+	};
+})();
+
 Goblin.ContactManifold.prototype.update = (function() {
-	// Reused across every call instead of allocated fresh each time — this runs once per active
-	// manifold, every step (hundreds with many resting bodies), and these are pure scratch space,
-	// never read after this function returns.
+	// Scratch space, reused across calls instead of allocated fresh each time.
 	var object_a_world_coords = new Goblin.Vector3(),
 		object_b_world_coords = new Goblin.Vector3(),
 		vector_difference = new Goblin.Vector3();

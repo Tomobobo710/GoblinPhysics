@@ -3,6 +3,7 @@
  * @constructor
  */
 Goblin.CompoundShapeChild = function( shape, position, rotation ) {
+	this.id = Goblin.Utility.getUid();
 	this.shape = shape;
 
 	this.position = new Goblin.Vector3( position.x, position.y, position.z );
